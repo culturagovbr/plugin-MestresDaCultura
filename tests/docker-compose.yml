@@ -1,0 +1,18 @@
+services:
+  mapas:
+    volumes:
+      # Habilita o plugin MDC + tema MestresDaCultura na suíte de testes do repositório principal,
+      # sem editar tests/config.d/ do core. "zz-mdc.d" ordena depois de "config.d" no glob de
+      # src/conf/config.php, então sobrescreve as chaves 'plugins' e 'themes.active'.
+      # Caminho relativo ao cwd esperado do `docker compose` (tests/ do repositório principal).
+      # Monta o DIRETÓRIO, e não o arquivo isolado — bind mount de arquivo único dentro de outro
+      # bind mount (../config:/var/www/config) falha no Docker Desktop/virtiofs (macOS) quando o
+      # subdiretório de destino ainda não existe no host.
+      - ../src/plugins/MDC/tests/config.d:/var/www/config/zz-mdc.d
+
+      # Testes do próprio plugin, montados como subpasta de /var/www/tests (mesmo destino de
+      # tests/src do core, mapeado por tests/docker-compose.yml). O autoload PSR-4 'Tests\\' =>
+      # '/var/www/tests' (composer.json) resolve "Tests\MDC\SmokeTest" para
+      # /var/www/tests/MDC/SmokeTest.php, então as classes deste plugin podem estender
+      # Tests\Abstract\TestCase e usar Tests\Traits\* normalmente.
+      - ../src/plugins/MDC/tests/src:/var/www/tests/MDC
