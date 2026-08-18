@@ -16,6 +16,21 @@ class Plugin extends \MapasCulturais\Plugin
     function _init()
     {
         $this->blockDisabledEntities();
+        $this->blockOpportunityCreation();
+    }
+
+    private function blockOpportunityCreation(): void
+    {
+        $app = \MapasCulturais\App::i();
+
+        $isTheme = fn (): bool => $app->view instanceof \MestresDaCultura\Theme;
+
+        // O plugin roda na instalação inteira; a oportunidade do programa nasce em outro subsite.
+        $app->hook('entity(Opportunity).canUser(create)', function ($user, &$result) use ($isTheme) {
+            if ($isTheme()) {
+                $result = false;
+            }
+        });
     }
 
     private function blockDisabledEntities(): void
