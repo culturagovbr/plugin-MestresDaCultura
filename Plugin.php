@@ -39,8 +39,9 @@ class Plugin extends \MapasCulturais\Plugin
             $app->pass();
         });
 
+        // ALL alcança todo método HTTP e nunca a API, que gera o prefixo API(...).
         foreach (['space' => 'spaces', 'project' => 'projects'] as $controller => $entity) {
-            $app->hook("GET({$controller}.<<*>>):before", function () use ($app, $entity, $isAllowed) {
+            $app->hook("ALL({$controller}.<<*>>):before", function () use ($app, $entity, $isAllowed) {
                 if (!$isAllowed($entity)) {
                     $app->pass();
                 }
