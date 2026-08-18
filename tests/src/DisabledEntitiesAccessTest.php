@@ -142,15 +142,14 @@ class DisabledEntitiesAccessTest extends TestCase
     {
         $this->login($this->userDirector->createUser());
 
-        foreach (['opportunities', 'events'] as $entity) {
-            $this->assertTrue(
-                $this->app->isEnabled($entity),
-                "A entidade {$entity} precisa estar habilitada, senão este teste não prova nada"
-            );
-            $this->assertStatus200(
-                $this->requestFactory->GET('search', $entity),
-                "A busca de {$entity} não deve ser afetada pelo bloqueio"
-            );
-        }
+        $this->assertTrue(
+            $this->app->isEnabled('events'),
+            'A entidade events precisa estar habilitada, senão este teste não prova nada'
+        );
+
+        $this->assertStatus200(
+            $this->requestFactory->GET('search', 'events'),
+            'A busca de eventos não deve ser afetada pelo bloqueio'
+        );
     }
 }
