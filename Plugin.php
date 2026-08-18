@@ -16,10 +16,10 @@ class Plugin extends \MapasCulturais\Plugin
     function _init()
     {
         $this->blockDisabledEntities();
-        $this->blockOpportunityCreation();
+        $this->blockOpportunityBrowsing();
     }
 
-    private function blockOpportunityCreation(): void
+    private function blockOpportunityBrowsing(): void
     {
         $app = \MapasCulturais\App::i();
 
@@ -29,6 +29,13 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('entity(Opportunity).canUser(create)', function ($user, &$result) use ($isTheme) {
             if ($isTheme()) {
                 $result = false;
+            }
+        });
+
+        // O tema roda sobre uma oportunidade fixa: não há o que listar.
+        $app->hook('GET(<<search|panel>>.opportunities):before', function () use ($app, $isTheme) {
+            if ($isTheme() && !$app->user->is('admin')) {
+                $app->pass();
             }
         });
     }
