@@ -55,6 +55,50 @@ class OpportunityAccessTest extends TestCase
         );
     }
 
+    private function panelOpportunitiesActions(): string
+    {
+        $this->app->reset();
+        $this->app->run($this->requestFactory->GET('panel', 'opportunities'), false);
+
+        $body = $this->app->response->getBody();
+        $body->rewind();
+
+        // O rótulo do botão também vive no template do componente, que vai na página inteira
+        // assim que ele é importado; só o trecho de ações do cabeçalho distingue os papéis.
+        preg_match('#panel-page__header-actions">(.*?)</div>#s', $body->getContents(), $matches);
+        $actions = $matches[1] ?? '';
+
+        $this->assertStringContainsString(
+            'opportunity-importer',
+            $actions,
+            'O trecho de ações do cabeçalho precisa ter sido extraído, senão a asserção passa à toa'
+        );
+
+        return $actions;
+    }
+
+    function testCreateButtonIsRenderedForSaasSuperAdmin()
+    {
+        $this->login($this->userDirector->createUser('saasSuperAdmin'));
+
+        $this->assertStringContainsString(
+            '<create-opportunity',
+            $this->panelOpportunitiesActions(),
+            'O super administrador do SaaS precisa do botão de criar oportunidade'
+        );
+    }
+
+    function testCreateButtonIsHiddenForAdmin()
+    {
+        $this->login($this->userDirector->createUser('admin'));
+
+        $this->assertStringNotContainsString(
+            '<create-opportunity',
+            $this->panelOpportunitiesActions(),
+            'Nenhum outro papel cria oportunidade por aqui'
+        );
+    }
+
     function testOpportunityBrowsingIsBlockedForRegularUser()
     {
         $this->login($this->userDirector->createUser());
