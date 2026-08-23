@@ -6,6 +6,8 @@ namespace MDC;
 // o plugin ser ignorado sem erro, e nenhuma classe ou subpasta pode conter `MDC` no nome.
 class Plugin extends \MapasCulturais\Plugin
 {
+    private ?Services\FixedOpportunity $fixedOpportunity = null;
+
     function register()
     {
     }
@@ -14,6 +16,11 @@ class Plugin extends \MapasCulturais\Plugin
     {
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
+    }
+
+    function fixedOpportunity(): Services\FixedOpportunity
+    {
+        return $this->fixedOpportunity ??= new Services\FixedOpportunity();
     }
 
     private function blockOpportunityBrowsing(): void
