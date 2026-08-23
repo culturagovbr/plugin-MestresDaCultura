@@ -44,6 +44,17 @@ class OpportunityAccessTest extends TestCase
         );
     }
 
+    function testSaasSuperAdminCanCreateOpportunity()
+    {
+        $user = $this->userDirector->createUser('saasSuperAdmin');
+        $this->login($user);
+
+        $this->assertTrue(
+            $this->newOpportunityOwnedBy($user)->canUser('create'),
+            'O super administrador do SaaS não sofre o bloqueio de criação'
+        );
+    }
+
     function testOpportunityBrowsingIsBlockedForRegularUser()
     {
         $this->login($this->userDirector->createUser());
