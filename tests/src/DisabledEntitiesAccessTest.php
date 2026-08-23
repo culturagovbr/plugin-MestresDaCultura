@@ -138,6 +138,23 @@ class DisabledEntitiesAccessTest extends TestCase
         );
     }
 
+    function testDisabledEntityRemainsOpenForSaasSuperAdmin()
+    {
+        $this->login($this->userDirector->createUser('saasSuperAdmin'));
+
+        foreach (self::DISABLED as $entity) {
+            $this->assertStatus200(
+                $this->requestFactory->GET('search', $entity),
+                "A busca de {$entity} deve liberar o super administrador do SaaS"
+            );
+
+            $this->assertStatus200(
+                $this->requestFactory->GET('panel', $entity),
+                "A lista de {$entity} no painel deve liberar o super administrador do SaaS"
+            );
+        }
+    }
+
     function testEnabledEntitiesRemainAccessible()
     {
         $this->login($this->userDirector->createUser());
