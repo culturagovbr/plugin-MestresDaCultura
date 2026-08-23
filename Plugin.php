@@ -2,11 +2,8 @@
 
 namespace MDC;
 
-/**
- * O namespace é `MDC` porque o autoloader registra temas antes de plugins num mapa plano de
- * namespace para diretório: repetindo `MestresDaCultura`, o plugin seria ignorado sem erro.
- * Pelo mesmo motivo, nenhuma classe ou subpasta daqui pode conter `MDC` no nome.
- */
+// O autoloader tem mapa plano e registra temas antes de plugins: repetir `MestresDaCultura` faria
+// o plugin ser ignorado sem erro, e nenhuma classe ou subpasta pode conter `MDC` no nome.
 class Plugin extends \MapasCulturais\Plugin
 {
     function register()
