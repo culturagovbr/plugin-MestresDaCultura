@@ -2,6 +2,11 @@
 
 namespace MDC;
 
+use MapasCulturais\ApiQuery;
+use MapasCulturais\App;
+use MapasCulturais\Entities\Registration;
+use MapasCulturais\i;
+
 // O autoloader tem mapa plano e registra temas antes de plugins: repetir `MestresDaCultura` faria
 // o plugin ser ignorado sem erro, e nenhuma classe ou subpasta pode conter `MDC` no nome.
 class Plugin extends \MapasCulturais\Plugin
@@ -10,6 +15,7 @@ class Plugin extends \MapasCulturais\Plugin
 
     function register()
     {
+        \MapasCulturais\App::i()->registerController('mdc', Controller::class);
     }
 
     function _init()
