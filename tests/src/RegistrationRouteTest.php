@@ -200,6 +200,121 @@ class RegistrationRouteTest extends TestCase
         );
     }
 
+    // A trava do servidor, independente da rota: quem monta a requisição à mão não pode
+    // conseguir um segundo cadastro.
+    private function postRegistration(Opportunity $opportunity, $owner): int
+    {
+        $this->app->reset();
+        $this->app->run($this->requestFactory->POST('registration', 'index', [], [
+            'opportunityId' => $opportunity->id,
+            'ownerId' => $owner->id,
+        ]), false);
+
+        return $this->app->response->getStatusCode();
+    }
+
+    function testASecondRegistrationIsRefusedEvenBypassingTheRoute()
+    {
+        $opportunity = $this->createOpportunity();
+        $this->configure($opportunity);
+
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+        $this->visit();
+
+        $status = $this->postRegistration($opportunity, $user->profile);
+
+        $this->assertEquals(400, $status, 'A segunda inscrição por requisição direta precisa ser recusada');
+        $this->assertCount(
+            1,
+            $this->registrationsOf($user, $opportunity),
+            'A segunda inscrição não pode chegar ao banco'
+        );
+    }
+
+    function testASecondRegistrationIsRefusedForAnotherAgentOfTheSameUser()
+    {
+        $opportunity = $this->createOpportunity();
+        $this->configure($opportunity);
+
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+        $this->visit();
+
+        $second = $this->agentBuilder->reset($user)->fillRequiredProperties()->save()->getInstance();
+
+        $this->assertEquals(
+            400,
+            $this->postRegistration($opportunity, $second),
+            'Trocar de agente não pode contornar a regra: a contagem é por pessoa'
+        );
+    }
+
+    // A trava é do programa, e o plugin roda na instalação inteira: não pode alcançar
+    // inscrição de outra oportunidade, sob pena de quebrar os demais subsites.
+    function testTheGuardDoesNotReachOtherOpportunities()
+    {
+        $fixed = $this->createOpportunity();
+        $other = $this->createOpportunity();
+        $this->configure($fixed);
+
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+        $this->visit();
+
+        $this->assertEquals(
+            200,
+            $this->postRegistration($other, $user->profile),
+            'Ter cadastro no programa não pode impedir inscrição em outra oportunidade'
+        );
+    }
+
+    function testARegistrationInTheTrashDoesNotBlockANewOne()
+    {
+        $opportunity = $this->createOpportunity();
+        $this->configure($opportunity);
+
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+        $this->visit();
+
+        // Inscrição não tem exclusão suave: o setter recusa o status de lixeira
+        // (Registration.php:1133), e esse estado só chega ao banco por escrita direta.
+        $registration = $this->registrationsOf($user, $opportunity)[0];
+        $this->app->em->createQuery(
+            'UPDATE MapasCulturais\Entities\Registration r SET r.status = :trash WHERE r.id = :id'
+        )
+            ->setParameter('trash', Registration::STATUS_TRASH)
+            ->setParameter('id', $registration->id)
+            ->execute();
+
+        $this->assertEquals(
+            200,
+            $this->postRegistration($opportunity, $user->profile),
+            'Cadastro na lixeira não conta: a pessoa precisa poder recomeçar'
+        );
+    }
+
+    function testTheFirstRegistrationByDirectRequestIsAllowed()
+    {
+        $opportunity = $this->createOpportunity();
+        $this->configure($opportunity);
+
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+
+        $this->assertEquals(
+            200,
+            $this->postRegistration($opportunity, $user->profile),
+            'A trava não pode barrar quem ainda não tem cadastro'
+        );
+        $this->assertCount(
+            1,
+            $this->registrationsOf($user, $opportunity),
+            'E a inscrição precisa ter sido criada de fato'
+        );
+    }
+
     function testDoesNotReuseARegistrationOfAnotherOpportunity()
     {
         $other = $this->createOpportunity();
