@@ -85,6 +85,30 @@ class Plugin extends \MapasCulturais\Plugin
                 $app->pass();
             }
         });
+
+        // Esconder o link não fecha a porta: sem isto, qualquer oportunidade da instalação
+        // abre por URL direta. Alcança toda ação do controlador, e não só a página.
+        $app->hook('ALL(opportunity.<<*>>):before', function () use ($app, $isTheme) {
+            if (!$isTheme() || $app->user->is('admin')) {
+                return;
+            }
+
+            $requested = $this->urlData['id'] ?? null;
+
+            if (!$requested) {
+                return;
+            }
+
+            $opportunity = $app->repo('Opportunity')->find((int) $requested);
+            $fixed = (new Services\FixedOpportunity)->get();
+
+            // A fase é filha da raiz e precisa passar junto: é ela que publica o resultado.
+            $root = $opportunity?->parent ?: $opportunity;
+
+            if (!$fixed || !$root || $root->id !== $fixed->id) {
+                $app->pass();
+            }
+        });
     }
 
     private function blockDisabledEntities(): void
