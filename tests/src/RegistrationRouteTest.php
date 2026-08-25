@@ -99,6 +99,27 @@ class RegistrationRouteTest extends TestCase
         );
     }
 
+    function testRefusesWhenTheOpportunityIsNotPublished()
+    {
+        $opportunity = $this->createOpportunity();
+        $opportunity->status = Opportunity::STATUS_DRAFT;
+        $opportunity->save(true);
+
+        $this->configure($opportunity);
+        $this->login($this->userDirector->createUser());
+
+        $log = new TestHandler();
+        $this->app->log->pushHandler($log);
+
+        [$status] = $this->visit();
+
+        $this->assertEquals(404, $status, 'Oportunidade em rascunho não pode receber cadastro');
+        $this->assertTrue(
+            $log->hasErrorThatContains('não está publicada'),
+            'O motivo da recusa precisa ficar evidente no log'
+        );
+    }
+
     function testCreatesTheRegistrationWhenTheUserHasNone()
     {
         $opportunity = $this->createOpportunity();
