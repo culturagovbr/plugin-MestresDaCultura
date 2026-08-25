@@ -25,8 +25,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->limitToOneRegistrationPerUser();
     }
 
-    // O core valida por agente responsável, e a pessoa pode ter mais de um agente. A trava
-    // por usuário é o que torna a regra impossível de burlar por requisição montada à mão.
+    // O limite do core conta por agente responsável, não por pessoa.
     private function limitToOneRegistrationPerUser(): void
     {
         App::i()->hook('entity(Registration).validations', function (&$validations) {
@@ -49,8 +48,7 @@ class Plugin extends \MapasCulturais\Plugin
             return true;
         }
 
-        // Contagem por consulta direta, e não por API: integridade precisa da verdade do
-        // banco, não do que o usuário da requisição enxerga.
+        // Integridade precisa da verdade do banco, não do que o usuário da requisição enxerga.
         $count = $app->em->createQuery(
             'SELECT COUNT(r.id) FROM MapasCulturais\Entities\Registration r
               JOIN r.owner a

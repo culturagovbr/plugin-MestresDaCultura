@@ -58,8 +58,6 @@ class Controller extends \MapasCulturais\Controller
             return null;
         }
 
-        // Mais de uma viola a regra de um cadastro por pessoa. Não é para acontecer, e se
-        // acontecer não pode passar em branco: a pessoa segue na mais antiga.
         if (count($found) > 1) {
             $ids = implode(', ', array_column($found, 'id'));
 
