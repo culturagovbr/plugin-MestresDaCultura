@@ -22,6 +22,12 @@ class Controller extends \MapasCulturais\Controller
             $app->pass();
         }
 
+        if ($opportunity->status !== Opportunity::STATUS_ENABLED) {
+            $app->log->error("MDC: a oportunidade {$opportunity->id} não está publicada; o cadastro não seria acessível a quem o criasse.");
+
+            $app->pass();
+        }
+
         if ($url = $this->existingUrl($opportunity)) {
             $app->redirect($url);
         }
