@@ -22,7 +22,8 @@ use MapasCulturais\Traits;
 class Node extends \MapasCulturais\Entity
 {
     use Traits\EntityNested,
-        Traits\EntitySoftDelete;
+        Traits\EntitySoftDelete,
+        Traits\EntityRevision;
 
     /**
      * @var integer

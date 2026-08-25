@@ -20,9 +20,18 @@ class Plugin extends \MapasCulturais\Plugin
 
     function _init()
     {
+        $this->registerTreeNodeObjectType();
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->limitToOneRegistrationPerUser();
+    }
+
+    // `object_type` é enum do Postgres e também lista fixa em PHP; o db-update cobre uma ponta, este hook a outra.
+    private function registerTreeNodeObjectType(): void
+    {
+        App::i()->hook('doctrine.emum(object_type).values', function (&$values) {
+            $values['TreeNode'] = Entities\Node::class;
+        });
     }
 
     // O limite do core conta por agente responsável, não por pessoa.

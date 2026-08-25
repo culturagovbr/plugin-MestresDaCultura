@@ -34,4 +34,18 @@ return [
         __exec('CREATE UNIQUE INDEX UNQ_mdc_tree_node_root ON mdc_tree_node (name) WHERE parent_id IS NULL AND status > 0');
     },
 
+    'mdc: registra o nó da árvore no enum object_type' => function () {
+        __exec('
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_enum
+                    WHERE enumlabel = \'MDC\Entities\Node\'
+                      AND enumtypid = (SELECT oid FROM pg_type WHERE typname = \'object_type\')
+                ) THEN
+                    ALTER TYPE object_type ADD VALUE \'MDC\Entities\Node\';
+                END IF;
+            END $$;
+        ');
+    },
 ];
