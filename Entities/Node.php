@@ -17,7 +17,7 @@ use MapasCulturais\Traits;
  * @ORM\Table(name="mdc_tree_node", indexes={
  *      @ORM\Index(name="IDX_mdc_tree_node_parent_order", columns={"parent_id", "display_order"})
  * })
- * @ORM\Entity(repositoryClass="MapasCulturais\Repository")
+ * @ORM\Entity(repositoryClass="MDC\Repositories\Node")
  */
 class Node extends \MapasCulturais\Entity
 {
