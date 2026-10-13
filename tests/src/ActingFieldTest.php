@@ -185,6 +185,76 @@ class ActingFieldTest extends TestCase
         $this->assertSame([], ActingField::removedFromTree(['nodes' => $this->snapshotOf($this->bruacas()), 'others' => []]));
     }
 
+    function testShowsTheAnswerInOneCardPerSegmentBuiltOnlyFromTheSnapshot()
+    {
+        $value = [
+            'nodes' => $this->snapshotOf([1, 4, 9, 10], ['Saberes e Ofícios', 'Artesanato', 'Couro', 'Biscoito']),
+            'others' => [['parent' => 9, 'text' => 'Couro de bode'], ['parent' => null, 'text' => 'Benzedura']],
+        ];
+
+        $this->assertSame(
+            '<div class="mdc-acting-view">'
+            . '<div class="mdc-acting-view__segment"><div class="mdc-acting-view__title">Saberes e Ofícios</div>'
+            . '<ul class="mdc-acting-view__tree"><li>Artesanato<ul><li>Couro<ul>'
+            . '<li>Biscoito</li><li class="mdc-acting-view__other">Outro: Couro de bode</li>'
+            . '</ul></li></ul></li></ul></div>'
+            . '<p class="mdc-acting-view__other">Outro (geral): Benzedura</p>'
+            . '</div>',
+            ActingField::toHtml($value)
+        );
+    }
+
+    function testShowsASegmentChosenAloneAsACardWithItsTitleOnly()
+    {
+        $value = ['nodes' => [['id' => 1, 'parent' => null, 'name' => 'Saberes e Ofícios']], 'others' => []];
+
+        $this->assertSame(
+            '<div class="mdc-acting-view"><div class="mdc-acting-view__segment"><div class="mdc-acting-view__title">Saberes e Ofícios</div></div></div>',
+            ActingField::toHtml($value)
+        );
+    }
+
+    function testEscapesNamesAndTextsInTheCards()
+    {
+        $value = ['nodes' => [['id' => 1, 'parent' => null, 'name' => '<b>Saberes</b>']], 'others' => [['parent' => 1, 'text' => '"x" & <script>']]];
+
+        $this->assertSame(
+            '<div class="mdc-acting-view"><div class="mdc-acting-view__segment"><div class="mdc-acting-view__title">&lt;b&gt;Saberes&lt;/b&gt;</div>'
+            . '<ul class="mdc-acting-view__tree"><li class="mdc-acting-view__other">Outro: &quot;x&quot; &amp; &lt;script&gt;</li></ul></div></div>',
+            ActingField::toHtml($value)
+        );
+    }
+
+    function testWritesTheAnswerAsOnePathPerLineForThePdf()
+    {
+        $value = [
+            'nodes' => [
+                ...$this->snapshotOf([1, 4, 9, 10], ['Saberes e Ofícios', 'Artesanato', 'Couro', 'Bruacas']),
+                ['id' => 152, 'parent' => null, 'name' => 'Expressões e Manifestações'],
+            ],
+            'others' => [['parent' => 9, 'text' => 'Couro de bode'], ['parent' => null, 'text' => 'Benzedura']],
+        ];
+
+        $this->assertSame(
+            "Saberes e Ofícios › Artesanato › Couro › Bruacas\n"
+            . "Saberes e Ofícios › Artesanato › Couro › Outro: Couro de bode\n"
+            . "Expressões e Manifestações\n"
+            . "Outro (geral): Benzedura",
+            ActingField::toText($value)
+        );
+    }
+
+    function testReadsAsTextOnlyWhatWasStored()
+    {
+        $this->assertNull(ActingField::unserializeAsText(null));
+        $this->assertSame('Saberes e Ofícios', ActingField::unserializeAsText('{"nodes":[{"id":1,"parent":null,"name":"Saberes e Ofícios"}],"others":[]}'));
+    }
+
+    function testShowsNothingForAnEmptyAnswer()
+    {
+        $this->assertSame('', ActingField::toHtml(['nodes' => [], 'others' => []]));
+    }
+
     private function registrationWithField(bool $required = true): array
     {
         // No tema, só o super administrador do SaaS cria oportunidade.

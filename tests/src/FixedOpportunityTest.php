@@ -8,11 +8,13 @@ use Monolog\Handler\TestHandler;
 use Tests\Abstract\TestCase;
 use Tests\Builders\PhasePeriods\Open;
 use Tests\Traits\OpportunityBuilder;
+use Tests\Traits\RegistrationDirector;
 use Tests\Traits\UserDirector;
 
 class FixedOpportunityTest extends TestCase
 {
     use OpportunityBuilder;
+    use RegistrationDirector;
     use UserDirector;
 
     private function withConfiguredId(mixed $id): FixedOpportunity
@@ -101,4 +103,20 @@ class FixedOpportunityTest extends TestCase
         );
     }
 
+    function testIncludesOnlyTheRegistrationsOfTheFixedOpportunity()
+    {
+        $fixed = $this->createOpportunity();
+        $other = $this->createOpportunity();
+        $service = $this->withConfiguredId($fixed->id);
+
+        $this->assertTrue(
+            $service->includes($this->registrationDirector->createDraftRegistrations($fixed, 1)[0]),
+            'A inscrição da oportunidade fixa faz parte dela'
+        );
+
+        $this->assertFalse(
+            $service->includes($this->registrationDirector->createDraftRegistrations($other, 1)[0]),
+            'A inscrição de outra oportunidade da instalação fica de fora'
+        );
+    }
 }
