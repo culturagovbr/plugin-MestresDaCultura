@@ -6,14 +6,14 @@ use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\RegistrationFieldConfiguration;
 
 /**
- * Paliativo: a ficha do v1 não tem exibição para as fotos (`@gallery`) e os vídeos (`@videos`) do agente,
- * que o core só passou a aceitar no formulário v2, e os mostra como `[object Object]`. Aqui eles viram
- * HTML. Sai quando o `registration-field-view.php` do core tratar esses campos, como já trata `@links`.
+ * Mostra em HTML, na ficha do v1, as fotos (`@gallery`) e os vídeos (`@videos`) do agente,
+ * e escreve fotos, vídeos e links (`@links`) como texto na planilha de inscrições.
  */
 class AgentMediaView
 {
     const GALLERY = '@gallery';
     const VIDEOS = '@videos';
+    const LINKS = '@links';
 
     /** @return RegistrationFieldConfiguration[] campos de fotos e vídeos do agente que a inscrição exibe */
     static function fieldsOf(Registration $registration): array
@@ -80,6 +80,41 @@ class AgentMediaView
         }
 
         return $html === '' ? '' : "<div class=\"mdc-media-view\">{$html}</div>";
+    }
+
+    // Fotos para a planilha de inscrições: "nome: endereço", separados por " | ".
+    static function photosAsCell(array $photos): string
+    {
+        $cells = [];
+
+        foreach ($photos as $photo) {
+            $photo = (array) $photo;
+            $url = self::linkable($photo['url'] ?? null);
+
+            if ($url !== null) {
+                $cells[] = (($photo['description'] ?? null) ?: ($photo['name'] ?? '')) . ": {$url}";
+            }
+        }
+
+        return implode(' | ', $cells);
+    }
+
+    // Vídeos e links para a planilha de inscrições: "Título: endereço", separados por " | ".
+    static function linksAsCell(array $links): string
+    {
+        $cells = [];
+
+        foreach ($links as $link) {
+            $link = (array) $link;
+            $value = trim((string) ($link['value'] ?? ''));
+            $title = trim((string) ($link['title'] ?? ''));
+
+            if ($value !== '') {
+                $cells[] = $title === '' ? $value : "{$title}: {$value}";
+            }
+        }
+
+        return implode(' | ', $cells);
     }
 
     // Só vira link o endereço http ou https.

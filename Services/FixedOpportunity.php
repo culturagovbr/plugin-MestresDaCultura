@@ -42,13 +42,17 @@ class FixedOpportunity
         return $this->opportunity = $opportunity;
     }
 
-    // A inscrição pode estar numa fase, que é filha da oportunidade fixa.
-    function includes(Registration $registration): bool
+    // A oportunidade fixa ou uma das fases dela, que são filhas dela.
+    function matches(?Opportunity $opportunity): bool
     {
         $fixed = $this->get();
-        $opportunity = $registration->opportunity;
         $root = $opportunity?->parent ?: $opportunity;
 
         return $fixed && $root?->id === $fixed->id;
+    }
+
+    function includes(Registration $registration): bool
+    {
+        return $this->matches($registration->opportunity);
     }
 }

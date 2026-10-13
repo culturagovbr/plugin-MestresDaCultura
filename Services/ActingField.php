@@ -149,9 +149,15 @@ class ActingField
      * A resposta em texto, um caminho por linha ("Saberes e Ofícios › Artesanato › Couro › Bruacas"),
      * para o PDF da ficha. Cada "Outro" sai no caminho onde foi escrito; o geral, por último.
      */
-    static function toText(array $value): string
+    static function toText(array $value, string $separator = "\n"): string
     {
-        return implode("\n", self::textPaths(self::groupByParent($value), self::ROOT, []));
+        return implode($separator, self::textPaths(self::groupByParent($value), self::ROOT, []));
+    }
+
+    // A resposta numa linha só, para a célula da planilha de inscrições.
+    static function toCell(array $value): string
+    {
+        return self::toText($value, ' | ');
     }
 
     // A resposta em texto, para o PDF da ficha.

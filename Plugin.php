@@ -5,6 +5,7 @@ namespace MDC;
 use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
 use MapasCulturais\Definitions\RegistrationFieldType;
+use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\i;
 
@@ -37,6 +38,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->showFieldsOnV1Reading();
         $this->renderPhotoViewer();
         $this->showActingFieldAsTextInPdf();
+        $this->adjustRegistrationsSpreadsheet();
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->limitToOneRegistrationPerUser();
@@ -165,7 +167,7 @@ class Plugin extends \MapasCulturais\Plugin
         $app = App::i();
 
         $app->hook('entity(Opportunity).registrationMetadata', function () use ($app) {
-            /** @var \MapasCulturais\Entities\Opportunity $this */
+            /** @var Opportunity $this */
             $controller = $app->view->controller ?? null;
 
             if ($controller?->id !== 'registration' || $controller->action !== 'exportPDF') {
@@ -179,6 +181,32 @@ class Plugin extends \MapasCulturais\Plugin
                     $definitions[$field->fieldName]->unserialize = [Services\ActingField::class, 'unserializeAsText'];
                 }
             }
+        });
+    }
+
+    // A planilha de inscrições não conhece a atuação e escreve mal fotos, vídeos e seções; os ajustes
+    // estão em Services\RegistrationsSpreadsheet.
+    private function adjustRegistrationsSpreadsheet(): void
+    {
+        $app = App::i();
+        $spreadsheet = new Services\RegistrationsSpreadsheet($this->fixedOpportunity());
+        $job = 'SpreadsheetJob(' . Services\RegistrationsSpreadsheet::JOB . ')';
+
+        $app->hook("{$job}.getHeader:after", function ($job, &$header) use ($spreadsheet) {
+            $spreadsheet->removeEmptyColumns($job->owner, $header);
+        });
+
+        $app->hook("{$job}.getBatch:before", function ($job, &$query) use ($spreadsheet) {
+            $spreadsheet->startBatch($job->owner, $query);
+        });
+
+        $app->hook('entity(Opportunity).registrationMetadata', function () use ($spreadsheet) {
+            /** @var Opportunity $this */
+            $spreadsheet->readAsCells($this);
+        });
+
+        $app->hook("{$job}.getBatch:after", function () use ($spreadsheet) {
+            $spreadsheet->finishBatch();
         });
     }
 
