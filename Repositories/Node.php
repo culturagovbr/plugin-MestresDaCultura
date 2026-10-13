@@ -2,8 +2,11 @@
 
 namespace MDC\Repositories;
 
+use MapasCulturais\Entities\Registration;
+use MDC\Dtos\CurationNode;
 use MDC\Dtos\TreeNode;
 use MDC\Entities\Node as NodeEntity;
+use MDC\Services\ActingField;
 
 class Node extends \MapasCulturais\Repository
 {
@@ -23,6 +26,22 @@ class Node extends \MapasCulturais\Repository
         );
 
         return $this->nest($this->groupByParent($nodes), self::ROOT);
+    }
+
+    /**
+     * Árvore inteira como a curadoria vê: com os desativados e o uso de cada item, sem a lixeira.
+     *
+     * @return CurationNode[]
+     */
+    function findCurationTree(): array
+    {
+        $nodes = $this->createQueryBuilder('n')
+            ->where('n.status != :trash')
+            ->setParameter('trash', NodeEntity::STATUS_TRASH)
+            ->orderBy('n.level', 'ASC')->addOrderBy('n.displayOrder', 'ASC')->addOrderBy('n.id', 'ASC')
+            ->getQuery()->getResult();
+
+        return $this->nestForCuration($this->groupByParent($nodes), self::ROOT, $this->countUsage());
     }
 
     /**
@@ -75,6 +94,58 @@ class Node extends \MapasCulturais\Repository
         }
 
         return $children_of;
+    }
+
+    /**
+     * Cadastros que marcaram cada item, pelo espelho gravado nas respostas da atuação, sem os da lixeira.
+     *
+     * @return array<int,array{sent: int, drafts: int}>
+     */
+    private function countUsage(): array
+    {
+        $rows = $this->_em->getConnection()->fetchAllAssociative(
+            "SELECT (node->>'id')::int AS id,
+                    COUNT(DISTINCT r.id) FILTER (WHERE r.status > :draft) AS sent,
+                    COUNT(DISTINCT r.id) FILTER (WHERE r.status = :draft) AS drafts
+               FROM registration_meta m
+               JOIN registration r ON r.id = m.object_id
+               JOIN registration_field_configuration f ON m.key = 'field_' || f.id AND f.field_type = :type
+              CROSS JOIN LATERAL jsonb_array_elements(m.value::jsonb -> 'nodes') AS node
+              WHERE m.value LIKE '{%'
+              GROUP BY 1",
+            ['draft' => Registration::STATUS_DRAFT, 'type' => ActingField::SLUG]
+        );
+
+        $usage = [];
+
+        foreach ($rows as $row) {
+            $usage[(int) $row['id']] = ['sent' => (int) $row['sent'], 'drafts' => (int) $row['drafts']];
+        }
+
+        return $usage;
+    }
+
+    /**
+     * @param array<int,NodeEntity[]> $children_of
+     * @param array<int,array{sent: int, drafts: int}> $usage
+     * @return CurationNode[]
+     */
+    private function nestForCuration(array $children_of, int $parent_id, array $usage): array
+    {
+        $branch = [];
+
+        foreach ($children_of[$parent_id] ?? [] as $node) {
+            $branch[] = new CurationNode(
+                $node->id,
+                $node->name,
+                $node->status === NodeEntity::STATUS_ENABLED,
+                $usage[$node->id]['sent'] ?? 0,
+                $usage[$node->id]['drafts'] ?? 0,
+                $this->nestForCuration($children_of, $node->id, $usage),
+            );
+        }
+
+        return $branch;
     }
 
     /**
