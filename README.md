@@ -13,3 +13,7 @@ Pelo mesmo mecanismo, a resolução substitui todas as ocorrências do namespace
 ## Habilitar
 
 Adicione `MDC` à lista `plugins` da configuração.
+
+## Componentes
+
+Os componentes Vue ficam em `components/` e o visual deles fica no tema `MestresDaCultura`. Mesmo sem CSS próprio, a pasta `assets/` precisa existir (por isso o `.gitkeep`): o core acha o `script.js` de um componente como `assets/../components/<nome>/script.js`, e sem ela as páginas que usam o componente quebram com `Asset not found`.

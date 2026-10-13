@@ -6,6 +6,7 @@ use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
+use MDC\Entities\Node;
 use MDC\Services\FixedOpportunity;
 
 class Controller extends \MapasCulturais\Controller
@@ -39,6 +40,12 @@ class Controller extends \MapasCulturais\Controller
         }
 
         $app->redirect($this->create($opportunity)->editUrl);
+    }
+
+    // Árvore pública, a mesma do cadastro.
+    function GET_tree()
+    {
+        $this->json(App::i()->repo(Node::class)->findTree());
     }
 
     // Sem `@permissions` a consulta filtraria por `view` (ApiQuery.php:3582), que o cache de

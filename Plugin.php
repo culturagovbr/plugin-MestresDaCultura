@@ -4,6 +4,7 @@ namespace MDC;
 
 use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
+use MapasCulturais\Definitions\RegistrationFieldType;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\i;
 
@@ -15,12 +16,17 @@ class Plugin extends \MapasCulturais\Plugin
 
     function register()
     {
-        \MapasCulturais\App::i()->registerController('mdc', Controller::class);
+        $app = App::i();
+
+        $app->registerController('mdc', Controller::class);
+        $app->registerRegistrationFieldType(new RegistrationFieldType(Services\ActingField::definition()));
     }
 
     function _init()
     {
         $this->registerTreeNodeObjectType();
+        $this->renderActingField();
+        $this->validateActingFieldOnSend();
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->limitToOneRegistrationPerUser();
@@ -31,6 +37,42 @@ class Plugin extends \MapasCulturais\Plugin
     {
         App::i()->hook('doctrine.emum(object_type).values', function (&$values) {
             $values['TreeNode'] = Entities\Node::class;
+        });
+    }
+
+    // O `entity-field` não desenha tipos que não conhece; o componente devolve o valor como evento de input
+    // para o salvamento automático do core seguir valendo. Vai em toda página com `entity-field`: o Vue
+    // resolve o nome do componente mesmo dentro de `v-if` falso.
+    private function renderActingField(): void
+    {
+        App::i()->hook('template(<<*>>.<<*>>.entity-field-label):after', function () {
+            $this->import('mdc-acting-field');
+
+            $slug = Services\ActingField::SLUG;
+
+            echo <<<HTML
+                <mdc-acting-field v-if="is('{$slug}')" :entity="entity" :prop="prop" :disabled="readonly || disabled"
+                    @change="change({ target: { value: \$event } }, true)"></mdc-acting-field>
+            HTML;
+        });
+    }
+
+    // No envio o core só roda as validações `v::` do tipo; a da árvore entra por aqui.
+    private function validateActingFieldOnSend(): void
+    {
+        App::i()->hook('entity(Registration).sendValidationErrors', function (&$errors) {
+            /** @var Registration $this */
+            foreach ($this->opportunity->registrationFieldConfigurations as $field) {
+                if ($field->fieldType !== Services\ActingField::SLUG || !$this->isFieldVisisble($field)) {
+                    continue;
+                }
+
+                $value = $this->{$field->fieldName};
+
+                if ($value !== null && !Services\ActingField::isValid($value)) {
+                    $errors[$field->fieldName][] = Services\ActingField::invalidMessage();
+                }
+            }
         });
     }
 
