@@ -2,7 +2,7 @@
 
 Mapa mental da Árvore de Atuação na curadoria: "Atuação Cultural" no centro e os segmentos dos dois lados, na ordem do formulário (a primeira metade à direita, o resto à esquerda).
 
-- O SVG é montado pelo Vue; o d3 (`TreeMapD3`, de `assets-src/js/tree-map-d3.js`) só calcula as posições e cuida do zoom e do arraste.
+- O SVG é montado pelo Vue; o d3 (`TreeMapD3`, de `assets-src/js/tree-curation.js`) só calcula as posições e cuida do zoom e do arraste.
 - Cada ramo abre e fecha no círculo ao lado do item ("+N" quando fechado). Clicar no item o escolhe e abre o ramo dele.
 - Mostra, ao lado do nome, quantos cadastros enviados marcaram o item. Desativados aparecem tracejados e riscados.
 - A largura de cada caixa é medida com a fonte e o tamanho do `_mdc-tree-map.scss` do tema; se um mudar, o outro acompanha.

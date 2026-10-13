@@ -44,8 +44,7 @@ app.component('mdc-tree-map', {
     setup() {
         const text = Utils.getTexts('mdc-tree-map');
 
-        // substitui cada `%s` do texto pelo próximo argumento
-        const format = (key, ...values) => values.reduce((s, v) => s.replace('%s', v), text(key));
+        const format = (key, ...values) => MdcTreeText.format(text(key), ...values);
 
         return { text, format };
     },

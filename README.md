@@ -18,7 +18,7 @@ Adicione `MDC` à lista `plugins` da configuração e defina no ambiente `MDC_OP
 
 Os componentes Vue ficam em `components/` e o visual deles fica no tema `MestresDaCultura`. A exceção é a ficha da inscrição, uma tela do BaseV1 onde o CSS do tema não chega: o estilo dela fica aqui, em `assets-src/sass/` (compilado com `pnpm run build` em `assets/css/plugin-MDC.css`).
 
-As bibliotecas de que um componente precisa vão em `dependencies` no `package.json` e são expostas como global por um arquivo de `assets-src/js`, como no módulo Components do core: o mapa da curadoria usa partes do d3 (`assets-src/js/tree-map-d3.js`, global `TreeMapD3`), carregadas só na página da curadoria. O compilado fica versionado, então a implantação não precisa instalar pacotes.
+As bibliotecas de que um componente precisa vão em `dependencies` no `package.json` e são expostas como global por um arquivo de `assets-src/js`, como no módulo Components do core: a curadoria usa partes do d3 e os ajudantes de texto da árvore (`assets-src/js/tree-curation.js`, globais `TreeMapD3` e `MdcTreeText`), carregados só na página da curadoria. O compilado (`assets/` e `mix-manifest.json`) não é versionado: a imagem o gera com `pnpm run build` (`docker/Dockerfile`), e no dev o container compila ao subir.
 
 A pasta `assets/` precisa existir mesmo que fique vazia: o core acha o `script.js` de um componente como `assets/../components/<nome>/script.js`, e sem ela as páginas que usam o componente quebram com `Asset not found`.
 

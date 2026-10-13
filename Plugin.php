@@ -230,7 +230,7 @@ class Plugin extends \MapasCulturais\Plugin
                 $app->halt(403, i::__('Acesso restrito.'));
             }
 
-            $app->view->enqueueScript('app-v2', 'mdc-tree-map-d3', 'js/tree-map-d3.js');
+            $app->view->enqueueScript('app-v2', 'mdc-tree-curation', 'js/tree-curation.js');
 
             $this->render('mdc-tree-curation');
         });

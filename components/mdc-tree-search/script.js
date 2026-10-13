@@ -17,8 +17,7 @@ app.component('mdc-tree-search', {
         const text = Utils.getTexts('mdc-tree-search');
         const uid = Vue.useId();
 
-        // substitui cada `%s` do texto pelo próximo argumento
-        const format = (key, ...values) => values.reduce((s, v) => s.replace('%s', v), text(key));
+        const format = (key, ...values) => MdcTreeText.format(text(key), ...values);
 
         return { text, format, uid };
     },
@@ -36,7 +35,7 @@ app.component('mdc-tree-search', {
         items() {
             const items = [];
             const visit = (nodes, path) => nodes.forEach(node => {
-                items.push({ id: node.id, name: node.name, enabled: node.enabled, place: path.join(' › '), key: this.comparable(node.name) });
+                items.push({ id: node.id, name: node.name, enabled: node.enabled, place: path.join(' › '), key: MdcTreeText.comparable(node.name) });
                 visit(node.children, [...path, node.name]);
             });
 
@@ -46,7 +45,7 @@ app.component('mdc-tree-search', {
         },
 
         found() {
-            const query = this.comparable(this.query);
+            const query = MdcTreeText.comparable(this.query);
 
             return query.length < 2 ? [] : this.items.filter(item => item.key.includes(query));
         },
@@ -59,9 +58,6 @@ app.component('mdc-tree-search', {
     },
 
     methods: {
-        comparable(text) {
-            return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-        },
 
         choose(item) {
             this.open = false;

@@ -8,8 +8,7 @@ app.component('mdc-tree-others', {
     setup() {
         const text = Utils.getTexts('mdc-tree-others');
 
-        // substitui cada `%s` do texto pelo próximo argumento
-        const format = (key, ...values) => values.reduce((s, v) => s.replace('%s', v), text(key));
+        const format = (key, ...values) => MdcTreeText.format(text(key), ...values);
 
         return { text, format };
     },
@@ -62,13 +61,7 @@ app.component('mdc-tree-others', {
     methods: {
         async load() {
             try {
-                const response = await fetch(Utils.createUrl('mdc', 'curationOthers'), { headers: { Accept: 'application/json' } });
-
-                if (!response.ok) {
-                    throw new Error(response.status);
-                }
-
-                this.entries = await response.json();
+                this.entries = await this.curation.read('curationOthers');
             } catch {
                 this.failed = true;
             } finally {
@@ -79,22 +72,18 @@ app.component('mdc-tree-others', {
         targets(accept) {
             return Object.values(this.curation.index)
                 .filter(accept)
-                .map(({ node, path }) => ({ id: node.id, place: node.id ? path.join(' › ') : this.text('vira segmento'), key: this.comparable(path.join(' ')) }));
+                .map(({ node, path }) => ({ id: node.id, place: node.id ? path.join(' › ') : this.text('vira segmento'), key: MdcTreeText.comparable(path.join(' ')) }));
         },
 
         // O escolhido e as sugestões ficam sempre no topo; abaixo, o que a busca encontrar.
         found(targets) {
-            const query = this.comparable(this.query);
+            const query = MdcTreeText.comparable(this.query);
             const pinned = [this.chosen, ...(this.active?.suggestions || [])];
             const rank = target => (pinned.includes(target.id) ? pinned.indexOf(target.id) : pinned.length);
 
             return targets
                 .filter(target => pinned.includes(target.id) || !query || target.key.includes(query))
                 .sort((a, b) => rank(a) - rank(b) || a.place.localeCompare(b.place, 'pt-BR'));
-        },
-
-        comparable(text) {
-            return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
         },
 
         placeOf(entry) {

@@ -31,8 +31,7 @@ app.component('mdc-tree-node-panel', {
     setup() {
         const text = Utils.getTexts('mdc-tree-node-panel');
 
-        // substitui cada `%s` do texto pelo próximo argumento
-        const format = (key, ...values) => values.reduce((s, v) => s.replace('%s', v), text(key));
+        const format = (key, ...values) => MdcTreeText.format(text(key), ...values);
 
         return { text, format };
     },
@@ -104,12 +103,12 @@ app.component('mdc-tree-node-panel', {
 
             return Object.values(this.curation.index)
                 .filter(({ node, path }) => node.enabled && !inBranch.has(node.id) && node.id !== this.parent.id && path.length + 1 + need <= 4)
-                .map(({ node, path }) => ({ id: node.id, place: node.id ? path.join(' › ') : this.text('virar segmento'), key: this.comparable(path.join(' ')) }))
+                .map(({ node, path }) => ({ id: node.id, place: node.id ? path.join(' › ') : this.text('virar segmento'), key: MdcTreeText.comparable(path.join(' ')) }))
                 .sort((a, b) => a.place.localeCompare(b.place, 'pt-BR'));
         },
 
         moveFound() {
-            const query = this.comparable(this.moveQuery);
+            const query = MdcTreeText.comparable(this.moveQuery);
 
             return query ? this.moveTargets.filter(target => target.key.includes(query)) : this.moveTargets;
         },
@@ -140,12 +139,12 @@ app.component('mdc-tree-node-panel', {
 
             return Object.values(this.curation.index)
                 .filter(({ node }) => node.id && node.id !== this.node.id && !node.equivalentTo)
-                .map(({ node, path }) => ({ id: node.id, place: path.join(' › '), key: this.comparable(path.join(' ')) }))
+                .map(({ node, path }) => ({ id: node.id, place: path.join(' › '), key: MdcTreeText.comparable(path.join(' ')) }))
                 .sort((a, b) => a.place.localeCompare(b.place, 'pt-BR'));
         },
 
         equivalenceFound() {
-            const query = this.comparable(this.equivalenceQuery);
+            const query = MdcTreeText.comparable(this.equivalenceQuery);
 
             return query ? this.equivalenceTargets.filter(target => target.key.includes(query)) : this.equivalenceTargets;
         },
@@ -170,10 +169,6 @@ app.component('mdc-tree-node-panel', {
 
         when(timestamp) {
             return new Date(timestamp.replace(' ', 'T')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-        },
-
-        comparable(text) {
-            return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         },
 
         startMove() {

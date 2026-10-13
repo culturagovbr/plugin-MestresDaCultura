@@ -4,8 +4,10 @@ app.component('mdc-tree-curation', {
     setup() {
         const text = Utils.getTexts('mdc-tree-curation');
         const messages = useMessages();
+        // Sem cache: a árvore e a fila mudam a cada ação.
+        const api = new API('mdc', 'curation', { cacheMode: 'no-store' });
 
-        return { text, messages };
+        return { text, messages, api };
     },
 
     // O painel do item chama as ações por aqui.
@@ -51,7 +53,7 @@ app.component('mdc-tree-curation', {
         },
 
         exportUrl() {
-            return Utils.createUrl('mdc', 'curationExport');
+            return this.api.createUrl('curationExport');
         },
 
         current() {
@@ -77,8 +79,7 @@ app.component('mdc-tree-curation', {
         // Conta a fila para o rótulo da aba; depois de aberta, a fila atualiza a contagem.
         async countOthers() {
             try {
-                const response = await fetch(Utils.createUrl('mdc', 'curationOthers'), { headers: { Accept: 'application/json' } });
-                this.pendingOthers = response.ok ? (await response.json()).filter(entry => !entry.decision).length : 0;
+                this.pendingOthers = (await this.read('curationOthers')).filter(entry => !entry.decision).length;
             } catch {
                 this.pendingOthers = 0;
             }
@@ -92,13 +93,7 @@ app.component('mdc-tree-curation', {
 
         async load() {
             try {
-                const response = await fetch(Utils.createUrl('mdc', 'curationTree'), { headers: { Accept: 'application/json' } });
-
-                if (!response.ok) {
-                    throw new Error(response.status);
-                }
-
-                this.tree = await response.json();
+                this.tree = await this.read('curationTree');
             } catch {
                 this.failed = true;
             } finally {
@@ -109,12 +104,21 @@ app.component('mdc-tree-curation', {
         // Histórico de um item (lista vazia se não deu para carregar).
         async history(id) {
             try {
-                const response = await fetch(Utils.createUrl('mdc', 'curationHistory', { id }), { headers: { Accept: 'application/json' } });
-
-                return response.ok ? await response.json() : [];
+                return await this.read('curationHistory', { id });
             } catch {
                 return [];
             }
+        },
+
+        // Lê uma rota da curadoria; falha (inclusive recusa) vira erro, para quem chama decidir o que mostrar.
+        async read(route, query) {
+            const response = await this.api.GET(this.api.createUrl(route, query));
+
+            if (!response.ok) {
+                throw new Error(response.status);
+            }
+
+            return response.json();
         },
 
         /**
@@ -127,11 +131,7 @@ app.component('mdc-tree-curation', {
             this.busy = true;
 
             try {
-                const response = await fetch(Utils.createUrl('mdc', action), {
-                    method: 'POST',
-                    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
-                });
+                const response = await this.api.POST(this.api.createUrl(action), data);
                 const result = await response.json().catch(() => null);
 
                 if (!response.ok) {
@@ -208,9 +208,8 @@ app.component('mdc-tree-curation', {
             return !!(await this.act('curationEnable', { id: this.selected }, this.format('reativado', this.current.node.name)));
         },
 
-        // substitui cada `%s` do texto pelo próximo argumento
         format(key, ...values) {
-            return values.reduce((s, v) => s.replace('%s', v), this.text(key));
+            return MdcTreeText.format(this.text(key), ...values);
         },
     },
 });
