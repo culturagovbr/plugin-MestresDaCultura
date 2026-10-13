@@ -21,6 +21,9 @@ class Plugin extends \MapasCulturais\Plugin
     {
         $app = App::i();
 
+        // Ids da oportunidade e dos selos, do ambiente e sem padrão; valem também nos jobs da linha de comando.
+        $app->config[Services\FixedOpportunity::CONFIG_KEY] ??= env('MDC_OPPORTUNITY_ID');
+
         $app->registerController('mdc', Controller::class);
         $app->registerRegistrationFieldType(new RegistrationFieldType(Services\ActingField::definition()));
     }
