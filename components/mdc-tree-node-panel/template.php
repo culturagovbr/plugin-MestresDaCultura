@@ -59,6 +59,30 @@ $this->import('
             </template>
         </mc-modal>
 
+        <mc-modal v-if="!isRoot && node.enabled" :title="format('mover titulo', node.name)" @open="startMove">
+            <template #default>
+                <div class="field">
+                    <label for="mdc-tree-mover-busca">{{text('para onde')}}</label>
+                    <input id="mdc-tree-mover-busca" v-model="moveQuery" type="search" autocomplete="off" :placeholder="text('para onde exemplo')">
+                </div>
+                <ul class="mdc-tree-node-panel__picker">
+                    <li v-for="target in moveFound.slice(0, moveLimit)" :key="target.id">
+                        <button type="button" class="mdc-tree-node-panel__pick" :aria-pressed="target.id === moveTarget" @click="moveTarget = target.id">{{target.place}}</button>
+                    </li>
+                    <li v-if="!moveFound.length" class="mdc-tree-node-panel__empty">{{text('nenhum destino')}}</li>
+                    <li v-if="moveFound.length > moveLimit" class="mdc-tree-node-panel__empty">{{format('mais destinos', moveFound.length - moveLimit)}}</li>
+                </ul>
+                <p class="mdc-tree-node-panel__hint">{{branch.all ? format('mover ramo', branch.all) : text('mover sozinho')}} {{text('mover regra')}}</p>
+            </template>
+            <template #actions="modal">
+                <button type="button" class="button button--text" @click="modal.close()">{{text('cancelar')}}</button>
+                <button type="button" class="button button--primary" :disabled="moveTarget === null" @click="run(modal, () => curation.move(moveTarget))">{{text('mover')}}</button>
+            </template>
+            <template #button="modal">
+                <button type="button" class="button button--sm button--primary-outline" :disabled="busy || !moveTargets.length" @click="modal.open()">{{text('mover botao')}}</button>
+            </template>
+        </mc-modal>
+
         <mc-modal v-if="!isRoot && node.enabled" :title="format('desativar titulo', node.name)">
             <template #default>
                 <p>{{branch.all ? format('desativar ramo', branch.active) : text('desativar sozinho')}}</p>

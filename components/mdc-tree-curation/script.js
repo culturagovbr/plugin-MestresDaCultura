@@ -138,6 +138,13 @@ app.component('mdc-tree-curation', {
             return !!result;
         },
 
+        async move(parentId) {
+            const name = this.current.node.name;
+            const place = parentId ? this.index[parentId].path.join(' › ') : this.text('raiz');
+
+            return !!(await this.act('curationMove', { id: this.selected, parent: parentId || null }, this.format('movido', name, place)));
+        },
+
         async disable() {
             return !!(await this.act('curationDisable', { id: this.selected }, this.format('desativado', this.current.node.name)));
         },

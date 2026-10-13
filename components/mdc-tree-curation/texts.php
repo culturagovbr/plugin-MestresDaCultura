@@ -18,4 +18,5 @@ return [
     'adicionado' => i::__('"%s" foi adicionado em %s.'),
     'desativado' => i::__('"%s" saiu da lista do formulário.'),
     'reativado' => i::__('"%s" voltou para a lista do formulário.'),
+    'movido' => i::__('"%s" foi para %s.'),
 ];
