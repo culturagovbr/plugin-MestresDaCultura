@@ -1,0 +1,1264 @@
+[
+  {
+    "name": "Saberes e Ofícios",
+    "children": [
+      {
+        "name": "Artífice",
+        "children": [
+          {
+            "name": "Enxaimel"
+          }
+        ]
+      },
+      {
+        "name": "Artesanato",
+        "children": [
+          {
+            "name": "Barro",
+            "children": [
+              {
+                "name": "Panela"
+              }
+            ]
+          },
+          {
+            "name": "Cerâmica"
+          },
+          {
+            "name": "Cerâmica Marajoara"
+          },
+          {
+            "name": "Couro",
+            "children": [
+              {
+                "name": "Bruacas"
+              },
+              {
+                "name": "Charruas"
+              },
+              {
+                "name": "Tranças"
+              }
+            ]
+          },
+          {
+            "name": "Ferro"
+          },
+          {
+            "name": "Miriti"
+          },
+          {
+            "name": "Balata"
+          },
+          {
+            "name": "Renda",
+            "children": [
+              {
+                "name": "Bilros"
+              }
+            ]
+          },
+          {
+            "name": "Lã natural"
+          },
+          {
+            "name": "Fibras naturais",
+            "children": [
+              {
+                "name": "Cestaria"
+              }
+            ]
+          },
+          {
+            "name": "Fios"
+          },
+          {
+            "name": "Capim Dourado"
+          },
+          {
+            "name": "Palha",
+            "children": [
+              {
+                "name": "Chapéu"
+              }
+            ]
+          },
+          {
+            "name": "Caixeta"
+          },
+          {
+            "name": "Xilogravura"
+          },
+          {
+            "name": "Brinquedos",
+            "children": [
+              {
+                "name": "Pipa"
+              },
+              {
+                "name": "Boneco"
+              },
+              {
+                "name": "Bonecões"
+              }
+            ]
+          },
+          {
+            "name": "Instrumentos de Pesca"
+          },
+          {
+            "name": "Estandarte"
+          },
+          {
+            "name": "Tecelagem Tradicional",
+            "children": [
+              {
+                "name": "Fibras naturais"
+              },
+              {
+                "name": "Tecidos"
+              }
+            ]
+          },
+          {
+            "name": "Olaria",
+            "children": [
+              {
+                "name": "Tapeçarias"
+              },
+              {
+                "name": "Barro"
+              },
+              {
+                "name": "Argila"
+              }
+            ]
+          },
+          {
+            "name": "Escultura",
+            "children": [
+              {
+                "name": "Cerâmica"
+              },
+              {
+                "name": "Madeira"
+              },
+              {
+                "name": "Ferro"
+              }
+            ]
+          },
+          {
+            "name": "Arte Santeira",
+            "children": [
+              {
+                "name": "Madeira"
+              },
+              {
+                "name": "Cerâmica"
+              },
+              {
+                "name": "Ferro"
+              }
+            ]
+          },
+          {
+            "name": "Caretas e Máscaras",
+            "children": [
+              {
+                "name": "Madeira"
+              },
+              {
+                "name": "Pano"
+              },
+              {
+                "name": "Máscaras de Papangu"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Artes Plásticas/Visuais",
+        "children": [
+          {
+            "name": "Pintura"
+          },
+          {
+            "name": "Fotografia"
+          }
+        ]
+      },
+      {
+        "name": "Carpintarias",
+        "children": [
+          {
+            "name": "Carpintaria Naval",
+            "children": [
+              {
+                "name": "Construção de embarcações"
+              }
+            ]
+          },
+          {
+            "name": "Carpintaria",
+            "children": [
+              {
+                "name": "Confecção de carros de bois"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Luthieria",
+        "children": [
+          {
+            "name": "Rabeca"
+          },
+          {
+            "name": "Violas"
+          },
+          {
+            "name": "Tambores"
+          },
+          {
+            "name": "Pífano"
+          },
+          {
+            "name": "Flautas"
+          }
+        ]
+      },
+      {
+        "name": "Alimento e Culinária Tradicional",
+        "children": [
+          {
+            "name": "Espaços",
+            "children": [
+              {
+                "name": "Casa de Farinha (Farinhada)"
+              }
+            ]
+          },
+          {
+            "name": "Culinária Tradicional",
+            "children": [
+              {
+                "name": "Comida de Santo"
+              }
+            ]
+          },
+          {
+            "name": "Alimentos Tradicionais",
+            "children": [
+              {
+                "name": "Mandioca"
+              },
+              {
+                "name": "Farinha D'água"
+              },
+              {
+                "name": "Baião"
+              }
+            ]
+          },
+          {
+            "name": "Bebidas Tradicionais",
+            "children": [
+              {
+                "name": "Guaraná"
+              },
+              {
+                "name": "Bebida tradicional consertada"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Espiritualidade e Medicina Popular e Tradicional",
+        "children": [
+          {
+            "name": "Espiritualidades, Curas e Natureza",
+            "children": [
+              {
+                "name": "Benzedeira"
+              },
+              {
+                "name": "Rezadeira"
+              },
+              {
+                "name": "Ayahuasca"
+              },
+              {
+                "name": "Jurema"
+              }
+            ]
+          },
+          {
+            "name": "Medicina Tradicional, Curas e Natureza",
+            "children": [
+              {
+                "name": "Parteira"
+              },
+              {
+                "name": "Raizeira"
+              },
+              {
+                "name": "Erveira"
+              },
+              {
+                "name": "Mateira / Mateiro"
+              },
+              {
+                "name": "Cipozeira / Cipozeiro"
+              },
+              {
+                "name": "Plantas Medicinais"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Práticas Territoriais",
+        "children": [
+          {
+            "name": "Campo, Águas e Florestas",
+            "children": [
+              {
+                "name": "Vaqueiro"
+              },
+              {
+                "name": "Pescador"
+              },
+              {
+                "name": "Catadores de Mangaba"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Celebrações e Rituais",
+    "children": [
+      {
+        "name": "Carnaval",
+        "children": [
+          {
+            "name": "Escola de Samba"
+          },
+          {
+            "name": "Lavagem de escadarias"
+          },
+          {
+            "name": "Desfile"
+          },
+          {
+            "name": "Bloco"
+          },
+          {
+            "name": "Cortejo"
+          },
+          {
+            "name": "Afoxé",
+            "children": [
+              {
+                "name": "Bloco"
+              },
+              {
+                "name": "Cortejo"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Festas Juninas",
+        "children": [
+          {
+            "name": "Quadrilha Junina"
+          },
+          {
+            "name": "Pássaro Junino",
+            "children": [
+              {
+                "name": "Cordão de Pássaros"
+              }
+            ]
+          },
+          {
+            "name": "Matutagem"
+          }
+        ]
+      },
+      {
+        "name": "Folia de Reis",
+        "children": [
+          {
+            "name": "Reisado",
+            "children": [
+              {
+                "name": "Violeiro"
+              }
+            ]
+          },
+          {
+            "name": "Festa de Santos Reis/Festa de Reis"
+          },
+          {
+            "name": "Terno de Reis"
+          }
+        ]
+      },
+      {
+        "name": "Ciclo Natalino",
+        "children": [
+          {
+            "name": "Pastoril",
+            "children": [
+              {
+                "name": "Guerreiro"
+              }
+            ]
+          },
+          {
+            "name": "Auto de Natal"
+          }
+        ]
+      },
+      {
+        "name": "Folia/Festa do Divino",
+        "children": [
+          {
+            "name": "Festa do Divino Espírito Santo"
+          },
+          {
+            "name": "Música",
+            "children": [
+              {
+                "name": "Compositor (a)"
+              },
+              {
+                "name": "Caixeiro (a)"
+              },
+              {
+                "name": "Cantoria"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Cavalgada"
+      },
+      {
+        "name": "Festas de Santos/Devocional",
+        "children": [
+          {
+            "name": "Festa de Nossa Senhora do Rosário / Festa do Rosário",
+            "children": [
+              {
+                "name": "Pontões"
+              }
+            ]
+          },
+          {
+            "name": "Festa de São Benedito"
+          },
+          {
+            "name": "Festa de São Gonçalo",
+            "children": [
+              {
+                "name": "Romaria"
+              }
+            ]
+          },
+          {
+            "name": "Festa da Nossa Senhora da Piedade"
+          },
+          {
+            "name": "Romaria",
+            "children": [
+              {
+                "name": "Romeiro (a)"
+              }
+            ]
+          },
+          {
+            "name": "Ladainhas"
+          }
+        ]
+      },
+      {
+        "name": "Candomblé",
+        "children": [
+          {
+            "name": "Terreiro"
+          }
+        ]
+      },
+      {
+        "name": "Umbanda",
+        "children": [
+          {
+            "name": "Terreiro"
+          }
+        ]
+      },
+      {
+        "name": "Cabula",
+        "children": [
+          {
+            "name": "Terreiro"
+          }
+        ]
+      },
+      {
+        "name": "Vodum"
+      },
+      {
+        "name": "Tambor de Mina"
+      },
+      {
+        "name": "Kizumba"
+      },
+      {
+        "name": "Afoxé",
+        "children": [
+          {
+            "name": "Cortejo"
+          },
+          {
+            "name": "Bloco"
+          }
+        ]
+      },
+      {
+        "name": "Terreiro",
+        "children": [
+          {
+            "name": "Cantos de Terreiro"
+          }
+        ]
+      },
+      {
+        "name": "Cavalhada"
+      }
+    ]
+  },
+  {
+    "name": "Expressões e Manifestações",
+    "children": [
+      {
+        "name": "Samba",
+        "children": [
+          {
+            "name": "Samba de Roda",
+            "children": [
+              {
+                "name": "Sambadeira"
+              }
+            ]
+          },
+          {
+            "name": "Samba de Terreiro"
+          },
+          {
+            "name": "Samba-Enredo"
+          },
+          {
+            "name": "Partido-Alto"
+          },
+          {
+            "name": "Samba de Breque"
+          }
+        ]
+      },
+      {
+        "name": "Samba de Roda",
+        "children": [
+          {
+            "name": "Samba Chula",
+            "children": [
+              {
+                "name": "Sambadeira"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Maracatu",
+        "children": [
+          {
+            "name": "Maracatu Nação (Baque Virado)"
+          },
+          {
+            "name": "Maracatu Rural (Baque Solto)"
+          }
+        ]
+      },
+      {
+        "name": "Ciranda"
+      },
+      {
+        "name": "Frevo"
+      },
+      {
+        "name": "Coco",
+        "children": [
+          {
+            "name": "Samba de Coco"
+          },
+          {
+            "name": "Coco de Roda"
+          },
+          {
+            "name": "Coco de Embolada"
+          },
+          {
+            "name": "Coco de Praia"
+          },
+          {
+            "name": "Coco de Umbigada"
+          },
+          {
+            "name": "Coco de Toré"
+          },
+          {
+            "name": "Coco de parea"
+          },
+          {
+            "name": "Coco Trupé"
+          }
+        ]
+      },
+      {
+        "name": "Tambor de Crioula"
+      },
+      {
+        "name": "Congada / Congado / Congo",
+        "children": [
+          {
+            "name": "Ternos de Congo"
+          },
+          {
+            "name": "Ternos de Catopês"
+          }
+        ]
+      },
+      {
+        "name": "Moçambique"
+      },
+      {
+        "name": "Ticumbi"
+      },
+      {
+        "name": "Marabaixo"
+      },
+      {
+        "name": "Catira"
+      },
+      {
+        "name": "Fandango",
+        "children": [
+          {
+            "name": "Fandango Caiçara"
+          }
+        ]
+      },
+      {
+        "name": "Siriri"
+      },
+      {
+        "name": "Cururu"
+      },
+      {
+        "name": "Caboclinho"
+      },
+      {
+        "name": "Folguedos",
+        "children": [
+          {
+            "name": "Mané do Rosário"
+          },
+          {
+            "name": "Baianas"
+          },
+          {
+            "name": "Guerreiro"
+          },
+          {
+            "name": "Burrinha de Dinê"
+          }
+        ]
+      },
+      {
+        "name": "Maculêlê"
+      },
+      {
+        "name": "Capoeira",
+        "children": [
+          {
+            "name": "Capoeira Angola",
+            "children": [
+              {
+                "name": "Percussão"
+              }
+            ]
+          },
+          {
+            "name": "Capoeira Regional"
+          }
+        ]
+      },
+      {
+        "name": "Bacamarte",
+        "children": [
+          {
+            "name": "Bacamarteiros"
+          }
+        ]
+      },
+      {
+        "name": "Mineiro Pau"
+      },
+      {
+        "name": "Maneiro Pau"
+      },
+      {
+        "name": "Cacuriá"
+      },
+      {
+        "name": "Batuque de Umbigada"
+      },
+      {
+        "name": "Nagô",
+        "children": [
+          {
+            "name": "Brincante do Nagô"
+          }
+        ]
+      },
+      {
+        "name": "Balandê"
+      },
+      {
+        "name": "Jongo",
+        "children": [
+          {
+            "name": "Jongueiro"
+          }
+        ]
+      },
+      {
+        "name": "Caxambu"
+      },
+      {
+        "name": "Tropeiro"
+      },
+      {
+        "name": "Chamamé"
+      },
+      {
+        "name": "Cacumbi"
+      },
+      {
+        "name": "Danças Populares",
+        "children": [
+          {
+            "name": "Dança de São Gonçalo"
+          },
+          {
+            "name": "Dança da Cana Verde"
+          },
+          {
+            "name": "Dança de Mangaba e Lindô"
+          },
+          {
+            "name": "Dança do Caroço"
+          },
+          {
+            "name": "Dança de Roda",
+            "children": [
+              {
+                "name": "Bambelô"
+              }
+            ]
+          },
+          {
+            "name": "Dança do Urubu"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Teatro e Brincadeiras",
+    "children": [
+      {
+        "name": "Boi",
+        "children": [
+          {
+            "name": "Bumba meu Boi"
+          },
+          {
+            "name": "Boi-Bumbá",
+            "children": [
+              {
+                "name": "Jabuti Bumbá"
+              }
+            ]
+          },
+          {
+            "name": "Boi de Mamão"
+          },
+          {
+            "name": "Boi de Reis"
+          },
+          {
+            "name": "Boi Pintadinho"
+          },
+          {
+            "name": "Boi Calemba"
+          }
+        ]
+      },
+      {
+        "name": "Mamulengo"
+      },
+      {
+        "name": "Cavalo-Marinho",
+        "children": [
+          {
+            "name": "Cavalo-Marinho de Bombo"
+          }
+        ]
+      },
+      {
+        "name": "Chegança"
+      },
+      {
+        "name": "Marujada"
+      },
+      {
+        "name": "Palhaçaria"
+      },
+      {
+        "name": "Bonecões"
+      },
+      {
+        "name": "Brincadeiras Tradicionais/Populares"
+      },
+      {
+        "name": "Teatro de Bonecos",
+        "children": [
+          {
+            "name": "Bonecos",
+            "children": [
+              {
+                "name": "Bonequeiro (a)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Teatro",
+        "children": [
+          {
+            "name": "Maquinário Teatral"
+          }
+        ]
+      },
+      {
+        "name": "Mímica"
+      }
+    ]
+  },
+  {
+    "name": "Expressões Orais e Literárias",
+    "children": [
+      {
+        "name": "Cordel"
+      },
+      {
+        "name": "Xilogravura"
+      },
+      {
+        "name": "Aboio"
+      },
+      {
+        "name": "Mestre Griô"
+      },
+      {
+        "name": "Trovas"
+      },
+      {
+        "name": "Versos"
+      },
+      {
+        "name": "Cantoria Popular e Tradicional",
+        "children": [
+          {
+            "name": "Repente",
+            "children": [
+              {
+                "name": "Repentista"
+              }
+            ]
+          },
+          {
+            "name": "Cantigas de Roda"
+          },
+          {
+            "name": "Vissungo"
+          }
+        ]
+      },
+      {
+        "name": "Hip Hop"
+      },
+      {
+        "name": "Literatura Popular",
+        "children": [
+          {
+            "name": "Dramas Populares"
+          },
+          {
+            "name": "Poesia"
+          },
+          {
+            "name": "Poesia Oral/Falada"
+          },
+          {
+            "name": "Acessibilidade",
+            "children": [
+              {
+                "name": "Braille"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Tradições Orais",
+        "children": [
+          {
+            "name": "Contação de Histórias"
+          },
+          {
+            "name": "Rodas de Conversa"
+          },
+          {
+            "name": "Poesia Oral ou Falada"
+          },
+          {
+            "name": "História Oral"
+          },
+          {
+            "name": "Aboio"
+          },
+          {
+            "name": "Hip Hop"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Música e Instrumentos Populares",
+    "children": [
+      {
+        "name": "Sanfona",
+        "children": [
+          {
+            "name": "Sanfoneiro"
+          }
+        ]
+      },
+      {
+        "name": "Viola",
+        "children": [
+          {
+            "name": "Violeiro"
+          },
+          {
+            "name": "Viola Caipira"
+          },
+          {
+            "name": "Viola de Cocho",
+            "children": [
+              {
+                "name": "Violeiro"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Pífanos",
+        "children": [
+          {
+            "name": "Pifeiro"
+          }
+        ]
+      },
+      {
+        "name": "Rabeca",
+        "children": [
+          {
+            "name": "Rabequeiro"
+          }
+        ]
+      },
+      {
+        "name": "Acordeon"
+      },
+      {
+        "name": "Concertina",
+        "children": [
+          {
+            "name": "Tocador"
+          }
+        ]
+      },
+      {
+        "name": "Bandolim"
+      },
+      {
+        "name": "Zabumba",
+        "children": [
+          {
+            "name": "Zabumbeiro"
+          }
+        ]
+      },
+      {
+        "name": "Tambores",
+        "children": [
+          {
+            "name": "Tambores Angola"
+          },
+          {
+            "name": "Tambores Japoneses"
+          }
+        ]
+      },
+      {
+        "name": "Flauta Artesanal"
+      },
+      {
+        "name": "Pandeiro"
+      },
+      {
+        "name": "Batuqueiro"
+      },
+      {
+        "name": "Percussão"
+      },
+      {
+        "name": "Caixa",
+        "children": [
+          {
+            "name": "Caixeira"
+          }
+        ]
+      },
+      {
+        "name": "Cantoria",
+        "children": [
+          {
+            "name": "Cantiga de roda",
+            "children": [
+              {
+                "name": "Cantador"
+              }
+            ]
+          },
+          {
+            "name": "Cantador"
+          }
+        ]
+      },
+      {
+        "name": "Forró",
+        "children": [
+          {
+            "name": "Arrasta-pé"
+          }
+        ]
+      },
+      {
+        "name": "Carimbó"
+      },
+      {
+        "name": "Música Popular",
+        "children": [
+          {
+            "name": "Música para a Infância"
+          },
+          {
+            "name": "Músico"
+          },
+          {
+            "name": "Musicista"
+          },
+          {
+            "name": "Cantor (a)"
+          },
+          {
+            "name": "Compositor (a)"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Identidades e Territórios",
+    "children": [
+      {
+        "name": "Cultura Afro-brasileira",
+        "children": [
+          {
+            "name": "Bantu",
+            "children": [
+              {
+                "name": "Penteados"
+              }
+            ]
+          },
+          {
+            "name": "Fon"
+          },
+          {
+            "name": "Yorubá"
+          }
+        ]
+      },
+      {
+        "name": "Cultura Andirobeira"
+      },
+      {
+        "name": "Cultura dos Apanhadores de Flores Sempre-Vivas"
+      },
+      {
+        "name": "Cultura dos Benzedeiros"
+      },
+      {
+        "name": "Cultura dos Caboclos"
+      },
+      {
+        "name": "Cultura Caiçara"
+      },
+      {
+        "name": "Cultura dos Catadores de Mangaba"
+      },
+      {
+        "name": "Cultura dos Povos da Caatinga"
+      },
+      {
+        "name": "Cultura dos Cipozeiros"
+      },
+      {
+        "name": "Cultura das Comunidades de Fundo e Fecho de Pasto"
+      },
+      {
+        "name": "Cultura Quilombola"
+      },
+      {
+        "name": "Cultura Extrativista"
+      },
+      {
+        "name": "Cultura dos Extrativista Costeiros e Marinhos"
+      },
+      {
+        "name": "Cultura dos Faxinalenses"
+      },
+      {
+        "name": "Cultura dos Geraizeiros"
+      },
+      {
+        "name": "Cultura dos Ilhéus"
+      },
+      {
+        "name": "Cultura dos Morroquianos"
+      },
+      {
+        "name": "Cultura dos Pantaneiros"
+      },
+      {
+        "name": "Cultura dos Pescadores Artesanais"
+      },
+      {
+        "name": "Cultura Pomerana"
+      },
+      {
+        "name": "Cultura Cigana"
+      },
+      {
+        "name": "Cultura das Comunidades de Terreiro"
+      },
+      {
+        "name": "Cultura dos Povo e Comunidades de Matriz Africana"
+      },
+      {
+        "name": "Cultura Indígena",
+        "children": [
+          {
+            "name": "Pintura"
+          }
+        ]
+      },
+      {
+        "name": "Cultura das Quebradeiras de Coco Babaçu"
+      },
+      {
+        "name": "Cultura dos Raizeiros"
+      },
+      {
+        "name": "Cultura dos Retireiros do Araguaia"
+      },
+      {
+        "name": "Cultura Ribeirinha"
+      },
+      {
+        "name": "Cultura dos Vazanteiros"
+      },
+      {
+        "name": "Cultura dos Veredeiros"
+      },
+      {
+        "name": "Cultura Açoriana"
+      },
+      {
+        "name": "Cultura Germânica",
+        "children": [
+          {
+            "name": "Língua Hunsrik"
+          }
+        ]
+      },
+      {
+        "name": "Cultura Ucraniana",
+        "children": [
+          {
+            "name": "Culinária"
+          }
+        ]
+      },
+      {
+        "name": "Cultura Japonesa",
+        "children": [
+          {
+            "name": "Tambores"
+          }
+        ]
+      }
+    ]
+  }
+]

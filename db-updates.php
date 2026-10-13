@@ -1,5 +1,8 @@
 <?php
 
+use MapasCulturais\App;
+use MDC\Entities\Node;
+
 use function MapasCulturais\__exec;
 use function MapasCulturais\__table_exists;
 
@@ -47,5 +50,40 @@ return [
                 END IF;
             END $$;
         ');
+    },
+
+    // Cria cada item pela entidade, com o nível e a revisão de criação.
+    'mdc: carrega a árvore de atuação' => function () {
+        $conn = App::i()->em->getConnection();
+
+        // Só carrega com a tabela vazia.
+        if ($conn->fetchOne('SELECT 1 FROM mdc_tree_node LIMIT 1')) {
+            return;
+        }
+
+        $tree = json_decode(file_get_contents(__DIR__ . '/data/atuacao.json'), true, flags: JSON_THROW_ON_ERROR);
+
+        $create = function (array $items, ?Node $parent) use (&$create) {
+            foreach ($items as $position => $item) {
+                $node = new Node;
+                $node->parent = $parent;
+                $node->name = $item['name'];
+                $node->displayOrder = $position + 1;
+                $node->save(true);
+
+                $create($item['children'] ?? [], $node);
+            }
+        };
+
+        // Carrega a árvore inteira numa transação.
+        $conn->beginTransaction();
+
+        try {
+            $create($tree, null);
+            $conn->commit();
+        } catch (\Throwable $e) {
+            $conn->rollBack();
+            throw $e;
+        }
     },
 ];
