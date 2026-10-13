@@ -2,7 +2,10 @@
 
 namespace MDC\Entities;
 
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\Mapping as ORM;
+use MapasCulturais\App;
 use MapasCulturais\Traits;
 
 /**
@@ -90,10 +93,41 @@ class Node extends \MapasCulturais\Entity
     {
         // `parent` só recebe o pai novo mais adiante, dentro do save.
         $parent = $this->getParent();
+        $previous_level = $this->level;
 
         $this->level = $parent ? $parent->level + 1 : 1;
 
         parent::save($flush);
+
+        if ($this->id && $this->level !== $previous_level) {
+            $this->shiftDescendantLevels($this->level - $previous_level);
+        }
+    }
+
+    // Ajusta direto no banco o nível dos descendentes do item movido, sem uma revisão por descendente.
+    private function shiftDescendantLevels(int $delta): void
+    {
+        $app = App::i();
+        $ids = $app->repo(self::class)->findDescendantIds($this->id);
+
+        if (!$ids) {
+            return;
+        }
+
+        $app->em->getConnection()->executeStatement(
+            'UPDATE mdc_tree_node SET level = level + ? WHERE id IN (?)',
+            [$delta, $ids],
+            [ParameterType::INTEGER, ArrayParameterType::INTEGER]
+        );
+
+        // Os já carregados nesta requisição passam a refletir o banco.
+        $unit_of_work = $app->em->getUnitOfWork();
+
+        foreach ($ids as $id) {
+            if ($node = $unit_of_work->tryGetById($id, self::class)) {
+                $app->em->refresh($node);
+            }
+        }
     }
 
     // Sem dono, a verificação genérica compara o usuário com ele mesmo e libera qualquer um.
