@@ -21,6 +21,8 @@ app.component('mdc-tree-curation', {
             selected: null,
             showDisabled: true,
             showDuplicates: true,
+            // Mapa ou lista; a lista, acessível por teclado, é a padrão em telas estreitas.
+            view: matchMedia('(max-width: 720px)').matches ? 'lista' : 'mapa',
             // ids encontrados pela busca, destacados no mapa
             matches: [],
             // ação de curadoria em andamento
@@ -66,7 +68,7 @@ app.component('mdc-tree-curation', {
         // Vindo da busca: escolhe o item, ou leva o mapa até ele quando já é o escolhido.
         focus(id) {
             if (this.selected === id) {
-                this.$refs.map.reveal(id);
+                (this.$refs.map || this.$refs.list).reveal(id);
             } else {
                 this.selected = id;
             }

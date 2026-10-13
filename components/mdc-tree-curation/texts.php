@@ -9,6 +9,8 @@ return [
     'falha' => i::__('Não foi possível carregar a árvore. Recarregue a página para tentar de novo.'),
     'destacar duplicatas' => i::__('Destacar possíveis duplicatas'),
     'mostrar desativados' => i::__('Mostrar desativados'),
+    'ver lista' => i::__('Ver como lista'),
+    'ver mapa' => i::__('Ver como mapa'),
     'abrir ramo' => i::__('Abrir ramo selecionado'),
     'fechar tudo' => i::__('Fechar tudo'),
     'enquadrar' => i::__('Enquadrar'),
