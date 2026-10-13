@@ -1,0 +1,85 @@
+/** Ficha da inscrição (telas de leitura do v1): resposta da "Atuação Cultural" em cartões por segmento. */
+
+// Cores da paleta oficial do programa.
+$segment-bg: #FDCAB7;
+$segment-ink: #80104A;
+$card-line: #E4E4E4;
+$guide: #B9C8D1;
+$other-ink: #3F7FA1;
+
+.mdc-acting-view {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+
+    &__segment {
+        overflow: hidden;
+        border: 1px solid $card-line;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    &__title {
+        padding: 0.5rem 0.875rem;
+        background: $segment-bg;
+        color: $segment-ink;
+        font-size: 0.8125rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    &__other {
+        margin: 0;
+        color: $other-ink;
+        font-style: italic;
+    }
+}
+
+// Espaçamento próprio da árvore, acima do que o embedtools.css dá aos itens da lista de campos.
+.registration .registration-fieldset ul.attachment-list .mdc-acting-view .mdc-acting-view__tree {
+    margin: 0;
+    padding: 0.625rem 0.875rem 0.75rem;
+    list-style: none;
+
+    ul {
+        margin: 0 0 0 0.4375rem;
+        padding: 0;
+        list-style: none;
+    }
+
+    li {
+        position: relative;
+        margin: 0;
+        padding: 0.1875rem 0;
+        background: none;
+        line-height: 1.4;
+        list-style: none;
+    }
+
+    // Linhas-guia: cada item de um nível abaixo ganha o "└" e, se tiver irmão depois, a linha continua.
+    ul > li {
+        padding-left: 1.125rem;
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0.75rem;
+            height: 0.75rem;
+            border-bottom: 1px solid $guide;
+            border-left: 1px solid $guide;
+        }
+
+        &:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 0.75rem;
+            bottom: 0;
+            left: 0;
+            border-left: 1px solid $guide;
+        }
+    }
+}

@@ -4,6 +4,7 @@ namespace MDC\Services;
 
 use MapasCulturais\App;
 use MapasCulturais\Entities\Opportunity;
+use MapasCulturais\Entities\Registration;
 
 class FixedOpportunity
 {
@@ -39,5 +40,15 @@ class FixedOpportunity
         }
 
         return $this->opportunity = $opportunity;
+    }
+
+    // A inscrição pode estar numa fase, que é filha da oportunidade fixa.
+    function includes(Registration $registration): bool
+    {
+        $fixed = $this->get();
+        $opportunity = $registration->opportunity;
+        $root = $opportunity?->parent ?: $opportunity;
+
+        return $fixed && $root?->id === $fixed->id;
     }
 }

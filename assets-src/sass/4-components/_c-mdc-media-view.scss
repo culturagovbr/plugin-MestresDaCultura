@@ -1,0 +1,28 @@
+/** Ficha da inscrição (telas de leitura do v1): fotos e vídeos do agente. */
+
+$photo-line: #E4E4E4;
+
+.mdc-media-view {
+    &--gallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.25rem 0;
+    }
+
+    &__photo {
+        display: block;
+        width: 8rem;
+        height: 6rem;
+        overflow: hidden;
+        border: 1px solid $photo-line;
+        border-radius: 6px;
+
+        img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+}

@@ -12,6 +12,9 @@ use MapasCulturais\i;
 // o plugin ser ignorado sem erro, e nenhuma classe ou subpasta pode conter `MDC` no nome.
 class Plugin extends \MapasCulturais\Plugin
 {
+    /** Telas do v1 que só exibem a inscrição; as que salvam não entram aqui. */
+    private const V1_READING_ACTIONS = ['registrationview', 'registrationevaluationtionformview'];
+
     private ?Services\FixedOpportunity $fixedOpportunity = null;
 
     function register()
@@ -28,6 +31,9 @@ class Plugin extends \MapasCulturais\Plugin
         $this->renderActingField();
         $this->validateActingFieldOnSend();
         $this->freezeActingFieldOnSend();
+        $this->showFieldsOnV1Reading();
+        $this->renderPhotoViewer();
+        $this->showActingFieldAsTextInPdf();
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->limitToOneRegistrationPerUser();
@@ -89,6 +95,86 @@ class Plugin extends \MapasCulturais\Plugin
 
             foreach (Services\ActingField::fieldsOf($this) as $field) {
                 $this->{$field->fieldName} = $this->{$field->fieldName};
+            }
+        });
+    }
+
+    // A ficha do v1 não sabe exibir alguns campos do formulário; nas telas de leitura, eles já vão montados
+    // em HTML, com o CSS e o JS do plugin.
+    private function showFieldsOnV1Reading(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        $isV1Reading = function () use ($app): bool {
+            $controller = $app->view->controller ?? null;
+
+            return $controller?->id === 'embedtools' && in_array($controller->action, self::V1_READING_ACTIONS, true);
+        };
+
+        $app->hook('view.render(<<*>>):before', function () use ($app, $isV1Reading) {
+            if ($isV1Reading()) {
+                $app->view->enqueueStyle('app', 'mdc-v1-reading', 'css/plugin-MDC.css', ['main']);
+                $app->view->enqueueScript('app', 'mdc-v1-reading', 'js/plugin-MDC.js');
+            }
+        });
+
+        $app->hook('entity(Registration).jsonSerialize', function (&$result) use ($isV1Reading, $plugin) {
+            /** @var Registration $this */
+            if (!$isV1Reading()) {
+                return;
+            }
+
+            // A atuação, que o v1 mostraria como texto cru, vai em cartões, a partir do espelho gravado.
+            foreach (Services\ActingField::fieldsOf($this) as $field) {
+                if (is_array($result[$field->fieldName] ?? null)) {
+                    $result[$field->fieldName] = Services\ActingField::toHtml($result[$field->fieldName]);
+                }
+            }
+
+            // Paliativo para fotos e vídeos do agente (ver AgentMediaView), só na oportunidade do programa.
+            if (!$plugin->fixedOpportunity()->includes($this)) {
+                return;
+            }
+
+            foreach (Services\AgentMediaView::fieldsOf($this) as $field) {
+                if (is_array($result[$field->fieldName] ?? null)) {
+                    $result[$field->fieldName] = Services\AgentMediaView::toHtml($field, $result[$field->fieldName]);
+                }
+            }
+        });
+    }
+
+    // A foto clicada na ficha do v1 abre aqui, na página de cima: o iframe da ficha cresce com o conteúdo.
+    private function renderPhotoViewer(): void
+    {
+        App::i()->hook('template(<<*>>.<<*>>.main-header):after', function () {
+            $this->import('mdc-photo-viewer');
+
+            echo '<mdc-photo-viewer></mdc-photo-viewer>';
+        });
+    }
+
+    // O PDF da ficha formata os campos pelo core, que não conhece o tipo; na rota dele, o campo é lido
+    // como texto em trilhas, que o formatador já sabe quebrar em linhas.
+    private function showActingFieldAsTextInPdf(): void
+    {
+        $app = App::i();
+
+        $app->hook('entity(Opportunity).registrationMetadata', function () use ($app) {
+            /** @var \MapasCulturais\Entities\Opportunity $this */
+            $controller = $app->view->controller ?? null;
+
+            if ($controller?->id !== 'registration' || $controller->action !== 'exportPDF') {
+                return;
+            }
+
+            $definitions = $app->getRegisteredMetadata(Registration::class);
+
+            foreach ($this->registrationFieldConfigurations as $field) {
+                if ($field->fieldType === Services\ActingField::SLUG && isset($definitions[$field->fieldName])) {
+                    $definitions[$field->fieldName]->unserialize = [Services\ActingField::class, 'unserializeAsText'];
+                }
             }
         });
     }
