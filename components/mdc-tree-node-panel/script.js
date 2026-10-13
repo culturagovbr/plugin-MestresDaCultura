@@ -44,6 +44,8 @@ app.component('mdc-tree-node-panel', {
             moveQuery: '',
             moveTarget: null,
             moveLimit: 30,
+            equivalenceQuery: '',
+            equivalenceTarget: null,
         };
     },
 
@@ -110,6 +112,37 @@ app.component('mdc-tree-node-panel', {
             return query ? this.moveTargets.filter(target => target.key.includes(query)) : this.moveTargets;
         },
 
+        // Referência de que o item é equivalente, com o caminho.
+        reference() {
+            return this.node.equivalentTo ? this.curation.index[this.node.equivalentTo] || null : null;
+        },
+
+        // Itens que equivalem a este (ele é a referência deles).
+        equivalents() {
+            return Object.values(this.curation.index).filter(({ node }) => node.equivalentTo === this.node.id);
+        },
+
+        /**
+         * Referências possíveis, com as regras de TreeEquivalence::mark: outro item, que não equivale a
+         * nenhum (sem cadeias). Vazio se o item já equivale a algum ou se é referência de outros.
+         */
+        equivalenceTargets() {
+            if (this.isRoot || this.reference || this.equivalents.length) {
+                return [];
+            }
+
+            return Object.values(this.curation.index)
+                .filter(({ node }) => node.id && node.id !== this.node.id && !node.equivalentTo)
+                .map(({ node, path }) => ({ id: node.id, place: path.join(' › '), key: this.comparable(path.join(' ')) }))
+                .sort((a, b) => a.place.localeCompare(b.place, 'pt-BR'));
+        },
+
+        equivalenceFound() {
+            const query = this.comparable(this.equivalenceQuery);
+
+            return query ? this.equivalenceTargets.filter(target => target.key.includes(query)) : this.equivalenceTargets;
+        },
+
         parentDisabled() {
             return this.parent && this.parent.id !== 0 && !this.parent.enabled;
         },
@@ -123,6 +156,12 @@ app.component('mdc-tree-node-panel', {
         startMove() {
             this.moveQuery = '';
             this.moveTarget = null;
+        },
+
+        // Começa pela busca do mesmo nome.
+        startEquivalence() {
+            this.equivalenceQuery = this.node.name;
+            this.equivalenceTarget = null;
         },
 
         // O modal só fecha quando a ação deu certo; recusada, fica aberto com a mensagem da regra.

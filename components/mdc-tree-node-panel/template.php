@@ -24,6 +24,19 @@ $this->import('
         <div class="mdc-tree-node-panel__stat"><strong>{{branch.active}}</strong><span>{{branch.active === branch.all ? text('no ramo') : format('no ramo de', branch.all)}}</span></div>
     </div>
 
+    <div v-if="reference" class="mdc-tree-node-panel__equivalence">
+        <p>{{text('equivale a')}} <button type="button" class="mdc-tree-node-panel__link" @click="$emit('select', reference.node.id)">{{reference.path.join(' › ')}}</button></p>
+        <p class="mdc-tree-node-panel__hint">{{text('equivalencia efeito')}}</p>
+        <button type="button" class="button button--sm button--text" :disabled="busy" @click="curation.undoEquivalence()">{{text('desfazer equivalencia')}}</button>
+    </div>
+
+    <div v-if="equivalents.length" class="mdc-tree-node-panel__equivalence">
+        <p>{{text('equivalem a este')}}</p>
+        <ul>
+            <li v-for="item in equivalents" :key="item.node.id"><button type="button" class="mdc-tree-node-panel__link" @click="$emit('select', item.node.id)">{{item.path.join(' › ')}}</button></li>
+        </ul>
+    </div>
+
     <div class="mdc-tree-node-panel__actions">
         <mc-modal v-if="!isRoot && node.enabled" :title="text('renomear')" @open="newName = node.name">
             <template #default>
@@ -80,6 +93,29 @@ $this->import('
             </template>
             <template #button="modal">
                 <button type="button" class="button button--sm button--primary-outline" :disabled="busy || !moveTargets.length" @click="modal.open()">{{text('mover botao')}}</button>
+            </template>
+        </mc-modal>
+
+        <mc-modal v-if="equivalenceTargets.length" :title="format('equivalente titulo', node.name)" @open="startEquivalence">
+            <template #default>
+                <div class="field">
+                    <label for="mdc-tree-equivalente-busca">{{text('equivale a qual')}}</label>
+                    <input id="mdc-tree-equivalente-busca" v-model="equivalenceQuery" type="search" autocomplete="off">
+                </div>
+                <ul class="mdc-tree-node-panel__picker">
+                    <li v-for="target in equivalenceFound.slice(0, moveLimit)" :key="target.id">
+                        <button type="button" class="mdc-tree-node-panel__pick" :aria-pressed="target.id === equivalenceTarget" @click="equivalenceTarget = target.id">{{target.place}}</button>
+                    </li>
+                    <li v-if="!equivalenceFound.length" class="mdc-tree-node-panel__empty">{{text('nenhum item')}}</li>
+                </ul>
+                <p class="mdc-tree-node-panel__hint">{{text('equivalencia efeito')}}</p>
+            </template>
+            <template #actions="modal">
+                <button type="button" class="button button--text" @click="modal.close()">{{text('cancelar')}}</button>
+                <button type="button" class="button button--primary" :disabled="equivalenceTarget === null" @click="run(modal, () => curation.markEquivalent(equivalenceTarget))">{{text('marcar')}}</button>
+            </template>
+            <template #button="modal">
+                <button type="button" class="button button--sm button--primary-outline" :disabled="busy" @click="modal.open()">{{text('equivalente botao')}}</button>
             </template>
         </mc-modal>
 

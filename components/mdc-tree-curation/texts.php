@@ -21,4 +21,6 @@ return [
     'desativado' => i::__('"%s" saiu da lista do formulário.'),
     'reativado' => i::__('"%s" voltou para a lista do formulário.'),
     'movido' => i::__('"%s" foi para %s.'),
+    'equivalente' => i::__('"%s" agora equivale a %s nos relatórios.'),
+    'equivalencia desfeita' => i::__('"%s" não equivale mais a outro item.'),
 ];

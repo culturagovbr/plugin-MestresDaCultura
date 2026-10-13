@@ -12,6 +12,7 @@ use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\TreeCuration;
+use MDC\Services\TreeEquivalence;
 use MDC\Services\TreeExport;
 
 class Controller extends \MapasCulturais\Controller
@@ -110,6 +111,16 @@ class Controller extends \MapasCulturais\Controller
     function POST_curationEnable()
     {
         $this->curate(fn (TreeCuration $curation) => $curation->enable($this->nodeFromPost('id')));
+    }
+
+    function POST_curationEquivalence()
+    {
+        $this->curate(fn () => (new TreeEquivalence())->mark($this->nodeFromPost('id'), $this->nodeFromPost('to')));
+    }
+
+    function POST_curationEquivalenceUndo()
+    {
+        $this->curate(fn () => (new TreeEquivalence())->undo($this->nodeFromPost('id')));
     }
 
     // Executa a ação de curadoria; regra quebrada volta como a mensagem do serviço.

@@ -7,6 +7,7 @@ use MDC\Dtos\CurationNode;
 use MDC\Dtos\TreeNode;
 use MDC\Entities\Node as NodeEntity;
 use MDC\Services\ActingField;
+use MDC\Services\TreeEquivalence;
 
 class Node extends \MapasCulturais\Repository
 {
@@ -41,7 +42,7 @@ class Node extends \MapasCulturais\Repository
             ->orderBy('n.level', 'ASC')->addOrderBy('n.displayOrder', 'ASC')->addOrderBy('n.id', 'ASC')
             ->getQuery()->getResult();
 
-        return $this->nestForCuration($this->groupByParent($nodes), self::ROOT, $this->countUsage());
+        return $this->nestForCuration($this->groupByParent($nodes), self::ROOT, $this->countUsage(), (new TreeEquivalence())->all());
     }
 
     /**
@@ -128,9 +129,10 @@ class Node extends \MapasCulturais\Repository
     /**
      * @param array<int,NodeEntity[]> $children_of
      * @param array<int,array{sent: int, drafts: int}> $usage
+     * @param array<int,int> $equivalences item => referência
      * @return CurationNode[]
      */
-    private function nestForCuration(array $children_of, int $parent_id, array $usage): array
+    private function nestForCuration(array $children_of, int $parent_id, array $usage, array $equivalences): array
     {
         $branch = [];
 
@@ -141,7 +143,8 @@ class Node extends \MapasCulturais\Repository
                 $node->status === NodeEntity::STATUS_ENABLED,
                 $usage[$node->id]['sent'] ?? 0,
                 $usage[$node->id]['drafts'] ?? 0,
-                $this->nestForCuration($children_of, $node->id, $usage),
+                $equivalences[$node->id] ?? null,
+                $this->nestForCuration($children_of, $node->id, $usage, $equivalences),
             );
         }
 

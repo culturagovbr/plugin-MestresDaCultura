@@ -149,6 +149,16 @@ app.component('mdc-tree-curation', {
             return !!(await this.act('curationMove', { id: this.selected, parent: parentId || null }, this.format('movido', name, place)));
         },
 
+        async markEquivalent(referenceId) {
+            const reference = this.index[referenceId].path.join(' › ');
+
+            return !!(await this.act('curationEquivalence', { id: this.selected, to: referenceId }, this.format('equivalente', this.current.node.name, reference)));
+        },
+
+        async undoEquivalence() {
+            return !!(await this.act('curationEquivalenceUndo', { id: this.selected }, this.format('equivalencia desfeita', this.current.node.name)));
+        },
+
         async disable() {
             return !!(await this.act('curationDisable', { id: this.selected }, this.format('desativado', this.current.node.name)));
         },

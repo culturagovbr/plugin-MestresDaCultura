@@ -86,4 +86,39 @@ return [
             throw $e;
         }
     },
+
+    // "Item equivale a referência": vale para os relatórios, nunca altera as respostas.
+    'mdc: cria a tabela de equivalências da árvore' => function () {
+        if (__table_exists('mdc_tree_equivalence')) {
+            return;
+        }
+
+        __exec('
+            CREATE TABLE mdc_tree_equivalence (
+                node_id INT NOT NULL,
+                equivalent_to INT NOT NULL,
+                user_id INT DEFAULT NULL,
+                create_timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+
+                PRIMARY KEY(node_id),
+                CONSTRAINT CHK_mdc_tree_equivalence_self CHECK (node_id <> equivalent_to)
+            )');
+
+        __exec('
+            ALTER TABLE mdc_tree_equivalence
+                ADD CONSTRAINT FK_mdc_tree_equivalence_node
+                FOREIGN KEY (node_id) REFERENCES mdc_tree_node(id) ON DELETE CASCADE');
+
+        __exec('
+            ALTER TABLE mdc_tree_equivalence
+                ADD CONSTRAINT FK_mdc_tree_equivalence_target
+                FOREIGN KEY (equivalent_to) REFERENCES mdc_tree_node(id) ON DELETE CASCADE');
+
+        __exec('
+            ALTER TABLE mdc_tree_equivalence
+                ADD CONSTRAINT FK_mdc_tree_equivalence_user
+                FOREIGN KEY (user_id) REFERENCES usr(id) ON DELETE SET NULL');
+
+        __exec('CREATE INDEX IDX_mdc_tree_equivalence_target ON mdc_tree_equivalence (equivalent_to)');
+    },
 ];
