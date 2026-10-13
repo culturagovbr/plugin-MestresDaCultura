@@ -2,6 +2,7 @@
 
 namespace Tests\MDC;
 
+use MDC\Dtos\CurationNode;
 use MDC\Entities\Node;
 use MDC\Repositories\Node as NodeRepository;
 use Tests\Abstract\TestCase;
@@ -138,5 +139,35 @@ class NodeRepositoryTest extends TestCase
         $seeded = $this->seed();
 
         $this->assertSame([], $this->repo()->findDescendantIds($seeded['atividade']->id));
+    }
+
+    /** @return array<string,CurationNode> nome => item, da árvore inteira da curadoria */
+    private function curationByName(): array
+    {
+        $flat = [];
+        $walk = function (array $nodes) use (&$walk, &$flat) {
+            foreach ($nodes as $node) {
+                $flat[$node->name] = $node;
+                $walk($node->children);
+            }
+        };
+        $walk($this->repo()->findCurationTree());
+
+        return $flat;
+    }
+
+    function testCurationTreeShowsTheDisabledItemsAndLeavesOutTheTrash()
+    {
+        ['tipologia' => $tipologia, 'subtipologia' => $subtipologia] = $this->seed();
+        $subtipologia->status = Node::STATUS_DISABLED;
+        $subtipologia->save(true);
+        $this->createNode('Na lixeira', $tipologia, 2)->delete(true);
+
+        $nodes = $this->curationByName();
+
+        $this->assertFalse($nodes['Couro']->enabled, 'O desativado aparece, marcado como tal');
+        $this->assertArrayHasKey('Bruacas', $nodes, 'O que está abaixo do desativado segue na árvore');
+        $this->assertArrayNotHasKey('Na lixeira', $nodes, 'A lixeira não é da curadoria');
+        $this->assertTrue($nodes['Saberes e Ofícios']->enabled);
     }
 }
