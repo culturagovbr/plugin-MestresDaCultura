@@ -37,21 +37,29 @@ app.component('mdc-acting-field', {
 
     data() {
         const value = this.entity[this.prop] || {};
+        const nodes = value.nodes || [];
 
         return {
             tree: null,
             loading: true,
             failed: false,
-            removed: false,
             otherMaxLength: MDC_ACTING_OTHER_MAX_LENGTH,
 
-            // id => nó, e id => id do pai; montados quando a árvore chega
+            // Até o envio, a árvore atual manda; depois dele, a resposta é o espelho gravado.
+            sent: Number(this.entity.status || 0) !== 0,
+
+            // id => nó, e id => id do pai, da árvore atual; montados quando ela chega
             nodeOf: {},
             parentOf: {},
 
-            checked: new Set((value.nodes || []).map(Number)),
+            // id => entrada do espelho gravado ({id, parent, name})
+            stored: Object.fromEntries(nodes.map(node => [node.id, node])),
+            checked: new Set(nodes.map(node => node.id)),
             // id do pai (ou 'null', para o geral) => texto
             others: Object.fromEntries((value.others || []).map(o => [String(o.parent), o.text])),
+
+            // nomes que saíram da lista, desmarcados ao abrir o rascunho
+            removed: [],
         };
     },
 
@@ -60,9 +68,9 @@ app.component('mdc-acting-field', {
         tags() {
             const tags = this.orderedChecked().map(id => ({
                 key: 'n' + id,
-                label: this.nodeOf[id].name,
-                segment: this.parentOf[id] === null,
-                remove: () => this.toggle(this.nodeOf[id], false),
+                label: this.nameOf(id),
+                segment: this.parentFor(id) === null,
+                remove: () => this.uncheck(id),
             }));
 
             for (const [parent, value] of Object.entries(this.others)) {
@@ -105,53 +113,85 @@ app.component('mdc-acting-field', {
             };
 
             visit(tree, null);
+            this.tree = tree;
 
-            // Nó desativado pela curadoria não aparece na lista, e ninguém conseguiria desmarcá-lo.
+            if (this.sent) {
+                return;
+            }
+
+            const dropped = this.dropRemovedFromTree();
+            const completed = this.addMovedAncestors();
+
+            if (dropped || completed) {
+                this.emit();
+            }
+        },
+
+        // Rascunho segue a lista atual: o que saiu dela (com o que estava abaixo) é desmarcado, com aviso.
+        dropRemovedFromTree() {
             const gone = [...this.checked].filter(id => !(id in this.nodeOf));
             const goneOthers = Object.keys(this.others).filter(parent => parent !== 'null' && !(parent in this.nodeOf));
 
-            if (gone.length || goneOthers.length) {
-                gone.forEach(id => this.checked.delete(id));
-                goneOthers.forEach(parent => delete this.others[parent]);
-                this.removed = true;
-            }
+            this.removed = [
+                ...gone.map(id => this.stored[id].name),
+                ...goneOthers.map(parent => this.format('outro etiqueta', this.others[parent])),
+            ];
 
-            this.tree = tree;
+            gone.forEach(id => this.checked.delete(id));
+            goneOthers.forEach(parent => delete this.others[parent]);
 
-            if (this.removed) {
-                this.emit();
-            }
+            return this.removed.length > 0;
+        },
+
+        // Item que a curadoria mudou de lugar continua marcado e leva junto o caminho novo.
+        addMovedAncestors() {
+            const missing = [...this.checked].flatMap(id => this.ancestorsOf(id)).filter(id => !this.checked.has(id));
+
+            missing.forEach(id => this.checked.add(id));
+
+            return missing.length > 0;
         },
 
         isChecked(node) {
             return this.checked.has(node.id);
         },
 
-        // Marcar traz os pais junto; desmarcar leva os filhos e os "Outro" de dentro deles.
+        // Marcar traz os pais junto; desmarcar leva o que está abaixo e os "Outro" de dentro.
         toggle(node, on) {
+            if (!on) {
+                this.uncheck(node.id);
+                return;
+            }
+
             if (this.disabled) {
                 return;
             }
 
-            if (on) {
-                for (let id = node.id; id !== null; id = this.parentOf[id]) {
-                    this.checked.add(id);
-                }
-            } else {
-                const drop = [node.id, ...this.descendants(node)];
-
-                drop.forEach(id => {
-                    this.checked.delete(id);
-                    delete this.others[String(id)];
-                });
+            for (let id = node.id; id !== null; id = this.parentFor(id)) {
+                this.checked.add(id);
             }
 
             this.emit();
         },
 
-        // Rótulo da caixa que abre debaixo de um nó marcado: "Subtipologias de Artesanato".
+        uncheck(id) {
+            if (this.disabled) {
+                return;
+            }
+
+            const drop = [id, ...[...this.checked].filter(other => this.ancestorsOf(other).includes(id))];
+
+            drop.forEach(dropped => {
+                this.checked.delete(dropped);
+                delete this.others[String(dropped)];
+            });
+
+            this.emit();
+        },
+
+        // Rótulo da caixa que abre debaixo de um nó marcado: "Subtipologias de Artesanato:".
         childrenHeading(node) {
-            return this.format('filhos nivel ' + this.path(node.id).length, node.name);
+            return this.format('filhos nivel ' + (this.ancestorsOf(node.id).length + 1), node.name);
         },
 
         otherOf(parent) {
@@ -174,21 +214,35 @@ app.component('mdc-acting-field', {
             this.emit();
         },
 
-        descendants(node) {
-            return node.children.flatMap(child => [child.id, ...this.descendants(child)]);
-        },
-
-        path(id) {
-            const names = [];
-
-            for (; id !== null; id = this.parentOf[id]) {
-                names.unshift(this.nodeOf[id].name);
+        // Pai e nome vêm da árvore atual; depois do envio, ou fora dela, do espelho gravado.
+        parentFor(id) {
+            if ((this.sent && this.stored[id]) || !(id in this.parentOf)) {
+                return this.stored[id]?.parent ?? null;
             }
 
-            return names;
+            return this.parentOf[id];
         },
 
-        // Na ordem da árvore, para o valor gravado não mudar só porque a ordem dos cliques mudou.
+        nameOf(id) {
+            if ((this.sent && this.stored[id]) || !(id in this.nodeOf)) {
+                return this.stored[id]?.name;
+            }
+
+            return this.nodeOf[id].name;
+        },
+
+        ancestorsOf(id) {
+            const ancestors = [];
+
+            for (let parent = this.parentFor(id); parent !== null; parent = this.parentFor(parent)) {
+                ancestors.push(parent);
+            }
+
+            return ancestors;
+        },
+
+        // Os marcados na ordem da árvore; depois do envio, o que a árvore atual não alcança vem em seguida, na ordem
+        // em que foi gravado.
         orderedChecked() {
             const ordered = [];
             const visit = nodes => nodes.forEach(node => {
@@ -200,15 +254,15 @@ app.component('mdc-acting-field', {
 
             visit(this.tree || []);
 
-            return ordered;
+            return [...ordered, ...[...this.checked].filter(id => !ordered.includes(id))];
         },
 
         emit() {
+            const nodes = this.orderedChecked().map(id => ({ id, parent: this.parentFor(id), name: this.nameOf(id) }));
+
             const others = Object.entries(this.others)
                 .filter(([, text]) => text)
                 .map(([parent, text]) => ({ parent: parent === 'null' ? null : Number(parent), text }));
-
-            const nodes = this.orderedChecked();
 
             this.$emit('change', nodes.length || others.length ? { nodes, others } : null);
         },

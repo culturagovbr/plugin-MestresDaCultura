@@ -17,7 +17,7 @@ $this->import('
 
     <mc-loading :condition="loading">{{text('carregando')}}</mc-loading>
     <mc-alert v-if="failed" type="danger">{{text('falha')}}</mc-alert>
-    <mc-alert v-if="removed" type="warning">{{text('removidos')}}</mc-alert>
+    <mc-alert v-if="removed.length" type="warning">{{format('removidos', removed.join(', '))}}</mc-alert>
 
     <template v-if="tree">
         <div class="mdc-acting-field__selected" aria-live="polite">

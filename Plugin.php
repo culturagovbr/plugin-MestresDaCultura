@@ -27,6 +27,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->registerTreeNodeObjectType();
         $this->renderActingField();
         $this->validateActingFieldOnSend();
+        $this->freezeActingFieldOnSend();
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->limitToOneRegistrationPerUser();
@@ -57,21 +58,37 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // No envio o core só roda as validações `v::` do tipo; a da árvore entra por aqui.
+    // No envio o core só roda as validações `v::` do tipo; a da árvore entra por aqui. Também recusa o
+    // rascunho que tem item tirado da lista depois da última gravação: a pessoa recarrega e vê o que saiu.
     private function validateActingFieldOnSend(): void
     {
         App::i()->hook('entity(Registration).sendValidationErrors', function (&$errors) {
             /** @var Registration $this */
-            foreach ($this->opportunity->registrationFieldConfigurations as $field) {
-                if ($field->fieldType !== Services\ActingField::SLUG || !$this->isFieldVisisble($field)) {
+            foreach (Services\ActingField::fieldsOf($this) as $field) {
+                $value = $this->{$field->fieldName};
+
+                if ($value === null) {
                     continue;
                 }
 
-                $value = $this->{$field->fieldName};
-
-                if ($value !== null && !Services\ActingField::isValid($value)) {
+                if (!Services\ActingField::isValid($value)) {
                     $errors[$field->fieldName][] = Services\ActingField::invalidMessage();
+                } elseif ($this->status === Registration::STATUS_DRAFT && $removed = Services\ActingField::removedFromTree($value)) {
+                    $errors[$field->fieldName][] = Services\ActingField::staleMessage($removed);
                 }
+            }
+        });
+    }
+
+    // Regrava o espelho com os nomes do momento do envio; daí em diante, ele não muda mais.
+    private function freezeActingFieldOnSend(): void
+    {
+        App::i()->hook('entity(Registration).send:before', function () {
+            /** @var Registration $this */
+            $this->registerFieldsMetadata();
+
+            foreach (Services\ActingField::fieldsOf($this) as $field) {
+                $this->{$field->fieldName} = $this->{$field->fieldName};
             }
         });
     }

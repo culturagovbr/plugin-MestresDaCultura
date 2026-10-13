@@ -4,10 +4,11 @@ Campo da pergunta "Atuação Cultural" do cadastro: a árvore Segmento › Tipol
 
 - Não é usado direto nas telas: o plugin o injeta no `<entity-field>` pelo gancho `template(<<*>>.<<*>>.entity-field-label):after` quando o campo é do tipo `mdc-atuacao`. Rótulo, descrição, obrigatoriedade e erros continuam vindo do `<entity-field>`.
 - A árvore vem da rota `GET mdc/tree`, só quando o campo aparece.
-- Marcar um item marca os pais; desmarcar leva os filhos e os "Outro" de dentro deles.
+- Marcar um item marca os pais; desmarcar leva o que está abaixo dele e os "Outro" de dentro.
 - Um segmento por `<mc-accordion>`, aberto quando marcado; cada nível abaixo é um `<mdc-acting-list>`.
-- O valor emitido é `{nodes: [ids], others: [{parent, text}]}`, com os ids na ordem da árvore, ou `null` quando não há nada marcado (é o que faz a obrigatoriedade do core funcionar). `parent: null` é o "Não encontrou sua atuação na lista?".
-- Ids que saíram da árvore (desativados pela curadoria) são desmarcados ao carregar, com aviso.
+- A resposta é um espelho do que foi escolhido, para não depender da árvore viva: `{nodes: [{id, parent, name}], others: [{parent, text}]}`, ou `null` quando não há nada marcado (é o que faz a obrigatoriedade do core funcionar). `parent: null` em `others` é o "Não encontrou sua atuação na lista?". Os nomes gravados vêm sempre do servidor.
+- **Rascunho** segue a árvore atual: nomes atualizados; o que a curadoria tirou da lista é desmarcado ao abrir, com o que estava abaixo, e um aviso diz o que saiu; item mudado de lugar continua marcado, com o caminho novo.
+- **Inscrição enviada** mostra o espelho gravado, mesmo que a árvore tenha mudado depois.
 - O visual fica no tema MestresDaCultura (`_mdc-acting-field.scss`, `_check-row.scss`, `_subtipologia-box.scss`).
 
 ## Propriedades
