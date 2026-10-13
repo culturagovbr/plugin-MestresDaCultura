@@ -4,6 +4,7 @@ namespace Tests\MDC;
 
 use MapasCulturais\App;
 use MapasCulturais\Entities\Opportunity;
+use MapasCulturais\Entities\Registration;
 use MDC\Dtos\TreeNode;
 use MDC\Entities\Node;
 use MDC\Services\ActingField;
@@ -21,6 +22,8 @@ class ActingFieldTest extends TestCase
         RegistrationDirector,
         AgentDirector,
         UserDirector;
+
+    private const PATH = ['Saberes e Ofícios', 'Artesanato', 'Couro', 'Bruacas'];
 
     /** @return int[] ids da raiz até o último nome do caminho */
     private function ids(string ...$path): array
@@ -41,7 +44,24 @@ class ActingFieldTest extends TestCase
 
     private function bruacas(): array
     {
-        return $this->ids('Saberes e Ofícios', 'Artesanato', 'Couro', 'Bruacas');
+        return $this->ids(...self::PATH);
+    }
+
+    /** Espelho do caminho, com os nomes informados (os da árvore, se omitidos). */
+    private function snapshotOf(array $ids, array $names = self::PATH): array
+    {
+        $nodes = [];
+
+        foreach ($ids as $i => $id) {
+            $nodes[] = ['id' => $id, 'parent' => $i ? $ids[$i - 1] : null, 'name' => $names[$i]];
+        }
+
+        return $nodes;
+    }
+
+    private function curation(string $sql, array $params): void
+    {
+        $this->app->em->getConnection()->executeStatement($sql, $params);
     }
 
     function testRegistersTheFieldType()
@@ -56,20 +76,43 @@ class ActingFieldTest extends TestCase
         $this->assertNull(ActingField::serialize(['nodes' => [], 'others' => [['parent' => null, 'text' => '   ']]]));
     }
 
-    function testTidiesTheValueBeforeStoring()
+    function testTakesNamesAndParentsFromTheTreeAndNotFromTheBrowser()
     {
-        $stored = ActingField::serialize((object) [
-            'nodes' => ['3', 3, 7],
-            'others' => [
-                (object) ['parent' => '7', 'text' => '  Couro de bode  '],
-                (object) ['parent' => 7, 'text' => ''],
-            ],
-        ]);
+        $ids = $this->bruacas();
+        $forged = array_map(fn ($id) => ['id' => (string) $id, 'parent' => 999, 'name' => 'Forjado'], $ids);
 
-        $this->assertSame(
-            ['nodes' => [3, 7], 'others' => [['parent' => 7, 'text' => 'Couro de bode']]],
-            ActingField::unserialize($stored)
-        );
+        $stored = ActingField::unserialize(ActingField::serialize(['nodes' => $forged, 'others' => []]));
+
+        $this->assertSame(['nodes' => $this->snapshotOf($ids), 'others' => []], $stored);
+    }
+
+    function testAcceptsPlainIdsAndTidiesTheOthers()
+    {
+        $ids = $this->bruacas();
+
+        $stored = ActingField::unserialize(ActingField::serialize((object) [
+            'nodes' => [...$ids, $ids[0]],
+            'others' => [(object) ['parent' => (string) $ids[2], 'text' => '  Couro de bode  '], ['parent' => $ids[2], 'text' => '']],
+        ]));
+
+        $this->assertSame(['nodes' => $this->snapshotOf($ids), 'others' => [['parent' => $ids[2], 'text' => 'Couro de bode']]], $stored);
+    }
+
+    function testKeepsANodeDisabledByTheCurationSoNothingDisappearsUnnoticed()
+    {
+        $ids = $this->bruacas();
+        $this->curation('UPDATE mdc_tree_node SET status = ? WHERE id = ?', [Node::STATUS_TRASH, $ids[2]]);
+
+        $stored = ActingField::unserialize(ActingField::serialize(['nodes' => $ids, 'others' => []]));
+
+        $this->assertSame($this->snapshotOf($ids), $stored['nodes']);
+    }
+
+    function testMarksAnIdThatDoesNotExistAsInvalid()
+    {
+        $stored = ActingField::unserialize(ActingField::serialize(['nodes' => [999999999], 'others' => []]));
+
+        $this->assertFalse(ActingField::isValid($stored));
     }
 
     function testReadsNothingFromAnInvalidStoredValue()
@@ -80,37 +123,30 @@ class ActingFieldTest extends TestCase
 
     function testAcceptsAPathWithAllItsAncestors()
     {
-        $this->assertTrue(ActingField::isValid(['nodes' => $this->bruacas(), 'others' => []]));
+        $this->assertTrue(ActingField::isValid(['nodes' => $this->snapshotOf($this->bruacas()), 'others' => []]));
     }
 
     function testRefusesANodeWithoutItsParent()
     {
-        [$segmento, , $couro, $bruacas] = $this->bruacas();
+        $nodes = $this->snapshotOf($this->bruacas());
+        unset($nodes[1]);
 
-        $this->assertFalse(ActingField::isValid(['nodes' => [$segmento, $couro, $bruacas], 'others' => []]));
+        $this->assertFalse(ActingField::isValid(['nodes' => array_values($nodes), 'others' => []]));
     }
 
-    function testRefusesANodeThatDoesNotExist()
+    function testRefusesEntriesWithoutNameOrWithIdsThatAreNotIntegers()
     {
-        $this->assertFalse(ActingField::isValid(['nodes' => [999999999], 'others' => []]));
-    }
-
-    function testRefusesANodeDisabledByTheCuration()
-    {
-        $ids = $this->bruacas();
-
-        $this->app->em->getConnection()->executeStatement(
-            'UPDATE mdc_tree_node SET status = ? WHERE id = ?',
-            [Node::STATUS_TRASH, end($ids)]
-        );
-
-        $this->assertFalse(ActingField::isValid(['nodes' => $ids, 'others' => []]));
-    }
-
-    function testRefusesIdsThatAreNotIntegers()
-    {
-        $this->assertFalse(ActingField::isValid(['nodes' => ['1'], 'others' => []]));
+        $this->assertFalse(ActingField::isValid(['nodes' => [['id' => 1, 'parent' => null, 'name' => null]], 'others' => []]));
+        $this->assertFalse(ActingField::isValid(['nodes' => [['id' => '1', 'parent' => null, 'name' => 'x']], 'others' => []]));
+        $this->assertFalse(ActingField::isValid(['nodes' => [1], 'others' => []]));
         $this->assertFalse(ActingField::isValid(['nodes' => [], 'others' => [['parent' => [1], 'text' => 'x']]]));
+    }
+
+    function testRefusesARepeatedNode()
+    {
+        $node = ['id' => 1, 'parent' => null, 'name' => 'Saberes e Ofícios'];
+
+        $this->assertFalse(ActingField::isValid(['nodes' => [$node, $node], 'others' => []]));
     }
 
     function testAcceptsTheGeneralOtherWithoutAnyNode()
@@ -118,18 +154,13 @@ class ActingFieldTest extends TestCase
         $this->assertTrue(ActingField::isValid(['nodes' => [], 'others' => [['parent' => null, 'text' => 'Ofício que não está na lista']]]));
     }
 
-    function testAcceptsAnOtherInsideAChosenNode()
-    {
-        $ids = $this->ids('Saberes e Ofícios', 'Artesanato', 'Couro');
-
-        $this->assertTrue(ActingField::isValid(['nodes' => $ids, 'others' => [['parent' => end($ids), 'text' => 'Couro de bode']]]));
-    }
-
     function testRefusesAnOtherInsideANodeThatWasNotChosen()
     {
-        [$segmento, , $couro] = $this->bruacas();
+        $ids = $this->bruacas();
 
-        $this->assertFalse(ActingField::isValid(['nodes' => [$segmento], 'others' => [['parent' => $couro, 'text' => 'Couro de bode']]]));
+        $value = ['nodes' => $this->snapshotOf([$ids[0]]), 'others' => [['parent' => $ids[2], 'text' => 'Couro de bode']]];
+
+        $this->assertFalse(ActingField::isValid($value));
     }
 
     function testRefusesAnOtherLongerThanTheLimit()
@@ -139,7 +170,22 @@ class ActingFieldTest extends TestCase
         $this->assertFalse(ActingField::isValid(['nodes' => [], 'others' => [['parent' => null, 'text' => $text]]]));
     }
 
-    private function registrationWithField(bool $required): array
+    function testPointsOutADisabledNodeWithWhatIsBelowItAndTheOthersInside()
+    {
+        $ids = $this->bruacas();
+        $this->curation('UPDATE mdc_tree_node SET status = ? WHERE id = ?', [Node::STATUS_TRASH, $ids[2]]);
+
+        $value = ['nodes' => $this->snapshotOf($ids), 'others' => [['parent' => $ids[2], 'text' => 'Couro de bode']]];
+
+        $this->assertSame(['Couro', 'Bruacas', 'Outro: Couro de bode'], ActingField::removedFromTree($value));
+    }
+
+    function testPointsOutNothingWhenTheTreeIsIntact()
+    {
+        $this->assertSame([], ActingField::removedFromTree(['nodes' => $this->snapshotOf($this->bruacas()), 'others' => []]));
+    }
+
+    private function registrationWithField(bool $required = true): array
     {
         // No tema, só o super administrador do SaaS cria oportunidade.
         $admin = $this->userDirector->createUser('saasSuperAdmin');
@@ -167,7 +213,15 @@ class ActingFieldTest extends TestCase
         return [$registration, $field];
     }
 
-    private function reload($registration)
+    private function answer(Registration $registration, string $field, array $value): Registration
+    {
+        App::i()->controller('registration')->setEntityProperties($registration, [$field => $value]);
+        $registration->save(true);
+
+        return $this->reload($registration);
+    }
+
+    private function reload(Registration $registration): Registration
     {
         $registration = App::i()->repo('Registration')->find($registration->id);
         $registration->opportunity->registerRegistrationMetadata();
@@ -178,12 +232,11 @@ class ActingFieldTest extends TestCase
 
     function testRequiredFieldLeftEmptyBlocksTheSending()
     {
-        [$registration, $field] = $this->registrationWithField(required: true);
+        [$registration, $field] = $this->registrationWithField();
 
-        App::i()->controller('registration')->setEntityProperties($registration, [$field => ['nodes' => [], 'others' => []]]);
-        $registration->save(true);
+        $registration = $this->answer($registration, $field, ['nodes' => [], 'others' => []]);
 
-        $this->assertArrayHasKey($field, $this->reload($registration)->getSendValidationErrors());
+        $this->assertArrayHasKey($field, $registration->getSendValidationErrors());
     }
 
     function testInvalidSelectionBlocksTheSending()
@@ -192,22 +245,68 @@ class ActingFieldTest extends TestCase
         [$segmento, , , $bruacas] = $this->bruacas();
 
         App::i()->controller('registration')->setEntityProperties($registration, [$field => ['nodes' => [$segmento, $bruacas], 'others' => []]]);
-        $registration->save(true);
 
-        $this->assertArrayHasKey($field, $this->reload($registration)->getSendValidationErrors());
+        $this->assertContains(ActingField::invalidMessage(), $registration->getSendValidationErrors()[$field] ?? []);
     }
 
-    function testValidSelectionIsStoredAndPassesTheSending()
+    function testValidSelectionIsStoredAsASnapshotAndPassesTheSending()
     {
-        [$registration, $field] = $this->registrationWithField(required: true);
+        [$registration, $field] = $this->registrationWithField();
         $ids = $this->bruacas();
 
-        App::i()->controller('registration')->setEntityProperties($registration, [$field => ['nodes' => $ids, 'others' => []]]);
-        $registration->save(true);
+        $registration = $this->answer($registration, $field, ['nodes' => $ids, 'others' => []]);
+
+        $this->assertSame(['nodes' => $this->snapshotOf($ids), 'others' => []], $registration->$field);
+        $this->assertArrayNotHasKey($field, $registration->getSendValidationErrors());
+    }
+
+    function testDraftFollowsARenameInTheTree()
+    {
+        [$registration, $field] = $this->registrationWithField();
+        $ids = $this->bruacas();
+        $registration = $this->answer($registration, $field, ['nodes' => $ids, 'others' => []]);
+
+        // Ao regravar, o nome de cada item vem do banco.
+        $this->curation('UPDATE mdc_tree_node SET name = ? WHERE id = ?', ['Bruacas de couro', $ids[3]]);
+        $nodes = $this->answer($registration, $field, ['nodes' => $ids, 'others' => []])->{$field}['nodes'];
+
+        $this->assertSame('Bruacas de couro', end($nodes)['name']);
+    }
+
+    function testDraftWithANodeRemovedFromTheListCannotBeSent()
+    {
+        [$registration, $field] = $this->registrationWithField();
+        $ids = $this->bruacas();
+        $registration = $this->answer($registration, $field, ['nodes' => $ids, 'others' => []]);
+
+        $this->curation('UPDATE mdc_tree_node SET status = ? WHERE id = ?', [Node::STATUS_TRASH, $ids[2]]);
+
+        $errors = $this->reload($registration)->getSendValidationErrors()[$field] ?? [];
+
+        $this->assertContains(ActingField::staleMessage(['Couro', 'Bruacas']), $errors);
+    }
+
+    function testSendingFreezesTheAnswer()
+    {
+        [$registration, $field] = $this->registrationWithField();
+        $ids = $this->bruacas();
+        $registration = $this->answer($registration, $field, ['nodes' => $ids, 'others' => [['parent' => $ids[2], 'text' => 'Couro de bode']]]);
+
+        // Renomeado entre a última gravação e o envio: vale o nome do momento do envio.
+        $this->curation('UPDATE mdc_tree_node SET name = ? WHERE id = ?', ['Bruacas de couro', $ids[3]]);
+        $registration->send();
+        $sent = $this->reload($registration)->$field;
+
+        $this->assertSame('Bruacas de couro', end($sent['nodes'])['name']);
+
+        // Depois do envio, a curadoria não altera a resposta, nem quando ela é gravada de novo.
+        $this->curation('UPDATE mdc_tree_node SET name = ? WHERE id = ?', ['Biscoito de chocolate', $ids[3]]);
+        $this->curation('UPDATE mdc_tree_node SET status = ? WHERE id = ?', [Node::STATUS_TRASH, $ids[2]]);
 
         $registration = $this->reload($registration);
+        $this->assertSame($sent, $registration->$field);
 
-        $this->assertSame(['nodes' => $ids, 'others' => []], $registration->$field);
-        $this->assertArrayNotHasKey($field, $registration->getSendValidationErrors());
+        $registration = $this->answer($registration, $field, $registration->$field);
+        $this->assertSame($sent, $registration->$field);
     }
 }
