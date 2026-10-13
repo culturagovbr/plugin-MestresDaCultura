@@ -8,6 +8,7 @@ $this->import('
     mc-alert
     mc-loading
     mdc-tree-map
+    mdc-tree-search
 ');
 ?>
 <div class="mdc-tree-curation">
@@ -16,6 +17,7 @@ $this->import('
 
     <template v-if="tree">
         <div class="mdc-tree-curation__toolbar">
+            <mdc-tree-search :tree="tree" @select="focus" @matches="matches = $event"></mdc-tree-search>
             <label class="mdc-tree-curation__check"><input type="checkbox" v-model="showDisabled"> {{text('mostrar desativados')}}</label>
             <button type="button" class="button button--sm button--primary-outline" :disabled="!current || !current.node.children.length" @click="$refs.map.openBranch(selected)">{{text('abrir ramo')}}</button>
             <button type="button" class="button button--sm button--text" @click="$refs.map.closeAll()">{{text('fechar tudo')}}</button>
@@ -23,7 +25,7 @@ $this->import('
         </div>
 
         <div class="mdc-tree-curation__work">
-            <mdc-tree-map ref="map" :tree="tree" :selected="selected" :show-disabled="showDisabled" @select="selected = $event"></mdc-tree-map>
+            <mdc-tree-map ref="map" :tree="tree" :selected="selected" :show-disabled="showDisabled" :highlight="matches" @select="selected = $event"></mdc-tree-map>
 
             <aside class="mdc-tree-curation__panel" aria-live="polite">
                 <p v-if="!current" class="mdc-tree-curation__hint">{{text('escolha')}}</p>

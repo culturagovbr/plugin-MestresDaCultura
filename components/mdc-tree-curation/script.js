@@ -14,6 +14,8 @@ app.component('mdc-tree-curation', {
             failed: false,
             selected: null,
             showDisabled: true,
+            // ids encontrados pela busca, destacados no mapa
+            matches: [],
         };
     },
 
@@ -41,6 +43,15 @@ app.component('mdc-tree-curation', {
     },
 
     methods: {
+        // Vindo da busca: escolhe o item, ou leva o mapa até ele quando já é o escolhido.
+        focus(id) {
+            if (this.selected === id) {
+                this.$refs.map.reveal(id);
+            } else {
+                this.selected = id;
+            }
+        },
+
         async load() {
             try {
                 const response = await fetch(Utils.createUrl('mdc', 'curationTree'), { headers: { Accept: 'application/json' } });

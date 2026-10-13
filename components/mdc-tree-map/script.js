@@ -29,6 +29,11 @@ app.component('mdc-tree-map', {
             type: Boolean,
             default: true,
         },
+        // Ids a destacar, como os encontrados pela busca
+        highlight: {
+            type: Array,
+            default: () => [],
+        },
     },
 
     setup() {
@@ -188,6 +193,7 @@ app.component('mdc-tree-map', {
                 {
                     'mdc-tree-map__node--off': !item.enabled,
                     'mdc-tree-map__node--selected': item.id === this.selected,
+                    'mdc-tree-map__node--match': this.highlight.includes(item.id),
                 },
             ];
         },
