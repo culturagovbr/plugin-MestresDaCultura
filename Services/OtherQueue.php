@@ -4,7 +4,6 @@ namespace MDC\Services;
 
 use MapasCulturais\App;
 use MapasCulturais\Entities\Registration;
-use MapasCulturais\Exceptions\PermissionDenied;
 use MapasCulturais\i;
 use MDC\Dtos\OtherEntry;
 use MDC\Entities\Node;
@@ -59,14 +58,14 @@ class OtherQueue
     function associate(?Node $parent, string $key, Node $node): void
     {
         $this->refuseDecided($parent, $key);
-        $this->requireCurator($node);
+        Curators::require($node);
         $this->decide($parent, $key, 'associated', $node);
     }
 
     function archive(?Node $parent, string $key, string $note = ''): void
     {
         $this->refuseDecided($parent, $key);
-        $this->requireCurator($parent);
+        Curators::require($parent);
         $this->decide($parent, $key, 'archived', null, trim($note) ?: null);
     }
 
@@ -233,13 +232,5 @@ class OtherQueue
             'note' => $note,
             'user_id' => App::i()->user->id,
         ]);
-    }
-
-    // Associar e arquivar não passam pela entidade: a permissão é a mesma de alterar a árvore.
-    private function requireCurator(?Node $node): void
-    {
-        if (!App::i()->user->is('admin')) {
-            throw new PermissionDenied(App::i()->user, $node, 'modify');
-        }
     }
 }

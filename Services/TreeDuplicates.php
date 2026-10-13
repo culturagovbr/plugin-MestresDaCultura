@@ -3,7 +3,6 @@
 namespace MDC\Services;
 
 use MapasCulturais\App;
-use MapasCulturais\Exceptions\PermissionDenied;
 use MapasCulturais\i;
 use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
@@ -36,7 +35,7 @@ class TreeDuplicates
     // O item e os nomes do grupo dele deixam de ser apontados.
     function markLegitimate(Node $node): void
     {
-        $this->requireCurator($node);
+        Curators::require($node);
 
         $group = self::groups($this->activeNodes(), [])[$node->id] ?? null;
 
@@ -56,7 +55,7 @@ class TreeDuplicates
 
     function unmarkLegitimate(Node $node): void
     {
-        $this->requireCurator($node);
+        Curators::require($node);
 
         if (!App::i()->em->getConnection()->delete('mdc_tree_legit_repeat', ['name_key' => self::key($node->name)])) {
             throw new CurationRefused(sprintf(i::__('"%s" não está marcado como repetição legítima.'), $node->name));
@@ -163,13 +162,5 @@ class TreeDuplicates
         }
 
         return $nodes;
-    }
-
-    // A tabela não é entidade: a permissão é a mesma de alterar a árvore.
-    private function requireCurator(Node $node): void
-    {
-        if (!App::i()->user->is('admin')) {
-            throw new PermissionDenied(App::i()->user, $node, 'modify');
-        }
     }
 }

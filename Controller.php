@@ -11,6 +11,7 @@ use MapasCulturais\i;
 use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
 use MDC\Services\FixedOpportunity;
+use MDC\Services\Curators;
 use MDC\Services\OtherQueue;
 use MDC\Services\TreeCuration;
 use MDC\Services\TreeDuplicates;
@@ -60,11 +61,7 @@ class Controller extends \MapasCulturais\Controller
     // Árvore da curadoria, com os desativados e o uso. Cada ação de curadoria responde `true` ou o id do item criado.
     function GET_curationTree()
     {
-        $this->requireAuthentication();
-
-        if (!App::i()->user->is('admin')) {
-            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
-        }
+        $this->requireCurator();
 
         $this->json(App::i()->repo(Node::class)->findCurationTree());
     }
@@ -72,13 +69,9 @@ class Controller extends \MapasCulturais\Controller
     // Histórico de um item, a partir das revisões do core (ver TreeHistory).
     function GET_curationHistory()
     {
-        $this->requireAuthentication();
+        $this->requireCurator();
 
         $app = App::i();
-
-        if (!$app->user->is('admin')) {
-            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
-        }
 
         $node = $app->repo(Node::class)->find((int) ($this->data['id'] ?? 0));
 
@@ -92,13 +85,9 @@ class Controller extends \MapasCulturais\Controller
     // Baixa a árvore ativa no formato de data/atuacao.json (ver TreeExport).
     function GET_curationExport()
     {
-        $this->requireAuthentication();
+        $this->requireCurator();
 
         $app = App::i();
-
-        if (!$app->user->is('admin')) {
-            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
-        }
 
         $app->response = $app->response
             ->withHeader('Content-Type', 'application/json; charset=utf-8')
@@ -139,11 +128,7 @@ class Controller extends \MapasCulturais\Controller
     // Fila "Não encontrou?" (ver OtherQueue): os textos de "Outro" e o que a curadoria fez com eles.
     function GET_curationOthers()
     {
-        $this->requireAuthentication();
-
-        if (!App::i()->user->is('admin')) {
-            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
-        }
+        $this->requireCurator();
 
         $this->json((new OtherQueue())->entries());
     }
@@ -187,22 +172,28 @@ class Controller extends \MapasCulturais\Controller
     // Executa a ação de curadoria; regra quebrada volta como a mensagem do serviço.
     private function curate(callable $action): void
     {
-        $this->requireAuthentication();
-
         // Barra quem não é curador antes de a ação mexer no item.
-        if (!App::i()->user->is('admin')) {
-            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
-        }
+        $this->requireCurator();
 
         try {
             $result = $action(new TreeCuration());
         } catch (CurationRefused $e) {
             $this->errorJson($e->getMessage(), 400);
         } catch (PermissionDenied) {
-            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
+            $this->errorJson(Curators::refusal(), 403);
         }
 
         $this->json(is_int($result) ? ['id' => $result] : true);
+    }
+
+    // Curadoria é só para quem Curators inclui; visitante vai para a autenticação.
+    private function requireCurator(): void
+    {
+        $this->requireAuthentication();
+
+        if (!Curators::includes()) {
+            $this->errorJson(Curators::refusal(), 403);
+        }
     }
 
     // Item da árvore do POST; sem o id e com `optional`, null (a raiz).

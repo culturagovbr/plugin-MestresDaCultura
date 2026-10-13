@@ -7,6 +7,7 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\Mapping as ORM;
 use MapasCulturais\App;
 use MapasCulturais\Traits;
+use MDC\Services\Curators;
 
 /**
  * @property int $id
@@ -139,22 +140,22 @@ class Node extends \MapasCulturais\Entity
     // Sem dono, a verificação genérica compara o usuário com ele mesmo e libera qualquer um.
     protected function canUserCreate($user)
     {
-        return $user->is('admin');
+        return Curators::includes($user);
     }
 
     protected function canUserCreateChild($user)
     {
-        return $user->is('admin');
+        return Curators::includes($user);
     }
 
     protected function canUserModify($user)
     {
-        return $user->is('admin');
+        return Curators::includes($user);
     }
 
     protected function canUserRemove($user)
     {
-        return $user->is('admin');
+        return Curators::includes($user);
     }
 
 }

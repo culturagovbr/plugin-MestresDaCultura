@@ -226,7 +226,7 @@ class Plugin extends \MapasCulturais\Plugin
                 $app->pass();
             }
 
-            if (!$app->user->is('admin')) {
+            if (!Services\Curators::includes()) {
                 $app->halt(403, i::__('Acesso restrito.'));
             }
 
@@ -244,7 +244,7 @@ class Plugin extends \MapasCulturais\Plugin
                 'route' => 'panel/mdc-tree-curation',
                 'icon' => 'mdc-tree',
                 'label' => i::__('Curadoria da Árvore de Atuação'),
-                'condition' => fn () => $app->user->is('admin'),
+                'condition' => fn () => Services\Curators::includes(),
             ];
         });
 

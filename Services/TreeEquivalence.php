@@ -3,7 +3,6 @@
 namespace MDC\Services;
 
 use MapasCulturais\App;
-use MapasCulturais\Exceptions\PermissionDenied;
 use MapasCulturais\i;
 use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
@@ -22,7 +21,7 @@ class TreeEquivalence
 
     function mark(Node $node, Node $reference): void
     {
-        $this->requireCurator($node);
+        Curators::require($node);
 
         $map = $this->all();
         $repository = App::i()->repo(Node::class);
@@ -54,20 +53,12 @@ class TreeEquivalence
 
     function undo(Node $node): void
     {
-        $this->requireCurator($node);
+        Curators::require($node);
 
         if (!isset($this->all()[$node->id])) {
             throw new CurationRefused(sprintf(i::__('"%s" não equivale a nenhum item.'), $node->name));
         }
 
         App::i()->em->getConnection()->delete('mdc_tree_equivalence', ['node_id' => $node->id]);
-    }
-
-    // A tabela não é entidade: a permissão é a mesma de alterar a árvore.
-    private function requireCurator(Node $node): void
-    {
-        if (!App::i()->user->is('admin')) {
-            throw new PermissionDenied(App::i()->user, $node, 'modify');
-        }
     }
 }
