@@ -189,6 +189,11 @@ class Controller extends \MapasCulturais\Controller
     {
         $this->requireAuthentication();
 
+        // Barra quem não é curador antes de a ação mexer no item.
+        if (!App::i()->user->is('admin')) {
+            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
+        }
+
         try {
             $result = $action(new TreeCuration());
         } catch (CurationRefused $e) {
