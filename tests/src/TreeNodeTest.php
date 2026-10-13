@@ -85,6 +85,63 @@ class TreeNodeTest extends TestCase
         $this->assertEquals(4, $atividade->level);
     }
 
+    /** @return Node[] Saberes e Ofícios › Artesanato › Couro › Bruacas */
+    private function createBranch(): array
+    {
+        $segmento = $this->createNode('Saberes e Ofícios');
+        $tipologia = $this->createNode('Artesanato', $segmento);
+        $subtipologia = $this->createNode('Couro', $tipologia);
+        $atividade = $this->createNode('Bruacas', $subtipologia);
+
+        return [$segmento, $tipologia, $subtipologia, $atividade];
+    }
+
+    private function levelInTheDatabase(Node $node): int
+    {
+        return (int) $this->app->em->getConnection()->fetchOne('SELECT level FROM mdc_tree_node WHERE id = ?', [$node->id]);
+    }
+
+    function testMovingANodeCarriesTheLevelsOfItsBranch()
+    {
+        $this->loginAsManager();
+        [, , $couro, $bruacas] = $this->createBranch();
+        $outro_segmento = $this->createNode('Celebrações e Rituais');
+
+        $couro->parent = $outro_segmento;
+        $couro->save(true);
+
+        $this->assertEquals(2, $this->levelInTheDatabase($couro));
+        $this->assertEquals(3, $this->levelInTheDatabase($bruacas), 'O que está abaixo do nó movido acompanha o novo nível');
+        $this->assertEquals(3, $bruacas->level, 'O nó já carregado na requisição reflete o banco');
+    }
+
+    function testMovingANodeToTheRootMakesItASegment()
+    {
+        $this->loginAsManager();
+        [, $artesanato, $couro, $bruacas] = $this->createBranch();
+
+        $artesanato->parent = null;
+        $artesanato->save(true);
+
+        $this->assertEquals([1, 2, 3], [$this->levelInTheDatabase($artesanato), $this->levelInTheDatabase($couro), $this->levelInTheDatabase($bruacas)]);
+    }
+
+    function testMovingANodeLeavesTheOtherBranchesAndTheirHistoryAlone()
+    {
+        $this->loginAsManager();
+        [$saberes, $artesanato, $couro, $bruacas] = $this->createBranch();
+        $luthieria = $this->createNode('Luthieria', $saberes);
+        $rabeca = $this->createNode('Rabeca', $luthieria);
+        $revisions = count($bruacas->getRevisions());
+
+        $couro->parent = $luthieria;
+        $couro->save(true);
+
+        $this->assertEquals(2, $this->levelInTheDatabase($artesanato), 'O antigo pai não muda');
+        $this->assertEquals(3, $this->levelInTheDatabase($rabeca), 'O novo irmão não muda');
+        $this->assertCount($revisions, $bruacas->getRevisions(), 'O nível é derivado: o ramo não ganha revisão por item');
+    }
+
     function testReadsTheChildrenOfANode()
     {
         $this->loginAsManager();
