@@ -101,6 +101,20 @@ class TreeNodeTest extends TestCase
         return (int) $this->app->em->getConnection()->fetchOne('SELECT level FROM mdc_tree_node WHERE id = ?', [$node->id]);
     }
 
+    function testSavingANodeLoadedFromTheDatabaseKeepsItsLevel()
+    {
+        $this->loginAsManager();
+        [, , , $bruacas] = $this->createBranch();
+        $this->app->em->clear();
+
+        // Carregado do banco, o pai chega como proxy ainda não carregado.
+        $loaded = $this->app->repo(Node::class)->find($bruacas->id);
+        $loaded->displayOrder = 2;
+        $loaded->save(true);
+
+        $this->assertEquals(4, $this->levelInTheDatabase($loaded));
+    }
+
     function testMovingANodeCarriesTheLevelsOfItsBranch()
     {
         $this->loginAsManager();
