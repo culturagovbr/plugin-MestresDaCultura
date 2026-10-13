@@ -11,6 +11,7 @@ use MapasCulturais\i;
 use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
 use MDC\Services\FixedOpportunity;
+use MDC\Services\OtherQueue;
 use MDC\Services\TreeCuration;
 use MDC\Services\TreeEquivalence;
 use MDC\Services\TreeExport;
@@ -111,6 +112,34 @@ class Controller extends \MapasCulturais\Controller
     function POST_curationEnable()
     {
         $this->curate(fn (TreeCuration $curation) => $curation->enable($this->nodeFromPost('id')));
+    }
+
+    // Fila "Não encontrou?" (ver OtherQueue): os textos de "Outro" e o que a curadoria fez com eles.
+    function GET_curationOthers()
+    {
+        $this->requireAuthentication();
+
+        if (!App::i()->user->is('admin')) {
+            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
+        }
+
+        $this->json((new OtherQueue())->entries());
+    }
+
+    // `parent` é onde o texto foi escrito; `place`, onde o item novo entra (sem ele, vira segmento).
+    function POST_curationOtherCreate()
+    {
+        $this->curate(fn () => (new OtherQueue())->create($this->nodeFromPost('parent', optional: true), (string) ($this->postData['key'] ?? ''), (string) ($this->postData['name'] ?? ''), $this->nodeFromPost('place', optional: true))->id);
+    }
+
+    function POST_curationOtherAssociate()
+    {
+        $this->curate(fn () => (new OtherQueue())->associate($this->nodeFromPost('parent', optional: true), (string) ($this->postData['key'] ?? ''), $this->nodeFromPost('node')));
+    }
+
+    function POST_curationOtherArchive()
+    {
+        $this->curate(fn () => (new OtherQueue())->archive($this->nodeFromPost('parent', optional: true), (string) ($this->postData['key'] ?? ''), (string) ($this->postData['note'] ?? '')));
     }
 
     function POST_curationEquivalence()

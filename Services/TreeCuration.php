@@ -204,7 +204,7 @@ class TreeCuration
     private function refuseSiblingWithTheSameName(?Node $parent, string $name, ?Node $except = null): void
     {
         foreach ($this->siblingsOf($parent) as $sibling) {
-            if ($sibling !== $except && $sibling->status === Node::STATUS_ENABLED && $this->comparable($sibling->name) === $this->comparable($name)) {
+            if ($sibling !== $except && $sibling->status === Node::STATUS_ENABLED && TreeText::comparable($sibling->name) === TreeText::comparable($name)) {
                 throw new CurationRefused(sprintf(i::__('Já existe "%s" neste mesmo lugar.'), $sibling->name));
             }
         }
@@ -223,18 +223,5 @@ class TreeCuration
         }
 
         return $name;
-    }
-
-    // Sem a extensão intl no ambiente: os acentos do português, à mão.
-    private function comparable(string $name): string
-    {
-        return strtr(mb_strtolower($name), [
-            'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
-            'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
-            'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
-            'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
-            'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
-            'ç' => 'c', 'ñ' => 'n',
-        ]);
     }
 }

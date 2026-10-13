@@ -3,6 +3,8 @@
 use MapasCulturais\i;
 
 return [
+    'aba mapa' => i::__('Mapa'),
+    'aba fila' => i::__('Não encontrou? (%s)'),
     'carregando' => i::__('Carregando a árvore...'),
     'falha' => i::__('Não foi possível carregar a árvore. Recarregue a página para tentar de novo.'),
     'mostrar desativados' => i::__('Mostrar desativados'),

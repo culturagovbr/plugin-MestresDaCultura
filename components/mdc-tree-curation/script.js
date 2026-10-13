@@ -24,6 +24,8 @@ app.component('mdc-tree-curation', {
             matches: [],
             // ação de curadoria em andamento
             busy: false,
+            // textos da fila "Não encontrou?" esperando decisão
+            pendingOthers: 0,
         };
     },
 
@@ -56,6 +58,7 @@ app.component('mdc-tree-curation', {
 
     created() {
         this.load();
+        this.countOthers();
     },
 
     methods: {
@@ -66,6 +69,22 @@ app.component('mdc-tree-curation', {
             } else {
                 this.selected = id;
             }
+        },
+
+        // Conta a fila para o rótulo da aba; depois de aberta, a fila atualiza a contagem.
+        async countOthers() {
+            try {
+                const response = await fetch(Utils.createUrl('mdc', 'curationOthers'), { headers: { Accept: 'application/json' } });
+                this.pendingOthers = response.ok ? (await response.json()).filter(entry => !entry.decision).length : 0;
+            } catch {
+                this.pendingOthers = 0;
+            }
+        },
+
+        // Vindo da fila: volta para a aba do mapa e leva ao item.
+        goTo(id) {
+            this.$refs.tabs.selectTab('mapa');
+            this.$nextTick(() => this.focus(id));
         },
 
         async load() {

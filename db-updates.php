@@ -121,4 +121,45 @@ return [
 
         __exec('CREATE INDEX IDX_mdc_tree_equivalence_target ON mdc_tree_equivalence (equivalent_to)');
     },
+
+    // Decisões da fila "Não encontrou?": o que a curadoria fez com cada texto de "Outro", agrupado pelo
+    // lugar onde foi escrito. As respostas não mudam.
+    'mdc: cria a tabela de decisões da fila "Não encontrou?"' => function () {
+        if (__table_exists('mdc_tree_other_review')) {
+            return;
+        }
+
+        __exec("
+            CREATE TABLE mdc_tree_other_review (
+                id SERIAL NOT NULL,
+                parent_id INT DEFAULT NULL,
+                text_key VARCHAR(255) NOT NULL,
+                decision VARCHAR(16) NOT NULL,
+                node_id INT DEFAULT NULL,
+                note TEXT DEFAULT NULL,
+                user_id INT DEFAULT NULL,
+                create_timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+
+                PRIMARY KEY(id),
+                CONSTRAINT CHK_mdc_tree_other_review_decision CHECK (decision IN ('created', 'associated', 'archived'))
+            )");
+
+        __exec('
+            ALTER TABLE mdc_tree_other_review
+                ADD CONSTRAINT FK_mdc_tree_other_review_parent
+                FOREIGN KEY (parent_id) REFERENCES mdc_tree_node(id) ON DELETE CASCADE');
+
+        __exec('
+            ALTER TABLE mdc_tree_other_review
+                ADD CONSTRAINT FK_mdc_tree_other_review_node
+                FOREIGN KEY (node_id) REFERENCES mdc_tree_node(id) ON DELETE SET NULL');
+
+        __exec('
+            ALTER TABLE mdc_tree_other_review
+                ADD CONSTRAINT FK_mdc_tree_other_review_user
+                FOREIGN KEY (user_id) REFERENCES usr(id) ON DELETE SET NULL');
+
+        // Uma decisão por texto em cada lugar; o "geral" (sem pai) entra como 0.
+        __exec('CREATE UNIQUE INDEX UNQ_mdc_tree_other_review ON mdc_tree_other_review (COALESCE(parent_id, 0), text_key)');
+    },
 ];
