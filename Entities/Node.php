@@ -84,6 +84,12 @@ class Node extends \MapasCulturais\Entity
      */
     protected $status = self::STATUS_ENABLED;
 
+    // Lê o nível carregando o item, mesmo quando é um proxy do Doctrine.
+    function getLevel(): int
+    {
+        return $this->level;
+    }
+
     function getChildren(): array
     {
         return $this->_children ? $this->_children->toArray() : [];
@@ -95,7 +101,7 @@ class Node extends \MapasCulturais\Entity
         $parent = $this->getParent();
         $previous_level = $this->level;
 
-        $this->level = $parent ? $parent->level + 1 : 1;
+        $this->level = $parent ? $parent->getLevel() + 1 : 1;
 
         parent::save($flush);
 
