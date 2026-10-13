@@ -12,6 +12,14 @@ class TreeNodeTest extends TestCase
 {
     use UserDirector;
 
+    // Cada teste começa com a árvore vazia, dentro da própria transação.
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->app->em->getConnection()->executeStatement('DELETE FROM mdc_tree_node');
+    }
+
     private function loginAsManager(): void
     {
         $this->login($this->userDirector->createUser('admin'));
