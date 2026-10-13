@@ -22,6 +22,16 @@ As bibliotecas de que um componente precisa vão em `dependencies` no `package.j
 
 A pasta `assets/` precisa existir mesmo que fique vazia: o core acha o `script.js` de um componente como `assets/../components/<nome>/script.js`, e sem ela as páginas que usam o componente quebram com `Asset not found`.
 
+## Curadoria da Árvore de Atuação
+
+Página `painel/mdc-tree-curation`, só para administradores do subsite do programa.
+
+- **Regras** em serviços: `TreeCuration` (adicionar, renomear, reordenar, mover, desativar, reativar), `TreeEquivalence` (equivalências) e `OtherQueue` (fila "Não encontrou?"). Regra quebrada lança `Exceptions\CurationRefused`, com a mensagem que a tela mostra.
+- **Rotas** no controller `mdc`: `GET curationTree`, `curationOthers` e `curationExport`; `POST curationAdd`, `curationRename`, `curationReorder`, `curationMove`, `curationDisable`, `curationEnable`, `curationEquivalence`, `curationEquivalenceUndo`, `curationOtherCreate`, `curationOtherAssociate` e `curationOtherArchive`.
+- **Tela:** `mdc-tree-curation` (página e abas), `mdc-tree-map`, `mdc-tree-search`, `mdc-tree-node-panel` e `mdc-tree-others`; visual no tema.
+- **Tabelas:** `mdc_tree_node` (itens, com revisões do core), `mdc_tree_equivalence` e `mdc_tree_other_review`, todas criadas por db-update. Nenhuma ação da curadoria altera as respostas dos cadastros.
+- **Implantação:** os db-updates criam as tabelas; quando a entidade `Node` ganha método, as classes de proxy do Doctrine precisam ser geradas de novo (`scripts/generate-proxies.sh`).
+
 ## Paliativos
 
 - **Fotos e vídeos do agente na ficha do v1** (`Services/AgentMediaView.php`): o `registration-field-view.php` do core não trata os campos `@gallery` e `@videos` e os mostra como `[object Object]`. Na oportunidade do programa, o plugin entrega esses campos já montados em HTML, e a foto clicada abre no `<mdc-photo-viewer>`, na página de cima (`assets-src/js/plugin-MDC.js`). Retirar quando o core os exibir.
