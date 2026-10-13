@@ -162,4 +162,36 @@ return [
         // Uma decisão por texto em cada lugar; o "geral" (sem pai) entra como 0.
         __exec('CREATE UNIQUE INDEX UNQ_mdc_tree_other_review ON mdc_tree_other_review (COALESCE(parent_id, 0), text_key)');
     },
+
+    // Nomes que se repetem de propósito na árvore, que a curadoria não vê apontados como duplicata. Chave sem acento,
+    // espaço nem pontuação (TreeDuplicates::key).
+    'mdc: cria a tabela de repetições legítimas da árvore' => function () {
+        if (__table_exists('mdc_tree_legit_repeat')) {
+            return;
+        }
+
+        __exec('
+            CREATE TABLE mdc_tree_legit_repeat (
+                name_key VARCHAR(255) NOT NULL,
+                user_id INT DEFAULT NULL,
+                create_timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+
+                PRIMARY KEY(name_key)
+            )');
+
+        __exec('
+            ALTER TABLE mdc_tree_legit_repeat
+                ADD CONSTRAINT FK_mdc_tree_legit_repeat_user
+                FOREIGN KEY (user_id) REFERENCES usr(id) ON DELETE SET NULL');
+
+        // Materiais e funções que valem em vários lugares, o instrumento que se faz (Luthieria) e o que se toca
+        // (Música), e pares de nomes parecidos que são manifestações diferentes.
+        $keys = ['madeira', 'ferro', 'ceramica', 'fibrasnaturais', 'terreiro', 'rabeca', 'tambores', 'viola', 'violas',
+            'pifano', 'pifanos', 'xilogravura', 'violeiro', 'bloco', 'cortejo', 'pintura', 'guerreiro', 'sambadeira',
+            'mineiropau', 'maneiropau', 'cavalgada', 'cavalhada'];
+
+        foreach ($keys as $key) {
+            __exec("INSERT INTO mdc_tree_legit_repeat (name_key) VALUES ('{$key}')");
+        }
+    },
 ];

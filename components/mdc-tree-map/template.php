@@ -18,6 +18,7 @@ $this->import('
                 @click="choose(item)" @keydown.enter.prevent="choose(item)" @keydown.space.prevent="choose(item)">
                 <rect class="mdc-tree-map__ring" x="-4" y="-4" :width="item.w + 8" :height="item.h + 8" :rx="item.h / 2 + 4"></rect>
                 <rect class="mdc-tree-map__box" :width="item.w" :height="item.h" :rx="item.h / 2"></rect>
+                <circle v-if="showDuplicates && item.duplicate" class="mdc-tree-map__flag" :cx="item.side === 'left' ? 4 : item.w - 4" cy="2" r="5.5"></circle>
                 <text class="mdc-tree-map__label" :x="item.w / 2" :y="item.h / 2" dy="0.35em" text-anchor="middle">
                     <tspan class="mdc-tree-map__name">{{item.name}}</tspan><tspan v-if="item.id" class="mdc-tree-map__count" dx="7">{{item.count}}</tspan>
                 </text>
@@ -38,6 +39,7 @@ $this->import('
     <p class="mdc-tree-map__legend" aria-hidden="true">
         <span><i class="mdc-tree-map__swatch"></i>{{text('ativo')}}</span>
         <span><i class="mdc-tree-map__swatch mdc-tree-map__swatch--off"></i>{{text('desativado')}}</span>
+        <span v-if="showDuplicates"><i class="mdc-tree-map__dot"></i>{{text('duplicata')}}</span>
         <span>{{text('legenda ramo')}}</span>
         <span>{{text('legenda uso')}}</span>
     </p>

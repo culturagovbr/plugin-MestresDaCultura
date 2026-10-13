@@ -34,6 +34,11 @@ app.component('mdc-tree-map', {
             type: Array,
             default: () => [],
         },
+        // Marca as possíveis duplicatas (itens com `duplicates`)
+        showDuplicates: {
+            type: Boolean,
+            default: true,
+        },
     },
 
     setup() {
@@ -159,6 +164,7 @@ app.component('mdc-tree-map', {
                 name: node.name,
                 enabled: node.enabled,
                 count: node.sent,
+                duplicate: !!node.duplicates?.length,
                 depth,
                 side,
                 h: MDC_TREE_MAP.height[depth],

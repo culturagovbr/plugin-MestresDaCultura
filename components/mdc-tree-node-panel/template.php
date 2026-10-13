@@ -24,6 +24,20 @@ $this->import('
         <div class="mdc-tree-node-panel__stat"><strong>{{branch.active}}</strong><span>{{branch.active === branch.all ? text('no ramo') : format('no ramo de', branch.all)}}</span></div>
     </div>
 
+    <div v-if="duplicates.length && !reference" class="mdc-tree-node-panel__equivalence">
+        <p><strong>{{text('possivel duplicata')}}</strong></p>
+        <ul>
+            <li v-for="item in duplicates" :key="item.node.id"><button type="button" class="mdc-tree-node-panel__link" @click="$emit('select', item.node.id)">{{item.path.join(' › ')}}</button></li>
+        </ul>
+        <p class="mdc-tree-node-panel__hint">{{text('duplicata dica')}}</p>
+        <button type="button" class="button button--sm button--text" :disabled="busy" @click="curation.markLegitimate()">{{text('repeticao legitima')}}</button>
+    </div>
+
+    <div v-if="node.legitimate" class="mdc-tree-node-panel__equivalence">
+        <p>{{text('legitima marcada')}}</p>
+        <button type="button" class="button button--sm button--text" :disabled="busy" @click="curation.unmarkLegitimate()">{{text('voltar a alertar')}}</button>
+    </div>
+
     <div v-if="reference" class="mdc-tree-node-panel__equivalence">
         <p>{{text('equivale a')}} <button type="button" class="mdc-tree-node-panel__link" @click="$emit('select', reference.node.id)">{{reference.path.join(' › ')}}</button></p>
         <p class="mdc-tree-node-panel__hint">{{text('equivalencia efeito')}}</p>

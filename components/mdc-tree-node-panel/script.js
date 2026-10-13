@@ -117,6 +117,11 @@ app.component('mdc-tree-node-panel', {
             return this.node.equivalentTo ? this.curation.index[this.node.equivalentTo] || null : null;
         },
 
+        // Possíveis duplicatas, com o caminho de cada uma.
+        duplicates() {
+            return (this.node.duplicates || []).map(id => this.curation.index[id]).filter(Boolean);
+        },
+
         // Itens que equivalem a este (ele é a referência deles).
         equivalents() {
             return Object.values(this.curation.index).filter(({ node }) => node.equivalentTo === this.node.id);

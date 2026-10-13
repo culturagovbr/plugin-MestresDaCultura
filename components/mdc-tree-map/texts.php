@@ -13,6 +13,7 @@ return [
     'afastar' => i::__('Afastar'),
     'ativo' => i::__('ativo'),
     'desativado' => i::__('desativado'),
+    'duplicata' => i::__('possível duplicata'),
     'legenda ramo' => i::__('+N: ramo fechado'),
     'legenda uso' => i::__('número: cadastros enviados'),
 ];

@@ -7,6 +7,7 @@ use MDC\Dtos\CurationNode;
 use MDC\Dtos\TreeNode;
 use MDC\Entities\Node as NodeEntity;
 use MDC\Services\ActingField;
+use MDC\Services\TreeDuplicates;
 use MDC\Services\TreeEquivalence;
 
 class Node extends \MapasCulturais\Repository
@@ -42,7 +43,9 @@ class Node extends \MapasCulturais\Repository
             ->orderBy('n.level', 'ASC')->addOrderBy('n.displayOrder', 'ASC')->addOrderBy('n.id', 'ASC')
             ->getQuery()->getResult();
 
-        return $this->nestForCuration($this->groupByParent($nodes), self::ROOT, $this->countUsage(), (new TreeEquivalence())->all());
+        $context = ['usage' => $this->countUsage(), 'equivalences' => (new TreeEquivalence())->all()] + (new TreeDuplicates())->forTree();
+
+        return $this->nestForCuration($this->groupByParent($nodes), self::ROOT, $context);
     }
 
     /**
@@ -128,11 +131,10 @@ class Node extends \MapasCulturais\Repository
 
     /**
      * @param array<int,NodeEntity[]> $children_of
-     * @param array<int,array{sent: int, drafts: int}> $usage
-     * @param array<int,int> $equivalences item => referência
+     * @param array{usage: array<int,array{sent: int, drafts: int}>, equivalences: array<int,int>, duplicates: array<int,int[]>, legitimate: int[]} $context
      * @return CurationNode[]
      */
-    private function nestForCuration(array $children_of, int $parent_id, array $usage, array $equivalences): array
+    private function nestForCuration(array $children_of, int $parent_id, array $context): array
     {
         $branch = [];
 
@@ -141,10 +143,12 @@ class Node extends \MapasCulturais\Repository
                 $node->id,
                 $node->name,
                 $node->status === NodeEntity::STATUS_ENABLED,
-                $usage[$node->id]['sent'] ?? 0,
-                $usage[$node->id]['drafts'] ?? 0,
-                $equivalences[$node->id] ?? null,
-                $this->nestForCuration($children_of, $node->id, $usage, $equivalences),
+                $context['usage'][$node->id]['sent'] ?? 0,
+                $context['usage'][$node->id]['drafts'] ?? 0,
+                $context['equivalences'][$node->id] ?? null,
+                $context['duplicates'][$node->id] ?? [],
+                in_array($node->id, $context['legitimate'], true),
+                $this->nestForCuration($children_of, $node->id, $context),
             );
         }
 

@@ -12,7 +12,8 @@ Mapa mental da Árvore de Atuação na curadoria: "Atuação Cultural" no centro
 - *Array **tree*** - Segmentos da árvore da curadoria (`GET mdc/curationTree`): `{id, name, enabled, sent, drafts, children}`;
 - *Number **selected** = null* - Item escolhido; ao mudar, o mapa abre o caminho até ele e o centraliza;
 - *Boolean **showDisabled** = true* - Mostra os itens desativados;
-- *Array **highlight** = []* - Ids a destacar, como os encontrados pela busca.
+- *Array **highlight** = []* - Ids a destacar, como os encontrados pela busca;
+- *Boolean **showDuplicates** = true* - Marca com um ponto amarelo as possíveis duplicatas (itens com `duplicates`).
 
 ## Eventos
 - **select** - Id do item clicado (0 é a raiz).

@@ -7,6 +7,7 @@ return [
     'aba fila' => i::__('Não encontrou? (%s)'),
     'carregando' => i::__('Carregando a árvore...'),
     'falha' => i::__('Não foi possível carregar a árvore. Recarregue a página para tentar de novo.'),
+    'destacar duplicatas' => i::__('Destacar possíveis duplicatas'),
     'mostrar desativados' => i::__('Mostrar desativados'),
     'abrir ramo' => i::__('Abrir ramo selecionado'),
     'fechar tudo' => i::__('Fechar tudo'),
@@ -24,5 +25,7 @@ return [
     'reativado' => i::__('"%s" voltou para a lista do formulário.'),
     'movido' => i::__('"%s" foi para %s.'),
     'equivalente' => i::__('"%s" agora equivale a %s nos relatórios.'),
+    'legitima' => i::__('"%s" agora é repetição legítima: o nome se repete de propósito e não será mais apontado.'),
+    'legitima desfeita' => i::__('"%s" volta a ser apontado como possível duplicata.'),
     'equivalencia desfeita' => i::__('"%s" não equivale mais a outro item.'),
 ];

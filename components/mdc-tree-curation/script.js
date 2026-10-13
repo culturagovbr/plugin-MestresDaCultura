@@ -20,6 +20,7 @@ app.component('mdc-tree-curation', {
             failed: false,
             selected: null,
             showDisabled: true,
+            showDuplicates: true,
             // ids encontrados pela busca, destacados no mapa
             matches: [],
             // ação de curadoria em andamento
@@ -166,6 +167,14 @@ app.component('mdc-tree-curation', {
             const place = parentId ? this.index[parentId].path.join(' › ') : this.text('raiz');
 
             return !!(await this.act('curationMove', { id: this.selected, parent: parentId || null }, this.format('movido', name, place)));
+        },
+
+        async markLegitimate() {
+            return !!(await this.act('curationLegitimate', { id: this.selected }, this.format('legitima', this.current.node.name)));
+        },
+
+        async unmarkLegitimate() {
+            return !!(await this.act('curationLegitimateUndo', { id: this.selected }, this.format('legitima desfeita', this.current.node.name)));
         },
 
         async markEquivalent(referenceId) {

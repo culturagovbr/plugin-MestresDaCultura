@@ -5,6 +5,7 @@ Painel do item escolhido na curadoria da Árvore de Atuação: caminho, nível, 
 - A ordem muda entre os irmãos ativos, os que aparecem no formulário (como em `TreeCuration::reorder`).
 - Na raiz (id 0), mostra o resumo da árvore e a lista dos segmentos.
 - Ações: renomear, adicionar abaixo (ou segmento, na raiz), mover (destino escolhido por busca, só entre os válidos pelas regras de `TreeCuration::move`) e desativar, cada uma num `<mc-modal>` que explica a regra e só fecha quando deu certo; reativar é direto, e fica bloqueado com o item acima desativado.
+- Possíveis duplicatas (`TreeDuplicates`): lista os outros itens com o mesmo nome, ou quase, e oferece "É repetição legítima"; marcado, mostra "Voltar a alertar".
 - Equivalências (`TreeEquivalence`): mostra a referência do item, ou os itens que equivalem a ele; "Marcar como equivalente…" abre a busca já com o nome do item (o caso comum é a duplicata em outro ramo) e só lista referências válidas, sem cadeias.
 - Não chama rotas: usa a página (`inject: ['curation']`, o `<mdc-tree-curation>`), que faz a ação e relê a árvore.
 - O visual fica no tema MestresDaCultura (`_mdc-tree-node-panel.scss`).

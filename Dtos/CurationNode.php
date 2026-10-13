@@ -16,6 +16,10 @@ class CurationNode
         public readonly int $drafts,
         // Referência de que o item é equivalente (ver TreeEquivalence), ou null.
         public readonly ?int $equivalentTo = null,
+        // Possíveis duplicatas: outros itens com o mesmo nome, ou quase (ver TreeDuplicates).
+        public readonly array $duplicates = [],
+        // O nome se repete em outros lugares de propósito (repetição legítima marcada).
+        public readonly bool $legitimate = false,
         public readonly array $children = [],
     ) {
     }

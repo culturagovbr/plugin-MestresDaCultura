@@ -13,6 +13,7 @@ use MDC\Exceptions\CurationRefused;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\OtherQueue;
 use MDC\Services\TreeCuration;
+use MDC\Services\TreeDuplicates;
 use MDC\Services\TreeEquivalence;
 use MDC\Services\TreeExport;
 
@@ -140,6 +141,16 @@ class Controller extends \MapasCulturais\Controller
     function POST_curationOtherArchive()
     {
         $this->curate(fn () => (new OtherQueue())->archive($this->nodeFromPost('parent', optional: true), (string) ($this->postData['key'] ?? ''), (string) ($this->postData['note'] ?? '')));
+    }
+
+    function POST_curationLegitimate()
+    {
+        $this->curate(fn () => (new TreeDuplicates())->markLegitimate($this->nodeFromPost('id')));
+    }
+
+    function POST_curationLegitimateUndo()
+    {
+        $this->curate(fn () => (new TreeDuplicates())->unmarkLegitimate($this->nodeFromPost('id')));
     }
 
     function POST_curationEquivalence()
