@@ -14,4 +14,8 @@ return [
     'erro' => i::__('Não foi possível concluir. Recarregue a página e tente de novo.'),
     'subiu' => i::__('"%s" subiu uma posição.'),
     'desceu' => i::__('"%s" desceu uma posição.'),
+    'renomeado' => i::__('"%s" agora se chama "%s".'),
+    'adicionado' => i::__('"%s" foi adicionado em %s.'),
+    'desativado' => i::__('"%s" saiu da lista do formulário.'),
+    'reativado' => i::__('"%s" voltou para a lista do formulário.'),
 ];

@@ -30,7 +30,7 @@ $this->import('
 
             <aside class="mdc-tree-curation__panel" aria-live="polite">
                 <p v-if="!current" class="mdc-tree-curation__hint">{{text('escolha')}}</p>
-                <mdc-tree-node-panel v-else :node="current.node" :parent="current.parent" :path="current.path" :busy="busy" @select="focus" @reorder="reorder"></mdc-tree-node-panel>
+                <mdc-tree-node-panel v-else :node="current.node" :parent="current.parent" :path="current.path" :busy="busy" @select="focus"></mdc-tree-node-panel>
             </aside>
         </div>
     </template>

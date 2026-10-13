@@ -8,6 +8,11 @@ app.component('mdc-tree-curation', {
         return { text, messages };
     },
 
+    // O painel do item chama as ações por aqui.
+    provide() {
+        return { curation: this };
+    },
+
     data() {
         return {
             tree: null,
@@ -109,10 +114,41 @@ app.component('mdc-tree-curation', {
             }
         },
 
-        reorder(offset) {
+        // Cada ação devolve se deu certo, para o modal decidir se fecha.
+        async reorder(offset) {
             const name = this.current.node.name;
 
-            this.act('curationReorder', { id: this.selected, offset }, this.text(offset < 0 ? 'subiu' : 'desceu').replace('%s', name));
+            return !!(await this.act('curationReorder', { id: this.selected, offset }, this.format(offset < 0 ? 'subiu' : 'desceu', name)));
+        },
+
+        async rename(name) {
+            const previous = this.current.node.name;
+
+            return !!(await this.act('curationRename', { id: this.selected, name }, this.format('renomeado', previous, name.trim())));
+        },
+
+        async add(name) {
+            const parent = this.current.node;
+            const result = await this.act('curationAdd', { parent: parent.id || null, name }, this.format('adicionado', name.trim(), parent.name));
+
+            if (result?.id) {
+                this.selected = result.id;
+            }
+
+            return !!result;
+        },
+
+        async disable() {
+            return !!(await this.act('curationDisable', { id: this.selected }, this.format('desativado', this.current.node.name)));
+        },
+
+        async enable() {
+            return !!(await this.act('curationEnable', { id: this.selected }, this.format('reativado', this.current.node.name)));
+        },
+
+        // substitui cada `%s` do texto pelo próximo argumento
+        format(key, ...values) {
+            return values.reduce((s, v) => s.replace('%s', v), this.text(key));
         },
     },
 });

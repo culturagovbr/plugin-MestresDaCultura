@@ -1,6 +1,9 @@
 app.component('mdc-tree-node-panel', {
     template: $TEMPLATES['mdc-tree-node-panel'],
-    emits: ['select', 'reorder'],
+    emits: ['select'],
+
+    // As ações vão para a página (mdc-tree-curation), que chama a rota e relê a árvore.
+    inject: ['curation'],
 
     props: {
         // Item da árvore da curadoria: {id, name, enabled, sent, drafts, children}; id 0 é a raiz
@@ -34,6 +37,13 @@ app.component('mdc-tree-node-panel', {
         return { text, format };
     },
 
+    data() {
+        return {
+            newName: '',
+            childName: '',
+        };
+    },
+
     computed: {
         isRoot() {
             return this.node.id === 0;
@@ -57,6 +67,30 @@ app.component('mdc-tree-node-panel', {
 
         position() {
             return this.siblings.indexOf(this.node);
+        },
+
+        // Atividade é o último nível; abaixo de desativado não se adiciona.
+        childLevel() {
+            const levels = ['segmento', 'tipologia', 'subtipologia', 'atividade'];
+
+            return this.node.enabled && this.path.length < levels.length ? this.text(levels[this.path.length]).toLowerCase() : null;
+        },
+
+        parentDisabled() {
+            return this.parent && this.parent.id !== 0 && !this.parent.enabled;
+        },
+    },
+
+    methods: {
+        // O modal só fecha quando a ação deu certo; recusada, fica aberto com a mensagem da regra.
+        async run(modal, action) {
+            modal.loading(true);
+            const done = await action();
+            modal.loading(false);
+
+            if (done) {
+                modal.close();
+            }
         },
     },
 });
