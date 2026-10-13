@@ -162,6 +162,18 @@ $this->import('
         <span>{{format('posicao', position + 1, siblings.length, parent.name)}}</span>
     </div>
 
+    <details v-if="!isRoot" :key="node.id" class="mdc-tree-node-panel__history" @toggle="loadHistory">
+        <summary>{{text('historico')}}</summary>
+        <p v-if="history === null" class="mdc-tree-node-panel__hint">{{text('carregando historico')}}</p>
+        <p v-else-if="!history.length" class="mdc-tree-node-panel__hint">{{text('sem historico')}}</p>
+        <ol v-else>
+            <li v-for="(entry, index) in history" :key="index">
+                <small>{{when(entry.at)}} · {{entry.who}}</small>
+                <span>{{entry.changes.join('; ')}}</span>
+            </li>
+        </ol>
+    </details>
+
     <div class="mdc-tree-node-panel__children">
         <h3>{{format(isRoot ? 'segmentos' : 'abaixo', node.children.length)}}</h3>
         <p v-if="!node.children.length" class="mdc-tree-node-panel__empty">{{text('nada abaixo')}}</p>

@@ -46,6 +46,8 @@ app.component('mdc-tree-node-panel', {
             moveLimit: 30,
             equivalenceQuery: '',
             equivalenceTarget: null,
+            // histórico do item, buscado ao abrir o bloco
+            history: null,
         };
     },
 
@@ -153,7 +155,23 @@ app.component('mdc-tree-node-panel', {
         },
     },
 
+    watch: {
+        'node.id'() {
+            this.history = null;
+        },
+    },
+
     methods: {
+        async loadHistory(event) {
+            if (event.target.open && this.history === null) {
+                this.history = await this.curation.history(this.node.id);
+            }
+        },
+
+        when(timestamp) {
+            return new Date(timestamp.replace(' ', 'T')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+        },
+
         comparable(text) {
             return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         },

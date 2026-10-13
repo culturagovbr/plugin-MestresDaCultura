@@ -16,6 +16,7 @@ use MDC\Services\TreeCuration;
 use MDC\Services\TreeDuplicates;
 use MDC\Services\TreeEquivalence;
 use MDC\Services\TreeExport;
+use MDC\Services\TreeHistory;
 
 class Controller extends \MapasCulturais\Controller
 {
@@ -66,6 +67,26 @@ class Controller extends \MapasCulturais\Controller
         }
 
         $this->json(App::i()->repo(Node::class)->findCurationTree());
+    }
+
+    // Histórico de um item, a partir das revisões do core (ver TreeHistory).
+    function GET_curationHistory()
+    {
+        $this->requireAuthentication();
+
+        $app = App::i();
+
+        if (!$app->user->is('admin')) {
+            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
+        }
+
+        $node = $app->repo(Node::class)->find((int) ($this->data['id'] ?? 0));
+
+        if (!$node) {
+            $this->errorJson(i::__('Item da árvore não encontrado.'), 404);
+        }
+
+        $this->json((new TreeHistory())->forNode($node));
     }
 
     // Baixa a árvore ativa no formato de data/atuacao.json (ver TreeExport).

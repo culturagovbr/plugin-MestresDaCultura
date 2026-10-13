@@ -106,6 +106,17 @@ app.component('mdc-tree-curation', {
             }
         },
 
+        // Histórico de um item (lista vazia se não deu para carregar).
+        async history(id) {
+            try {
+                const response = await fetch(Utils.createUrl('mdc', 'curationHistory', { id }), { headers: { Accept: 'application/json' } });
+
+                return response.ok ? await response.json() : [];
+            } catch {
+                return [];
+            }
+        },
+
         /**
          * Envia uma ação de curadoria (rotas `mdc/curation*`) e relê a árvore; a seleção e os ramos abertos
          * continuam. A recusa vem com a mensagem da regra, mostrada como está.
