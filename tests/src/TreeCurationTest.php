@@ -168,6 +168,112 @@ class TreeCurationTest extends TestCase
         $this->assertSame(['Luthieria', 'Artesanato'], $this->namesUnder($saberes));
     }
 
+    private function reload(Node $node): Node
+    {
+        $this->app->em->refresh($node);
+
+        return $node;
+    }
+
+    function testMovesABranchToTheEndOfAnotherList()
+    {
+        [$saberes, $artesanato, $couro, $bruacas] = $this->branch();
+        $luthieria = $this->curation->add($saberes, 'Luthieria');
+        $this->curation->add($luthieria, 'Rabeca');
+
+        $this->curation->move($couro, $luthieria);
+
+        $this->assertSame(['Rabeca', 'Couro'], $this->namesUnder($luthieria));
+        $this->assertSame([], $this->namesUnder($artesanato));
+        $this->assertSame(4, $this->reload($bruacas)->level, 'O ramo vai junto, no novo nível');
+    }
+
+    function testMovesAnItemToTheRootAsASegment()
+    {
+        [, $artesanato] = $this->branch();
+
+        $this->curation->move($artesanato, null);
+
+        $this->assertNull($this->reload($artesanato)->parent);
+        $this->assertSame(1, $artesanato->level);
+    }
+
+    function testRefusesAMoveIntoItsOwnBranchOrToTheSamePlace()
+    {
+        [$saberes, $artesanato, , $bruacas] = $this->branch();
+
+        $this->assertRefused('próprio ramo', fn () => $this->curation->move($artesanato, $bruacas));
+        $this->assertRefused('próprio ramo', fn () => $this->curation->move($artesanato, $artesanato));
+        $this->assertRefused('já está nesse lugar', fn () => $this->curation->move($artesanato, $saberes));
+    }
+
+    function testRefusesAMoveThatWouldGoPastTheFourthLevelCountingDisabledItems()
+    {
+        [$saberes, $artesanato, $couro, $bruacas] = $this->branch();
+        $luthieria = $this->curation->add($saberes, 'Luthieria');
+        $rabeca = $this->curation->add($luthieria, 'Rabeca');
+        $this->curation->disable($bruacas);
+
+        // Com uma atividade desativada abaixo, Couro não cabe sob uma subtipologia.
+        $this->assertRefused('no máximo 4 níveis', fn () => $this->curation->move($couro, $rabeca));
+
+        $this->assertRefused('no máximo 4 níveis', fn () => $this->curation->move($artesanato, $luthieria));
+
+        // Sob uma tipologia, o ramo de Couro chega exatamente ao quarto nível.
+        $this->curation->move($couro, $luthieria);
+        $this->assertSame(4, $this->reload($bruacas)->level);
+    }
+
+    function testRefusesAMoveToADisabledPlaceOrWhereTheNameExists()
+    {
+        [$saberes, $artesanato, $couro] = $this->branch();
+        $escultura = $this->curation->add($saberes, 'Escultura');
+        $this->curation->add($escultura, 'Couro');
+        $luthieria = $this->curation->add($saberes, 'Luthieria');
+        $this->curation->disable($luthieria);
+
+        $this->assertRefused('Já existe "Couro"', fn () => $this->curation->move($couro, $escultura));
+        $this->assertRefused('está desativado', fn () => $this->curation->move($couro, $luthieria));
+    }
+
+    function testDisablesTheWholeBranchWithoutDeletingAnything()
+    {
+        [$saberes, $artesanato, $couro, $bruacas] = $this->branch();
+
+        $this->curation->disable($artesanato);
+
+        foreach ([$artesanato, $couro, $bruacas] as $node) {
+            $this->assertSame(Node::STATUS_DISABLED, $this->reload($node)->status, "{$node->name} sai junto");
+        }
+
+        $this->assertSame(Node::STATUS_ENABLED, $this->reload($saberes)->status, 'O que está acima fica');
+        $this->assertSame([], array_map(fn ($node) => $node->name, $this->app->repo(Node::class)->findTree()[0]->children), 'Some da lista do formulário');
+        $this->assertRefused('já está desativado', fn () => $this->curation->disable($couro));
+    }
+
+    function testEnablesOnlyTheItemAndOnlyUnderAnActiveParent()
+    {
+        [, $artesanato, $couro, $bruacas] = $this->branch();
+        $this->curation->disable($artesanato);
+
+        $this->assertRefused('reative primeiro o item acima', fn () => $this->curation->enable($couro));
+
+        $this->curation->enable($artesanato);
+
+        $this->assertSame(Node::STATUS_ENABLED, $this->reload($artesanato)->status);
+        $this->assertSame(Node::STATUS_DISABLED, $this->reload($couro)->status, 'O que estava abaixo volta um a um');
+        $this->assertRefused('já está ativo', fn () => $this->curation->enable($artesanato));
+    }
+
+    function testRefusesToEnableWhenAnotherActiveItemTookTheName()
+    {
+        [, $artesanato, $couro] = $this->branch();
+        $this->curation->disable($couro);
+        $this->curation->add($artesanato, 'Couro');
+
+        $this->assertRefused('Já existe "Couro"', fn () => $this->curation->enable($couro));
+    }
+
     function testAnOrdinaryUserCannotChangeTheTree()
     {
         [$saberes] = $this->branch();
