@@ -8,6 +8,7 @@ $this->import('
     mc-alert
     mc-loading
     mdc-tree-map
+    mdc-tree-node-panel
     mdc-tree-search
 ');
 ?>
@@ -29,10 +30,7 @@ $this->import('
 
             <aside class="mdc-tree-curation__panel" aria-live="polite">
                 <p v-if="!current" class="mdc-tree-curation__hint">{{text('escolha')}}</p>
-                <template v-else>
-                    <p class="mdc-tree-curation__path">{{current.path.slice(0, -1).join(' › ') || text('raiz')}}</p>
-                    <h2 class="mdc-tree-curation__name">{{current.node.name}}</h2>
-                </template>
+                <mdc-tree-node-panel v-else :node="current.node" :parent="current.parent" :path="current.path" :busy="busy" @select="focus" @reorder="reorder"></mdc-tree-node-panel>
             </aside>
         </div>
     </template>

@@ -11,4 +11,7 @@ return [
     'enquadrar' => i::__('Enquadrar'),
     'escolha' => i::__('Clique num item do mapa para ver os detalhes.'),
     'raiz' => i::__('Atuação Cultural'),
+    'erro' => i::__('Não foi possível concluir. Recarregue a página e tente de novo.'),
+    'subiu' => i::__('"%s" subiu uma posição.'),
+    'desceu' => i::__('"%s" desceu uma posição.'),
 ];
