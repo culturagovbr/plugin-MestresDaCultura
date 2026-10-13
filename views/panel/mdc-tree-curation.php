@@ -8,6 +8,7 @@ use MapasCulturais\i;
 
 $this->import('
     mc-icon
+    mdc-tree-curation
 ');
 ?>
 
@@ -25,4 +26,6 @@ $this->import('
             <?php i::_e('Segmento › Tipologia › Subtipologia › Atividade: a lista que aparece na pergunta "Atuação Cultural" do cadastro.') ?>
         </p>
     </header>
+
+    <mdc-tree-curation></mdc-tree-curation>
 </div>

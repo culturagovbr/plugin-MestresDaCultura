@@ -1,0 +1,14 @@
+<?php
+
+use MapasCulturais\i;
+
+return [
+    'carregando' => i::__('Carregando a árvore...'),
+    'falha' => i::__('Não foi possível carregar a árvore. Recarregue a página para tentar de novo.'),
+    'mostrar desativados' => i::__('Mostrar desativados'),
+    'abrir ramo' => i::__('Abrir ramo selecionado'),
+    'fechar tudo' => i::__('Fechar tudo'),
+    'enquadrar' => i::__('Enquadrar'),
+    'escolha' => i::__('Clique num item do mapa para ver os detalhes.'),
+    'raiz' => i::__('Atuação Cultural'),
+];

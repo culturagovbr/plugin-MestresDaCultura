@@ -250,6 +250,8 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->hook('component(mc-icon).iconset', function (&$iconset) {
             $iconset['mdc-tree'] = 'mdi:file-tree-outline';
+            $iconset['mdc-zoom-in'] = 'mdi:plus';
+            $iconset['mdc-zoom-out'] = 'mdi:minus';
         });
     }
 
