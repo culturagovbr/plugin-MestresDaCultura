@@ -12,6 +12,7 @@ use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\TreeCuration;
+use MDC\Services\TreeExport;
 
 class Controller extends \MapasCulturais\Controller
 {
@@ -62,6 +63,23 @@ class Controller extends \MapasCulturais\Controller
         }
 
         $this->json(App::i()->repo(Node::class)->findCurationTree());
+    }
+
+    // Baixa a árvore ativa no formato de data/atuacao.json (ver TreeExport).
+    function GET_curationExport()
+    {
+        $this->requireAuthentication();
+
+        $app = App::i();
+
+        if (!$app->user->is('admin')) {
+            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
+        }
+
+        $app->response = $app->response
+            ->withHeader('Content-Type', 'application/json; charset=utf-8')
+            ->withHeader('Content-Disposition', 'attachment; filename="atuacao.json"');
+        $app->halt(200, TreeExport::json());
     }
 
     function POST_curationAdd()

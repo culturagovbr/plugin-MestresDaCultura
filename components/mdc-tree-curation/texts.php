@@ -9,6 +9,8 @@ return [
     'abrir ramo' => i::__('Abrir ramo selecionado'),
     'fechar tudo' => i::__('Fechar tudo'),
     'enquadrar' => i::__('Enquadrar'),
+    'exportar' => i::__('Exportar árvore (JSON)'),
+    'exportar dica' => i::__('Baixa os itens ativos no formato de data/atuacao.json, para levar os ajustes deste ambiente ao Git.'),
     'escolha' => i::__('Clique num item do mapa para ver os detalhes.'),
     'raiz' => i::__('Atuação Cultural'),
     'erro' => i::__('Não foi possível concluir. Recarregue a página e tente de novo.'),

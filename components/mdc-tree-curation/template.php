@@ -23,6 +23,7 @@ $this->import('
             <button type="button" class="button button--sm button--primary-outline" :disabled="!current || !current.node.children.length" @click="$refs.map.openBranch(selected)">{{text('abrir ramo')}}</button>
             <button type="button" class="button button--sm button--text" @click="$refs.map.closeAll()">{{text('fechar tudo')}}</button>
             <button type="button" class="button button--sm button--text" @click="$refs.map.fit()">{{text('enquadrar')}}</button>
+            <a class="button button--sm button--text" :href="exportUrl" download="atuacao.json" :title="text('exportar dica')">{{text('exportar')}}</a>
         </div>
 
         <div class="mdc-tree-curation__work">

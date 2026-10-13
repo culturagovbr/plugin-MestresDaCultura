@@ -45,6 +45,10 @@ app.component('mdc-tree-curation', {
             return index;
         },
 
+        exportUrl() {
+            return Utils.createUrl('mdc', 'curationExport');
+        },
+
         current() {
             return this.selected === null ? null : this.index[this.selected] || null;
         },
