@@ -78,4 +78,26 @@ class AgentMediaViewTest extends TestCase
         $this->assertSame('', AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), []));
         $this->assertSame('', AgentMediaView::toHtml($this->field(AgentMediaView::VIDEOS), [['title' => 'x', 'value' => '  ']]));
     }
+
+    function testListsThePhotosForTheSpreadsheetByNameAndAddress()
+    {
+        $photos = [
+            (object) ['name' => 'roda.jpg', 'url' => 'https://exemplo.org/roda.jpg'],
+            ['name' => 'renda.jpg', 'url' => 'https://exemplo.org/renda.jpg'],
+            ['name' => 'sem-endereco.jpg', 'url' => 'javascript:alert(1)'],
+        ];
+
+        $this->assertSame('roda.jpg: https://exemplo.org/roda.jpg | renda.jpg: https://exemplo.org/renda.jpg', AgentMediaView::photosAsCell($photos));
+    }
+
+    function testWritesTheVideosAndLinksForTheSpreadsheetWithTheirTitles()
+    {
+        $videos = [
+            ['id' => 1, 'title' => 'Minha história', 'value' => 'https://vimeo.com/123', 'group' => 'videos'],
+            (object) ['title' => '', 'value' => 'https://youtu.be/abc'],
+            ['title' => 'Sem endereço', 'value' => ' '],
+        ];
+
+        $this->assertSame('Minha história: https://vimeo.com/123 | https://youtu.be/abc', AgentMediaView::linksAsCell($videos));
+    }
 }
