@@ -125,4 +125,13 @@ class PanelNavTest extends TestCase
         $this->assertContains('Gestão de Selos', $labels, 'O grupo de administração é preservado');
         $this->assertContains('Minhas oportunidades', $labels, 'Minhas oportunidades passa para o grupo de administração');
     }
+
+    function testOnlyAdminsSeeTheTreeCuration()
+    {
+        $this->login($this->userDirector->createUser('admin'));
+        $this->assertContains('Curadoria da Árvore de Atuação', $this->labels($this->applyNav()));
+
+        $this->login($this->userDirector->createUser());
+        $this->assertNotContains('Curadoria da Árvore de Atuação', $this->labels($this->applyNav()));
+    }
 }
