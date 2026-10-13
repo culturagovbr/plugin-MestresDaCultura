@@ -5,6 +5,7 @@ namespace Tests\MDC;
 use MDC\Dtos\TreeNode;
 use MDC\Entities\Node;
 use MDC\Repositories\Node as NodeRepository;
+use MDC\Services\TreeExport;
 use Tests\Abstract\TestCase;
 
 // A árvore que a carga deixa no banco de testes.
@@ -67,6 +68,12 @@ class TreeLoadTest extends TestCase
         $json = json_decode(file_get_contents($this->pluginFile('data/atuacao.json')), true, flags: JSON_THROW_ON_ERROR);
 
         $this->assertSame($this->jsonShape($json), $this->shape($this->repo()->findTree()));
+    }
+
+    // Sem curadoria, exportar devolve o próprio arquivo, byte a byte.
+    function testExportsTheTreeExactlyAsTheJsonFile()
+    {
+        $this->assertSame(file_get_contents($this->pluginFile('data/atuacao.json')), TreeExport::json());
     }
 
     function testReachesNodesAtEveryDepth()
