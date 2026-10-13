@@ -39,6 +39,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->renderPhotoViewer();
         $this->showActingFieldAsTextInPdf();
         $this->adjustRegistrationsSpreadsheet();
+        $this->addTreeCurationPage();
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->limitToOneRegistrationPerUser();
@@ -207,6 +208,46 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->hook("{$job}.getBatch:after", function () use ($spreadsheet) {
             $spreadsheet->finishBatch();
+        });
+    }
+
+    // Curadoria da árvore: página no painel e item no grupo de administração, só para administradores e
+    // só no subsite do programa.
+    private function addTreeCurationPage(): void
+    {
+        $app = App::i();
+        $isTheme = fn (): bool => $app->view instanceof \MestresDaCultura\Theme;
+
+        $app->hook('GET(panel.mdc-tree-curation)', function () use ($app, $isTheme) {
+            /** @var \MapasCulturais\Controllers\Panel $this */
+            $this->requireAuthentication();
+
+            if (!$isTheme()) {
+                $app->pass();
+            }
+
+            if (!$app->user->is('admin')) {
+                $app->halt(403, i::__('Acesso restrito.'));
+            }
+
+            $this->render('mdc-tree-curation');
+        });
+
+        $app->hook('panel.nav', function (&$nav) use ($app, $isTheme) {
+            if (!$isTheme() || !isset($nav['admin'])) {
+                return;
+            }
+
+            $nav['admin']['items'][] = [
+                'route' => 'panel/mdc-tree-curation',
+                'icon' => 'mdc-tree',
+                'label' => i::__('Curadoria da Árvore de Atuação'),
+                'condition' => fn () => $app->user->is('admin'),
+            ];
+        });
+
+        $app->hook('component(mc-icon).iconset', function (&$iconset) {
+            $iconset['mdc-tree'] = 'mdi:file-tree-outline';
         });
     }
 
