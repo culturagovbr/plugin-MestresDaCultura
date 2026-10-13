@@ -6,8 +6,12 @@ use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
+use MapasCulturais\Exceptions\PermissionDenied;
+use MapasCulturais\i;
 use MDC\Entities\Node;
+use MDC\Exceptions\CurationRefused;
 use MDC\Services\FixedOpportunity;
+use MDC\Services\TreeCuration;
 
 class Controller extends \MapasCulturais\Controller
 {
@@ -46,6 +50,82 @@ class Controller extends \MapasCulturais\Controller
     function GET_tree()
     {
         $this->json(App::i()->repo(Node::class)->findTree());
+    }
+
+    // Árvore da curadoria, com os desativados e o uso. Cada ação de curadoria responde `true` ou o id do item criado.
+    function GET_curationTree()
+    {
+        $this->requireAuthentication();
+
+        if (!App::i()->user->is('admin')) {
+            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
+        }
+
+        $this->json(App::i()->repo(Node::class)->findCurationTree());
+    }
+
+    function POST_curationAdd()
+    {
+        $this->curate(fn (TreeCuration $curation) => $curation->add($this->nodeFromPost('parent', optional: true), (string) ($this->postData['name'] ?? ''))->id);
+    }
+
+    function POST_curationRename()
+    {
+        $this->curate(fn (TreeCuration $curation) => $curation->rename($this->nodeFromPost('id'), (string) ($this->postData['name'] ?? '')));
+    }
+
+    function POST_curationReorder()
+    {
+        $this->curate(fn (TreeCuration $curation) => $curation->reorder($this->nodeFromPost('id'), (int) ($this->postData['offset'] ?? 0) < 0 ? -1 : 1));
+    }
+
+    function POST_curationMove()
+    {
+        $this->curate(fn (TreeCuration $curation) => $curation->move($this->nodeFromPost('id'), $this->nodeFromPost('parent', optional: true)));
+    }
+
+    function POST_curationDisable()
+    {
+        $this->curate(fn (TreeCuration $curation) => $curation->disable($this->nodeFromPost('id')));
+    }
+
+    function POST_curationEnable()
+    {
+        $this->curate(fn (TreeCuration $curation) => $curation->enable($this->nodeFromPost('id')));
+    }
+
+    // Executa a ação de curadoria; regra quebrada volta como a mensagem do serviço.
+    private function curate(callable $action): void
+    {
+        $this->requireAuthentication();
+
+        try {
+            $result = $action(new TreeCuration());
+        } catch (CurationRefused $e) {
+            $this->errorJson($e->getMessage(), 400);
+        } catch (PermissionDenied) {
+            $this->errorJson(i::__('Só administradores fazem a curadoria da árvore.'), 403);
+        }
+
+        $this->json(is_int($result) ? ['id' => $result] : true);
+    }
+
+    // Item da árvore do POST; sem o id e com `optional`, null (a raiz).
+    private function nodeFromPost(string $key, bool $optional = false): ?Node
+    {
+        $id = $this->postData[$key] ?? null;
+
+        if (($id === null || $id === '') && $optional) {
+            return null;
+        }
+
+        $node = App::i()->repo(Node::class)->find((int) $id);
+
+        if (!$node || $node->status === Node::STATUS_TRASH) {
+            $this->errorJson(i::__('Item da árvore não encontrado.'), 404);
+        }
+
+        return $node;
     }
 
     // Sem `@permissions` a consulta filtraria por `view` (ApiQuery.php:3582), que o cache de
