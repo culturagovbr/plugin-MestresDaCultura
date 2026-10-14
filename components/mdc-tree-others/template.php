@@ -39,11 +39,19 @@ $this->import('
 
         <details v-if="decided.length" class="mdc-tree-others__decided">
             <summary>{{format('tratados', decided.length)}}</summary>
-            <ul>
-                <li v-for="entry in decided" :key="entry.parent + '|' + entry.key">
-                    <strong>“{{entry.text}}”</strong> <span class="mdc-tree-others__meta">({{placeOf(entry)}})</span> — {{decisionOf(entry)}}
-                </li>
-            </ul>
+            <div class="mdc-tree-others__done-list">
+                <article v-for="entry in decided" :key="entry.parent + '|' + entry.key" class="mdc-tree-others__done">
+                    <p class="mdc-tree-others__text">“{{entry.text}}”</p>
+                    <p class="mdc-tree-others__meta">{{format('escrito em', placeOf(entry))}}</p>
+                    <p class="mdc-tree-others__decision">
+                        <span class="mdc-tree-others__badge" :class="'mdc-tree-others__badge--' + entry.decision.type">{{text('decisao ' + entry.decision.type)}}</span>
+                        <button v-if="entry.decision.node && curation.index[entry.decision.node]" type="button" class="mdc-tree-others__link" @click="curation.goTo(entry.decision.node)">{{pathOf(entry.decision.node)}}</button>
+                        <span v-else-if="entry.decision.type !== 'archived'">{{text('item removido')}}</span>
+                        <span v-else>{{entry.decision.note ? format('motivo arquivado', entry.decision.note) : text('sem motivo')}}</span>
+                    </p>
+                    <p class="mdc-tree-others__meta">{{format('decidido em', when(entry.decision.at))}}</p>
+                </article>
+            </div>
         </details>
     </template>
 

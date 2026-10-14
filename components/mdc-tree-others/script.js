@@ -94,14 +94,8 @@ app.component('mdc-tree-others', {
             return this.curation.index[id]?.path.join(' › ') || this.text('item removido');
         },
 
-        decisionOf(entry) {
-            const { type, node, note } = entry.decision;
-
-            if (type === 'archived') {
-                return note ? this.format('arquivado motivo', note) : this.text('arquivado');
-            }
-
-            return this.format(type === 'created' ? 'criado' : 'associado', node ? this.pathOf(node) : this.text('item removido'));
+        when(timestamp) {
+            return timestamp ? new Date(timestamp.replace(' ', 'T')).toLocaleDateString('pt-BR') : '';
         },
 
         open(modal, entry) {
