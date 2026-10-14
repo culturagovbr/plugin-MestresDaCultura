@@ -5,6 +5,7 @@ namespace MDC;
 use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
 use MapasCulturais\Definitions\RegistrationFieldType;
+use MapasCulturais\Entities\Agent;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\i;
@@ -13,6 +14,9 @@ use MapasCulturais\i;
 // o plugin ser ignorado sem erro, e nenhuma classe ou subpasta pode conter `MDC` no nome.
 class Plugin extends \MapasCulturais\Plugin
 {
+    /** Povos e comunidades da planilha do programa que a lista do core não tem. */
+    const TRADITIONAL_COMMUNITIES = ['Castanheiras', 'Isqueiros', 'Piaçaveiros', 'Seringueiros'];
+
     /** Telas do v1 que só exibem a inscrição; as que salvam não entram aqui. */
     private const V1_READING_ACTIONS = ['registrationview', 'registrationevaluationtionformview'];
 
@@ -29,6 +33,42 @@ class Plugin extends \MapasCulturais\Plugin
         $app->registerRegistrationFieldType(new RegistrationFieldType(Services\ActingField::definition()));
     }
 
+    // O campo do formulário grava no perfil do agente: sem a opção na definição do metadado, o perfil não
+    // mostraria o que foi escolhido. Vale em todo o Mapa, porque o perfil é um só. Depois de todos os
+    // registros, porque outros plugins (SNIICDataStandard) registram de novo a lista, uma por tipo de agente.
+    private function addTraditionalCommunities(): void
+    {
+        $app = App::i();
+
+        $app->hook('app.register:after', function () use ($app) {
+            $definitions = [];
+
+            foreach ([null, ...$app->getRegisteredEntityTypes(Agent::class)] as $type) {
+                $definition = $app->getRegisteredMetadataByMetakey('comunidadesTradicional', Agent::class, $type?->id);
+
+                if ($definition) {
+                    $definitions[spl_object_id($definition)] = $definition;
+                }
+            }
+
+            foreach ($definitions as $definition) {
+                $definition->options = self::withTraditionalCommunities($definition->options);
+            }
+        });
+    }
+
+    /** As opções de "não" (não pertence, não informado) ficam no topo; o resto, em ordem alfabética. */
+    static function withTraditionalCommunities(array $options): array
+    {
+        $options += array_combine(self::TRADITIONAL_COMMUNITIES, self::TRADITIONAL_COMMUNITIES);
+        $isNo = fn ($key) => $key === '' || str_starts_with(Services\TreeText::comparable($key), 'nao ');
+        $first = array_filter($options, $isNo, ARRAY_FILTER_USE_KEY);
+        $rest = array_diff_key($options, $first);
+        uksort($rest, fn ($a, $b) => strcmp(Services\TreeText::comparable($a), Services\TreeText::comparable($b)));
+
+        return $first + $rest;
+    }
+
     function _init()
     {
         $this->registerTreeNodeObjectType();
@@ -43,6 +83,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->limitToOneRegistrationPerUser();
+        $this->addTraditionalCommunities();
     }
 
     // `object_type` é enum do Postgres e também lista fixa em PHP; o db-update cobre uma ponta, este hook a outra.
