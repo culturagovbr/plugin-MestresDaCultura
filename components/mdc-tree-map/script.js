@@ -9,6 +9,8 @@ const MDC_TREE_MAP = {
     countFont: '600 10px',
     countGap: 7,
     fontFamily: '"Open Sans", sans-serif',
+    // Cores de segmento no _mdc-tree-map.scss do tema; segmento a mais (criado na curadoria) repete a paleta.
+    segmentColors: 7,
 };
 
 app.component('mdc-tree-map', {
@@ -66,7 +68,7 @@ app.component('mdc-tree-map', {
             const index = {};
             const visit = (node, parent, depth, segment) => {
                 index[node.id] = { node, parent, depth, segment };
-                node.children.forEach((child, position) => visit(child, node.id, depth + 1, depth === 0 ? position + 1 : segment));
+                node.children.forEach((child, position) => visit(child, node.id, depth + 1, depth === 0 ? (position % MDC_TREE_MAP.segmentColors) + 1 : segment));
             };
 
             visit(this.root, null, 0, 0);
