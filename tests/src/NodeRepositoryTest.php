@@ -170,4 +170,18 @@ class NodeRepositoryTest extends TestCase
         $this->assertArrayNotHasKey('Na lixeira', $nodes, 'A lixeira não é da curadoria');
         $this->assertTrue($nodes['Saberes e Ofícios']->enabled);
     }
+
+    function testReturnsEveryPathInOneGoIncludingDisabledButNotTrash()
+    {
+        ['tipologia' => $tipologia, 'subtipologia' => $subtipologia] = $this->seed();
+        $subtipologia->status = Node::STATUS_DISABLED;
+        $subtipologia->save(true);
+        $lixeira = $this->createNode('Na lixeira', $tipologia, 2);
+        $lixeira->delete(true);
+
+        $paths = $this->repo()->findPaths();
+
+        $this->assertSame('Saberes e Ofícios › Artesanato › Couro', $paths[$subtipologia->id], 'O desativado tem caminho: a decisão pode apontar para ele');
+        $this->assertArrayNotHasKey($lixeira->id, $paths);
+    }
 }

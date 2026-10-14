@@ -106,21 +106,26 @@ class CurationUsageTest extends TestCase
         $this->answerBoth();
         [, $artesanato, $couro] = $this->tree;
 
-        $entries = array_column(array_map(fn ($entry) => (array) $entry, (new OtherQueue())->entries()), null, 'key');
+        $entries = array_column(array_map(fn ($entry) => (array) $entry, (new OtherQueue())->page(OtherQueue::PENDING)['entries']), null, 'key');
 
         $this->assertSame([$artesanato->id, 'Couro de bode', 1, 1, null], [$entries['couro de bode']['parent'], $entries['couro de bode']['text'], $entries['couro de bode']['sent'], $entries['couro de bode']['drafts'], $entries['couro de bode']['decision']], 'O mesmo texto, escrito de jeitos diferentes, é um grupo só');
         $this->assertSame([null, 0, 1], [$entries['benzedura']['parent'], $entries['benzedura']['sent'], $entries['benzedura']['drafts']]);
+        $this->assertSame('couro de bode', array_key_first($entries), 'Os mais citados primeiro');
 
         $associate = fn () => $this->call($this->requestFactory->POST('mdc', 'curationOtherAssociate', payload: ['parent' => $artesanato->id, 'key' => 'couro de bode', 'node' => $couro->id]));
 
         $this->assertSame([200, true], $associate());
         $this->assertSame([400, ['error' => true, 'data' => 'Esse texto já foi tratado.']], $associate(), 'Cada texto recebe uma decisão só');
 
-        [$status, $queue] = $this->call($this->requestFactory->GET('mdc', 'curationOthers', ajax: true));
-        $decided = array_column($queue, null, 'key')['couro de bode'];
+        $page = fn (array $query) => $this->call($this->requestFactory->GET('mdc', 'curationOthers', query_params: $query, ajax: true)) + [2 => json_decode($this->app->response->getHeaderLine('API-Metadata'), true)];
 
+        [$status, $pending, $metadata] = $page(['status' => 'pending', '@limit' => 1]);
         $this->assertSame(200, $status);
-        $this->assertSame(['associated', $couro->id], [$decided['decision']['type'], $decided['decision']['node']]);
-        $this->assertSame('benzedura', $queue[0]['key'], 'Os textos ainda sem decisão vêm primeiro');
+        $this->assertSame(['benzedura'], array_column($pending, 'key'), 'Decidido sai dos pendentes');
+        $this->assertSame(['count' => 1, 'page' => 1, 'limit' => 1, 'numPages' => 1, 'pending' => 1, 'decided' => 1], ['count' => $metadata['count'], 'page' => $metadata['page'], 'limit' => $metadata['limit'], 'numPages' => $metadata['numPages']] + $metadata['totals'], 'Os números vão no cabeçalho, como na API do core');
+
+        [, $decided, $metadata] = $page(['status' => 'decided', '@keyword' => 'couro', 'decision' => 'associated']);
+        $this->assertSame([['associated', $couro->id]], array_map(fn ($entry) => [$entry['decision']['type'], $entry['decision']['node']], $decided));
+        $this->assertSame(['created' => 0, 'associated' => 1, 'archived' => 0], $metadata['counts']);
     }
 }

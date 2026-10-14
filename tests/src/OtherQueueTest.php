@@ -2,6 +2,7 @@
 
 namespace Tests\MDC;
 
+use MDC\Dtos\OtherEntry;
 use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
 use MDC\Services\OtherQueue;
@@ -47,6 +48,35 @@ class OtherQueueTest extends TestCase
         $this->assertSame([80], OtherQueue::suggest('benzedura de quebranto', null, $nodes), 'Palavra longa com 2 letras de diferença');
         $this->assertSame([124], OtherQueue::suggest('caixeiro do reis', null, $nodes));
         $this->assertSame([], OtherQueue::suggest('couro de bode', 9, $nodes), 'Palavra curta só aceita 1 letra de diferença: "couro" não é "congo"');
+    }
+
+    function testCutsThePageWithSearchFilterCountsAndOrder()
+    {
+        $decided = fn (string $type, ?int $node, string $at, ?string $note = null) => ['type' => $type, 'node' => $node, 'note' => $note, 'at' => $at];
+        $entries = [
+            new OtherEntry(168, 'coco de parelha', 'Coco de parelha', 3, 0),
+            new OtherEntry(null, 'benzedura', 'Benzedura', 1, 0),
+            new OtherEntry(168, 'coco de praia', 'Coco de praia', 5, 1),
+            new OtherEntry(null, 'reza', 'Reza', 1, 0, [], $decided('associated', 80, '2026-10-02')),
+            new OtherEntry(168, 'embolada', 'Embolada', 1, 0, [], $decided('created', 200, '2026-10-03')),
+            new OtherEntry(null, 'teste', 'Teste', 1, 0, [], $decided('archived', null, '2026-10-01', 'Fora do escopo')),
+        ];
+        $paths = [168 => 'Expressões › Coco', 80 => 'Saberes › Benzedeira', 200 => 'Expressões › Coco › Embolada'];
+
+        $page = OtherQueue::slice($entries, $paths, OtherQueue::PENDING, '', null, 1, 2);
+        $this->assertSame(['coco de praia', 'coco de parelha'], array_map(fn ($e) => $e->key, $page['entries']), 'Os mais citados antes, cortados no limite');
+        $this->assertSame([3, ['pending' => 3, 'decided' => 3]], [$page['count'], $page['totals']]);
+        $this->assertSame(['benzedura'], array_map(fn ($e) => $e->key, OtherQueue::slice($entries, $paths, OtherQueue::PENDING, '', null, 2, 2)['entries']));
+
+        $this->assertSame(['coco de praia', 'coco de parelha'], array_map(fn ($e) => $e->key, OtherQueue::slice($entries, $paths, OtherQueue::PENDING, 'COCO', null, 1, 20)['entries']), 'Busca pelo lugar onde foi escrito');
+
+        $all = OtherQueue::slice($entries, $paths, OtherQueue::DECIDED, '', null, 1, 20);
+        $this->assertSame(['embolada', 'reza', 'teste'], array_map(fn ($e) => $e->key, $all['entries']), 'Tratados: os mais recentes antes');
+        $this->assertSame(['created' => 1, 'associated' => 1, 'archived' => 1], $all['counts']);
+
+        $search = OtherQueue::slice($entries, $paths, OtherQueue::DECIDED, 'benzedeira', null, 1, 20);
+        $this->assertSame([['reza'], ['created' => 0, 'associated' => 1, 'archived' => 0]], [array_map(fn ($e) => $e->key, $search['entries']), $search['counts']], 'Busca pelo item associado; as contagens seguem a busca');
+        $this->assertSame(['teste'], array_map(fn ($e) => $e->key, OtherQueue::slice($entries, $paths, OtherQueue::DECIDED, 'escopo', 'archived', 1, 20)['entries']), 'Busca pelo motivo, com filtro');
     }
 
     function testRecordsOneDecisionPerTextAndCreatesTheItemWhereAsked()
