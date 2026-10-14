@@ -1,3 +1,6 @@
+// Quantos cartões aparecem de cada vez, na fila e nos tratados.
+const MDC_OTHERS_PAGE = 20;
+
 app.component('mdc-tree-others', {
     template: $TEMPLATES['mdc-tree-others'],
     emits: ['count'],
@@ -25,6 +28,13 @@ app.component('mdc-tree-others', {
             query: '',
             chosen: null,
             limit: 30,
+            // busca na fila (texto, lugar, item ou motivo) e filtro dos tratados por decisão
+            search: '',
+            decisionFilter: '',
+            shownPending: MDC_OTHERS_PAGE,
+            shownDecided: MDC_OTHERS_PAGE,
+            // os tratados só são desenhados com a lista aberta
+            decidedOpen: false,
         };
     },
 
@@ -35,6 +45,26 @@ app.component('mdc-tree-others', {
 
         decided() {
             return this.entries.filter(entry => entry.decision);
+        },
+
+        foundPending() {
+            return this.pending.filter(entry => this.matches(entry));
+        },
+
+        foundDecided() {
+            return this.decided.filter(entry => this.matches(entry));
+        },
+
+        // Contagem por decisão, já com a busca aplicada, para os botões do filtro.
+        decisionCounts() {
+            const counts = { '': this.foundDecided.length, created: 0, associated: 0, archived: 0 };
+            this.foundDecided.forEach(entry => counts[entry.decision.type]++);
+
+            return counts;
+        },
+
+        filteredDecided() {
+            return this.decisionFilter ? this.foundDecided.filter(entry => entry.decision.type === this.decisionFilter) : this.foundDecided;
         },
 
         // Onde um item novo pode entrar: ativo e com nível abaixo dele; a raiz faz dele um segmento.
@@ -51,6 +81,16 @@ app.component('mdc-tree-others', {
     watch: {
         pending(pending) {
             this.$emit('count', pending.length);
+        },
+
+        // Outra busca ou outro filtro recomeça a contagem do "mostrar mais".
+        search() {
+            this.shownPending = MDC_OTHERS_PAGE;
+            this.shownDecided = MDC_OTHERS_PAGE;
+        },
+
+        decisionFilter() {
+            this.shownDecided = MDC_OTHERS_PAGE;
         },
     },
 
@@ -92,6 +132,27 @@ app.component('mdc-tree-others', {
 
         pathOf(id) {
             return this.curation.index[id]?.path.join(' › ') || this.text('item removido');
+        },
+
+        // A busca olha o texto, o lugar onde foi escrito e, nos tratados, o item escolhido e o motivo.
+        matches(entry) {
+            const query = MdcTreeText.comparable(this.search);
+
+            if (!query) {
+                return true;
+            }
+
+            const fields = [entry.text, this.placeOf(entry)];
+
+            if (entry.decision) {
+                fields.push(entry.decision.node ? this.pathOf(entry.decision.node) : '', entry.decision.note || '');
+            }
+
+            return fields.some(field => MdcTreeText.comparable(field).includes(query));
+        },
+
+        showMore(list) {
+            this[list] += MDC_OTHERS_PAGE;
         },
 
         when(timestamp) {
