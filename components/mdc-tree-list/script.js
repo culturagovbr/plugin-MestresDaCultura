@@ -73,8 +73,11 @@ app.component('mdc-tree-list', {
             return rows;
         },
 
+        // Item que recebe o Tab: o do foco ou o escolhido, se estiver à vista; senão, o primeiro.
         current() {
-            return this.focused ?? this.selected ?? this.rows[0]?.node.id ?? null;
+            const visible = id => this.rows.some(row => row.node.id === id);
+
+            return [this.focused, this.selected].find(id => id !== null && visible(id)) ?? this.rows[0]?.node.id ?? null;
         },
     },
 
@@ -84,6 +87,13 @@ app.component('mdc-tree-list', {
                 this.reveal(id);
             }
         },
+    },
+
+    // Aberta com um item já escolhido (pelo mapa ou pela busca), a lista abre o caminho até ele.
+    mounted() {
+        if (this.selected) {
+            this.reveal(this.selected);
+        }
     },
 
     methods: {
