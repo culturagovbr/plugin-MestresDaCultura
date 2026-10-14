@@ -125,12 +125,32 @@ class Controller extends \MapasCulturais\Controller
         $this->curate(fn (TreeCuration $curation) => $curation->enable($this->nodeFromPost('id')));
     }
 
-    // Fila "Não encontrou?" (ver OtherQueue): os textos de "Outro" e o que a curadoria fez com eles.
+    // Uma página da fila "Não encontrou?" (ver OtherQueue): `@limit`, `@page` e `@keyword` na consulta e os números,
+    // contagens e totais no cabeçalho `API-Metadata`. `status`: pending (padrão) ou decided; `decision` filtra os tratados.
     function GET_curationOthers()
     {
         $this->requireCurator();
 
-        $this->json((new OtherQueue())->entries());
+        $app = App::i();
+        $limit = max(1, min(100, (int) ($this->data['@limit'] ?? 20)));
+        $page = max(1, (int) ($this->data['@page'] ?? 1));
+        $status = ($this->data['status'] ?? '') === OtherQueue::DECIDED ? OtherQueue::DECIDED : OtherQueue::PENDING;
+        $decision = in_array($this->data['decision'] ?? null, OtherQueue::DECISIONS, true) ? $this->data['decision'] : null;
+        $keyword = trim((string) ($this->data['@keyword'] ?? ''));
+
+        $result = (new OtherQueue())->page($status, $keyword, $decision, $page, $limit);
+
+        $app->response = $app->response->withHeader('API-Metadata', json_encode([
+            'count' => $result['count'],
+            'page' => $page,
+            'limit' => $limit,
+            'numPages' => (int) ceil($result['count'] / $limit),
+            'keyword' => $keyword,
+            'counts' => $result['counts'],
+            'totals' => $result['totals'],
+        ]));
+
+        $this->json($result['entries']);
     }
 
     // `parent` é onde o texto foi escrito; `place`, onde o item novo entra (sem ele, vira segmento).

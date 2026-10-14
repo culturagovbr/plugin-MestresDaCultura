@@ -21,7 +21,7 @@ return [
     'buscar exemplo' => i::__('Texto, lugar, item ou motivo'),
     'nada encontrado' => i::__('Nenhum texto esperando decisão com "%s".'),
     'nada nos tratados' => i::__('Nenhum texto tratado com esse filtro.'),
-    'mostrar mais' => i::__('Mostrar mais (%s restantes)'),
+    'carregar mais' => i::__('Carregar mais (%s restantes)'),
     'filtro decisao' => i::__('Filtrar os tratados pela decisão'),
     'filtro todos' => i::__('Todos (%s)'),
     'filtro created' => i::__('Viraram item novo (%s)'),

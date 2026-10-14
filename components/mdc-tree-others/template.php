@@ -17,15 +17,15 @@ $this->import('
     <mc-alert v-if="failed" type="danger">{{text('falha')}}</mc-alert>
 
     <template v-if="!loading && !failed">
-        <div v-if="entries.length" class="field mdc-tree-others__search">
+        <div v-if="totals.pending || totals.decided" class="field mdc-tree-others__search">
             <label for="mdc-others-busca">{{text('buscar')}}</label>
             <input id="mdc-others-busca" v-model="search" type="search" autocomplete="off" :placeholder="text('buscar exemplo')">
         </div>
 
-        <p v-if="!pending.length" class="mdc-tree-others__empty">{{text('nada pendente')}}</p>
-        <p v-else-if="!foundPending.length" class="mdc-tree-others__empty">{{format('nada encontrado', search)}}</p>
+        <p v-if="!totals.pending" class="mdc-tree-others__empty">{{text('nada pendente')}}</p>
+        <p v-else-if="!lists.pending.items.length && !lists.pending.loading" class="mdc-tree-others__empty">{{format('nada encontrado', search)}}</p>
 
-        <article v-for="entry in foundPending.slice(0, shownPending)" :key="entry.parent + '|' + entry.key" class="mdc-tree-others__item">
+        <article v-for="entry in lists.pending.items" :key="entry.parent + '|' + entry.key" class="mdc-tree-others__item">
             <div class="mdc-tree-others__body">
                 <p class="mdc-tree-others__text">“{{entry.text}}”</p>
                 <p class="mdc-tree-others__meta">{{format('escrito em', placeOf(entry))}} · {{format('contagem', entry.sent, entry.drafts)}}</p>
@@ -43,17 +43,21 @@ $this->import('
             </div>
         </article>
 
-        <button v-if="foundPending.length > shownPending" type="button" class="button button--sm button--primary-outline mdc-tree-others__more" @click="showMore('shownPending')">{{format('mostrar mais', foundPending.length - shownPending)}}</button>
+        <div v-if="hasMore('pending')" class="load-more">
+            <mc-loading :condition="lists.pending.loading"></mc-loading>
+            <button v-if="!lists.pending.loading" type="button" class="button button--large button--primary-outline" @click="loadMore('pending')">{{format('carregar mais', lists.pending.metadata.count - lists.pending.items.length)}}</button>
+        </div>
 
-        <details v-if="decided.length" class="mdc-tree-others__decided" @toggle="decidedOpen = $event.target.open">
-            <summary>{{search ? format('tratados busca', foundDecided.length, decided.length) : format('tratados', decided.length)}}</summary>
+        <details v-if="totals.decided" class="mdc-tree-others__decided" @toggle="toggleDecided($event.target.open)">
+            <summary>{{search && lists.decided.metadata ? format('tratados busca', decisionCounts[''], totals.decided) : format('tratados', totals.decided)}}</summary>
             <template v-if="decidedOpen">
                 <div class="mdc-tree-others__filter" role="group" :aria-label="text('filtro decisao')">
                     <button v-for="type in ['', 'created', 'associated', 'archived']" :key="type" type="button" class="mdc-tree-others__chip" :aria-pressed="decisionFilter === type" @click="decisionFilter = type">{{format('filtro ' + (type || 'todos'), decisionCounts[type])}}</button>
                 </div>
-                <p v-if="!filteredDecided.length" class="mdc-tree-others__empty">{{text('nada nos tratados')}}</p>
+                <mc-loading :condition="lists.decided.loading && !lists.decided.items.length"></mc-loading>
+                <p v-if="lists.decided.metadata && !lists.decided.items.length && !lists.decided.loading" class="mdc-tree-others__empty">{{text('nada nos tratados')}}</p>
                 <div class="mdc-tree-others__done-list">
-                    <article v-for="entry in filteredDecided.slice(0, shownDecided)" :key="entry.parent + '|' + entry.key" class="mdc-tree-others__done">
+                    <article v-for="entry in lists.decided.items" :key="entry.parent + '|' + entry.key" class="mdc-tree-others__done">
                         <p class="mdc-tree-others__text">“{{entry.text}}”</p>
                         <p class="mdc-tree-others__meta">{{format('escrito em', placeOf(entry))}}</p>
                         <p class="mdc-tree-others__decision">
@@ -65,7 +69,10 @@ $this->import('
                         <p class="mdc-tree-others__meta">{{format('decidido em', when(entry.decision.at))}}</p>
                     </article>
                 </div>
-                <button v-if="filteredDecided.length > shownDecided" type="button" class="button button--sm button--primary-outline mdc-tree-others__more" @click="showMore('shownDecided')">{{format('mostrar mais', filteredDecided.length - shownDecided)}}</button>
+                <div v-if="hasMore('decided')" class="load-more">
+                    <mc-loading :condition="lists.decided.loading"></mc-loading>
+                    <button v-if="!lists.decided.loading" type="button" class="button button--large button--primary-outline" @click="loadMore('decided')">{{format('carregar mais', lists.decided.metadata.count - lists.decided.items.length)}}</button>
+                </div>
             </template>
         </details>
     </template>

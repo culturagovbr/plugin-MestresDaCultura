@@ -22,4 +22,10 @@ class OtherEntry
         public readonly ?array $decision = null,
     ) {
     }
+
+    /** @param int[] $suggestions */
+    function withSuggestions(array $suggestions): self
+    {
+        return new self($this->parent, $this->key, $this->text, $this->sent, $this->drafts, $suggestions, $this->decision);
+    }
 }

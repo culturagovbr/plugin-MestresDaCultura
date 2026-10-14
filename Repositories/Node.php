@@ -65,6 +65,30 @@ class Node extends \MapasCulturais\Repository
     }
 
     /**
+     * Caminho de cada item (fora a lixeira), da raiz até ele, numa consulta só.
+     *
+     * @return array<int,string> id => "Segmento › Tipologia › ..."
+     */
+    function findPaths(): array
+    {
+        $rows = $this->_em->getConnection()->fetchAllAssociative('SELECT id, parent_id, name FROM mdc_tree_node WHERE status != ?', [NodeEntity::STATUS_TRASH]);
+        $nodes = array_column($rows, null, 'id');
+        $paths = [];
+
+        foreach ($nodes as $id => $node) {
+            $names = [];
+
+            for ($current = $node; $current; $current = $nodes[$current['parent_id']] ?? null) {
+                array_unshift($names, $current['name']);
+            }
+
+            $paths[(int) $id] = implode(' › ', $names);
+        }
+
+        return $paths;
+    }
+
+    /**
      * Ids de toda a subárvore, sem o próprio nó. Inclui os removidos: é pergunta estrutural.
      *
      * @return int[]

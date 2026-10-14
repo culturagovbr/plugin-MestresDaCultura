@@ -18,31 +18,93 @@ class OtherQueue
 {
     private const MAX_SUGGESTIONS = 3;
 
-    /** @return OtherEntry[] pendentes primeiro, os mais citados antes */
-    function entries(): array
-    {
-        $nodes = array_map(
-            fn (Node $node) => ['id' => $node->id, 'name' => $node->name, 'parent' => $node->parent?->id],
-            App::i()->repo(Node::class)->findBy(['status' => Node::STATUS_ENABLED])
-        );
-        $decisions = $this->decisions();
-        $entries = [];
+    const PENDING = 'pending';
+    const DECIDED = 'decided';
+    const DECISIONS = ['created', 'associated', 'archived'];
 
-        foreach (self::group($this->answeredOthers()) as $group) {
-            $entries[] = new OtherEntry(
-                $group['parent'],
-                $group['key'],
-                $group['text'],
-                $group['sent'],
-                $group['drafts'],
-                self::suggest($group['key'], $group['parent'], $nodes),
-                $decisions[self::place($group['parent'], $group['key'])] ?? null,
+    /**
+     * Uma página da fila: os pendentes (mais citados antes) ou os já tratados (os mais recentes antes),
+     * com a busca e o filtro por decisão. As sugestões são calculadas só para os pendentes da página.
+     *
+     * @return array{entries: OtherEntry[], count: int, counts: array<string,int>, totals: array<string,int>}
+     */
+    function page(string $status, string $keyword = '', ?string $decision = null, int $page = 1, int $limit = 20): array
+    {
+        $result = self::slice($this->groupsWithDecisions(), App::i()->repo(Node::class)->findPaths(), $status, $keyword, $decision, $page, $limit);
+
+        if ($status === self::PENDING && $result['entries']) {
+            $nodes = array_map(
+                fn (Node $node) => ['id' => $node->id, 'name' => $node->name, 'parent' => $node->parent?->id],
+                App::i()->repo(Node::class)->findBy(['status' => Node::STATUS_ENABLED])
             );
+            $result['entries'] = array_map(fn (OtherEntry $entry) => $entry->withSuggestions(self::suggest($entry->key, $entry->parent, $nodes)), $result['entries']);
         }
 
-        usort($entries, fn (OtherEntry $a, OtherEntry $b) => [$a->decision !== null, -($a->sent + $a->drafts)] <=> [$b->decision !== null, -($b->sent + $b->drafts)]);
+        return $result;
+    }
 
-        return $entries;
+    /**
+     * Filtra, ordena e corta a fila. A busca olha o texto, o lugar onde foi escrito e, nos tratados, o item
+     * escolhido e o motivo; as contagens por decisão já têm a busca aplicada, e os totais não têm filtro.
+     *
+     * @param OtherEntry[] $entries
+     * @param array<int,string> $paths id do item => caminho ("Segmento › Tipologia")
+     * @return array{entries: OtherEntry[], count: int, counts: array<string,int>, totals: array<string,int>}
+     */
+    static function slice(array $entries, array $paths, string $status, string $keyword, ?string $decision, int $page, int $limit): array
+    {
+        $decided = array_filter($entries, fn (OtherEntry $entry) => $entry->decision !== null);
+        $totals = [self::PENDING => count($entries) - count($decided), self::DECIDED => count($decided)];
+        $list = $status === self::DECIDED ? $decided : array_diff_key($entries, $decided);
+
+        $query = TreeText::comparable($keyword);
+
+        if ($query !== '') {
+            $list = array_filter($list, function (OtherEntry $entry) use ($paths, $query) {
+                $fields = [$entry->text, $paths[$entry->parent] ?? '', $paths[$entry->decision['node'] ?? 0] ?? '', $entry->decision['note'] ?? ''];
+
+                return (bool) array_filter($fields, fn ($field) => str_contains(TreeText::comparable((string) $field), $query));
+            });
+        }
+
+        $counts = array_fill_keys(self::DECISIONS, 0);
+
+        foreach ($list as $entry) {
+            if ($entry->decision) {
+                $counts[$entry->decision['type']]++;
+            }
+        }
+
+        if ($decision !== null) {
+            $list = array_filter($list, fn (OtherEntry $entry) => $entry->decision['type'] === $decision);
+        }
+
+        usort($list, $status === self::DECIDED
+            ? fn (OtherEntry $a, OtherEntry $b) => [$b->decision['at'], $a->text] <=> [$a->decision['at'], $b->text]
+            : fn (OtherEntry $a, OtherEntry $b) => [-($a->sent + $a->drafts), $a->text] <=> [-($b->sent + $b->drafts), $b->text]);
+
+        return [
+            'entries' => array_slice($list, ($page - 1) * $limit, $limit),
+            'count' => count($list),
+            'counts' => $counts,
+            'totals' => $totals,
+        ];
+    }
+
+    /** @return OtherEntry[] os grupos de texto, com a decisão de cada um, sem sugestões */
+    private function groupsWithDecisions(): array
+    {
+        $decisions = $this->decisions();
+
+        return array_map(fn (array $group) => new OtherEntry(
+            $group['parent'],
+            $group['key'],
+            $group['text'],
+            $group['sent'],
+            $group['drafts'],
+            [],
+            $decisions[self::place($group['parent'], $group['key'])] ?? null,
+        ), self::group($this->answeredOthers()));
     }
 
     /** Cria o item com o texto (que a curadoria pode corrigir) no lugar escolhido, por padrão onde foi escrito. */

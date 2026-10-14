@@ -79,7 +79,7 @@ app.component('mdc-tree-curation', {
         // Conta a fila para o rótulo da aba; depois de aberta, a fila atualiza a contagem.
         async countOthers() {
             try {
-                this.pendingOthers = (await this.read('curationOthers')).filter(entry => !entry.decision).length;
+                this.pendingOthers = (await this.readPage('curationOthers', { status: 'pending', '@limit': 1 })).metadata.totals.pending;
             } catch {
                 this.pendingOthers = 0;
             }
@@ -119,6 +119,18 @@ app.component('mdc-tree-curation', {
             }
 
             return response.json();
+        },
+
+        // Página de uma lista da curadoria: os itens no corpo e os números no cabeçalho API-Metadata; os parâmetros vão
+        // na consulta (`?@page=2`).
+        async readPage(route, query, signal) {
+            const response = await this.api.GET(this.api.createUrl(route) + '?' + new URLSearchParams(query), undefined, { signal });
+
+            if (!response.ok) {
+                throw new Error(response.status);
+            }
+
+            return { items: await response.json(), metadata: JSON.parse(response.headers.get('API-Metadata') || '{}') };
         },
 
         /**
