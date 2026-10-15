@@ -257,6 +257,18 @@ class Plugin extends \MapasCulturais\Plugin
                 $app->pass();
             }
         });
+
+        // A página do certificado é a do core, sem botão de impressão e com um "Voltar" que aponta para `#`: a barra
+        // do plugin entra logo depois do cabeçalho do site, só no certificado do selo do programa.
+        $app->hook('template(seal.sealRelation.main-header):after', function () use ($app, $plugin) {
+            /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
+            $relation = $app->repo('SealRelation')->find((int) ($this->controller->data['id'] ?? 0));
+
+            if ($relation && $plugin->programSeal()->isTheProgramSeal($relation->seal)) {
+                $this->import('mdc-certificate-actions');
+                echo '<mdc-certificate-actions></mdc-certificate-actions>';
+            }
+        });
     }
 
     // As seções do formulário ganham o nome delas como marca, para o tema pôr o ícone de cada uma (ver o componente

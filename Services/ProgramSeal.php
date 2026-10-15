@@ -85,6 +85,12 @@ class ProgramSeal
         }
     }
 
+    // Compara com o id configurado, sem registrar erro.
+    function isTheProgramSeal(Seal $seal): bool
+    {
+        return (int) (App::i()->config[self::CONFIG_KEY] ?? 0) === $seal->id;
+    }
+
     // Sem o selo configurado, false, sem registrar erro.
     function isGivenTo(int $agentId): bool
     {
