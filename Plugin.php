@@ -96,6 +96,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->showModerationToOwner();
         $this->applyProgramSeal();
         $this->showMasterProfile();
+        $this->markFormSections();
         $this->notifyApproval();
         $this->allowFinalPhaseSync();
     }
@@ -254,6 +255,20 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('GET(seal.sealRelation):before', function () use ($app) {
             if ($app->view instanceof \MestresDaCultura\Theme && !$app->repo('SealRelation')->find((int) ($this->data['id'] ?? 0))) {
                 $app->pass();
+            }
+        });
+    }
+
+    // As seções do formulário ganham o nome delas como marca, para o tema pôr o ícone de cada uma (ver o componente
+    // mdc-section-marks). Só no subsite: nos outros, o formulário segue como no core.
+    private function markFormSections(): void
+    {
+        $app = App::i();
+
+        $app->hook('component(registration-form):end', function () use ($app) {
+            if ($app->view instanceof \MestresDaCultura\Theme) {
+                $this->import('mdc-section-marks');
+                echo '<mdc-section-marks></mdc-section-marks>';
             }
         });
     }
