@@ -3,6 +3,7 @@
 namespace MDC\Services;
 
 use MapasCulturais\App;
+use MapasCulturais\Entities\Agent;
 use MapasCulturais\Entities\AgentSealRelation;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\Seal;
@@ -84,11 +85,25 @@ class ProgramSeal
         }
     }
 
+    // Sem o selo configurado, false, sem registrar erro.
+    function isGivenTo(int $agentId): bool
+    {
+        $app = App::i();
+        $id = $app->config[self::CONFIG_KEY] ?? null;
+
+        return $id && $app->repo('AgentSealRelation')->findOneBy(['seal' => (int) $id, 'owner' => $agentId]) !== null;
+    }
+
     /** O selo do mestre, que é também o endereço do certificado. */
     function relationOf(Registration $registration): ?AgentSealRelation
     {
+        return $this->relationOfAgent($registration->owner);
+    }
+
+    function relationOfAgent(Agent $agent): ?AgentSealRelation
+    {
         $seal = $this->get();
 
-        return $seal ? App::i()->repo('AgentSealRelation')->findOneBy(['seal' => $seal, 'owner' => $registration->owner]) : null;
+        return $seal ? App::i()->repo('AgentSealRelation')->findOneBy(['seal' => $seal, 'owner' => $agent]) : null;
     }
 }

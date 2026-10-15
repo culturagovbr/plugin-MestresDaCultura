@@ -95,6 +95,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->reopenEvaluationOnResend();
         $this->showModerationToOwner();
         $this->applyProgramSeal();
+        $this->showMasterProfile();
         $this->notifyApproval();
         $this->allowFinalPhaseSync();
     }
@@ -257,7 +258,49 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // Cadastro aprovado na moderação: o mestre é avisado (ver Services\Moderation).
+    // Perfil público do mestre aprovado (tela 9 do protótipo) sobre a página de agente do core, só por ganchos: o
+    // cabeçalho ganha o nome artístico, a atuação, a cidade e desde quando integra a Rede; a coluna lateral, o
+    // certificado; a principal, a atuação cultural. Ver Services\MasterProfile.
+    private function showMasterProfile(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+        $profile = false;
+
+        $render = function (string $part) use ($app, $plugin, &$profile) {
+            /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
+            $agent = $this->controller->requestedEntity;
+
+            if ($profile === false) {
+                $profile = $agent instanceof \MapasCulturais\Entities\Agent
+                    ? (new Services\MasterProfile($plugin->fixedOpportunity(), $plugin->programSeal()))->of($agent)
+                    : null;
+            }
+
+            if (!$profile) {
+                return;
+            }
+
+            $this->import('mdc-master-profile');
+            $json = htmlspecialchars(json_encode($profile), ENT_QUOTES);
+
+            echo "<mdc-master-profile part=\"{$part}\" :profile=\"{$json}\"></mdc-master-profile>";
+        };
+
+        $parts = [
+            'entity-header):end' => 'header',
+            'single1-entity-info-taxonomie-area):before' => 'certificate',
+            'entity-gallery-video):before' => 'acting',
+        ];
+
+        foreach ($parts as $hook => $part) {
+            $app->hook("template(agent.single.{$hook}", function () use ($render, $part) {
+                $render->call($this, $part);
+            });
+        }
+    }
+
+
     private function notifyApproval(): void
     {
         $app = App::i();
@@ -540,6 +583,7 @@ class Plugin extends \MapasCulturais\Plugin
             $iconset['mdc-zoom-in'] = 'mdi:plus';
             $iconset['mdc-zoom-out'] = 'mdi:minus';
             $iconset['mdc-not-proven'] = 'mdi:close-circle';
+            $iconset['mdc-certificate'] = 'mdi:certificate';
         });
     }
 
@@ -646,9 +690,13 @@ class Plugin extends \MapasCulturais\Plugin
             return $id && $profile && (int) $id === $profile->id;
         };
 
+        // O mestre aprovado tem perfil público: a página do agente que leva o selo do programa abre para todos.
+        $plugin = $this;
+        $isPublicMaster = fn (string $action, mixed $id): bool => $action === 'single' && $id && $plugin->programSeal()->isGivenTo((int) $id);
+
         // O próprio perfil fica de fora: toda inscrição pertence a um agente.
-        $app->hook('GET(agent.<<*>>):before', function () use ($app, $isAllowed, $isOwnProfile) {
-            if ($isAllowed('agents') || $isOwnProfile($this->urlData['id'] ?? null)) {
+        $app->hook('GET(agent.<<*>>):before', function () use ($app, $isAllowed, $isOwnProfile, $isPublicMaster) {
+            if ($isAllowed('agents') || $isOwnProfile($this->urlData['id'] ?? null) || $isPublicMaster($this->action, $this->urlData['id'] ?? null)) {
                 return;
             }
 
