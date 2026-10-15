@@ -88,6 +88,46 @@ class Plugin extends \MapasCulturais\Plugin
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
+        $this->returnRefusedRegistrations();
+    }
+
+    // Moderação (ver Services\Moderation): "não ok" devolve o cadastro ao mestre em vez de recusá-lo.
+    private function returnRefusedRegistrations(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        $app->config['mailer.templates'][Services\Moderation::MAIL_RETURNED] = [
+            'title' => i::__('[Rede de Mestras e Mestres] Seu cadastro está pendente'),
+            'template' => Services\Moderation::MAIL_RETURNED . '.html',
+        ];
+
+        // O hook do resultado não recebe a inscrição: é a da avaliação que está sendo enviada. Guardada antes de o
+        // core aplicar o resultado, no mesmo `send:after` e com prioridade menor; o `send:before` do core sai
+        // com o nome quebrado (`hookClassName`, que a entidade não tem).
+        $sending = null;
+
+        $app->hook('entity(RegistrationEvaluation).send:after', function () use (&$sending) {
+            $sending = $this;
+        }, 1);
+
+        // Com a autoaplicação, a avaliação documental recusada tornaria o cadastro inválido; ele segue pendente.
+        $app->hook('evaluationMethod(documentary).consolidatedAutoApplicationResult', function (&$result) use (&$sending, $plugin) {
+            if ($result === Registration::STATUS_INVALID && $sending && $plugin->fixedOpportunity()->includes($sending->registration)) {
+                $result = Registration::STATUS_SENT;
+                // O status não muda de fato: sem isto, o core copiaria a inscrição para a fase seguinte à toa.
+                $sending->registration->skipSync = true;
+            }
+        });
+
+        $app->hook('entity(RegistrationEvaluation).send:after', function () use ($plugin) {
+            /** @var \MapasCulturais\Entities\RegistrationEvaluation $this */
+            $registration = $this->registration;
+
+            if ($plugin->fixedOpportunity()->includes($registration) && $registration->status === Registration::STATUS_SENT) {
+                (new Services\Moderation)->returnToOwner($registration, $this);
+            }
+        });
     }
 
     // A oportunidade do programa sobe por importação, já configurada e com o resultado publicado. O importador do

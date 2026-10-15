@@ -1,0 +1,30 @@
+{{{_header}}}
+<table role="presentation" class="main">
+    <tr>
+        <td class="wrapper">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td>
+                        <p>Olá, <strong>{{userName}}</strong></p>
+                        <p>A equipe da Rede analisou o seu cadastro <strong>{{registrationNumber}}</strong> e ele está <strong>pendente</strong>: um ou mais dados não foram comprovados.</p>
+                        <ul>
+                            {{#campos}}
+                            <li><strong>{{label}}</strong>{{#obs}}: {{obs}}{{/obs}}</li>
+                            {{/campos}}
+                        </ul>
+                        <p>Só esses campos estão liberados. Corrija e reenvie o cadastro para uma nova análise.</p>
+                        <br>
+                        <a href="{{registrationLink}}">
+                            <div class="status-card status-{{statusNum}}">
+                                <h2 class="status-card--title">Acesse seu cadastro clicando aqui</h2>
+                            </div>
+                        </a>
+                        <br><br>
+                        <p>Até mais!</p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+{{{_footer}}}
