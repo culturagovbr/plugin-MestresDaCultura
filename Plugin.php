@@ -89,6 +89,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
         $this->returnRefusedRegistrations();
+        $this->reopenEvaluationOnResend();
         $this->allowFinalPhaseSync();
     }
 
@@ -157,11 +158,30 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
+    // O mestre reenviou a correção dos campos devolvidos: a avaliação volta a quem avaliou (ver Services\Moderation).
+    private function reopenEvaluationOnResend(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        $app->config['mailer.templates'][Services\Moderation::MAIL_RESENT] = [
+            'title' => i::__('[Rede de Mestras e Mestres] Cadastro corrigido para nova análise'),
+            'template' => Services\Moderation::MAIL_RESENT . '.html',
+        ];
+
+        $app->hook('entity(Registration).sendEditableFields:after', function () use ($plugin) {
+            /** @var Registration $this */
+            if ($plugin->fixedOpportunity()->includes($this)) {
+                (new Services\Moderation)->sendBackToValuers($this);
+            }
+        });
+    }
+
     // A oportunidade do programa sobe por importação, já configurada e com o resultado publicado. O importador do
     // core descarta parte do que o exportador grava (a autoaplicação de resultados e os campos que o avaliador vê)
-    // e o exportador não leva o fluxo contínuo. Só a exportação da oportunidade fixa leva a marca, e só o arquivo com ela é completado: as
-    // outras importações seguem como no core. A comissão fica de fora: são pessoas de cada ambiente, e o gestor
-    // a monta depois de importar.
+    // e o exportador não leva o fluxo contínuo. Só a exportação da oportunidade fixa leva a marca, e só o arquivo
+    // com ela é completado: as outras importações seguem como no core. A comissão fica de fora: são pessoas de
+    // cada ambiente, e o gestor a monta depois de importar.
     private function completeOpportunityImport(): void
     {
         $app = App::i();

@@ -7,12 +7,14 @@ use MapasCulturais\App;
 use MapasCulturais\Entities\Notification;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\RegistrationEvaluation;
+use MapasCulturais\Entities\User;
 use MapasCulturais\i;
 
 /**
  * Moderação do cadastro: uma pessoa da equipe marca cada campo moderado como ok ou não ok. Com algum "não ok", o
  * cadastro não é recusado: fica pendente, com os campos recusados reabertos para o mestre comprovar e reenviar.
- * Sem prazo: fica pendente até que ele atenda o campo, como combinado com a área.
+ * Sem prazo: fica pendente até que ele atenda o campo, como combinado com a área. No reenvio, a avaliação volta a
+ * quem avaliou, para uma nova análise.
  */
 class Moderation
 {
@@ -20,6 +22,8 @@ class Moderation
     const NO_DEADLINE = '2111-01-01 00:00:00';
 
     const MAIL_RETURNED = 'mdc_cadastro_pendente';
+
+    const MAIL_RESENT = 'mdc_cadastro_reenviado';
 
     /**
      * Os campos que o avaliador recusou, pelo nome que a inscrição usa (`field_N` ou `rfc_N`), com o motivo.
@@ -85,6 +89,59 @@ class Moderation
         } finally {
             $app->enableAccessControl();
         }
+    }
+
+    /**
+     * O mestre reenviou a correção: a avaliação enviada volta a rascunho, com as marcações de antes, e quem avaliou
+     * é avisado. Só a desta inscrição; reabrir pela tela do gestor reabriria todas as do avaliador.
+     */
+    function sendBackToValuers(Registration $registration): void
+    {
+        $app = App::i();
+        $evaluations = $app->repo('RegistrationEvaluation')->findBy(['registration' => $registration, 'status' => RegistrationEvaluation::STATUS_SENT]);
+
+        // Altera a avaliação sem checar a permissão do mestre que reenviou.
+        $app->disableAccessControl();
+
+        try {
+            foreach ($evaluations as $evaluation) {
+                $evaluation->status = RegistrationEvaluation::STATUS_DRAFT;
+                $evaluation->save(true);
+
+                $this->notifyValuer($registration, $evaluation->user);
+            }
+        } finally {
+            $app->enableAccessControl();
+        }
+    }
+
+    private function notifyValuer(Registration $registration, User $valuer): void
+    {
+        $app = App::i();
+        $link = $app->createUrl('registration', 'evaluation', [$registration->id]);
+
+        $message = $app->renderMailerTemplate(self::MAIL_RESENT, [
+            'siteName' => $app->siteName,
+            'baseUrl' => $app->getBaseUrl(),
+            'valuerName' => $valuer->profile->name,
+            'registrationNumber' => $registration->number,
+            'evaluationLink' => $link,
+        ]);
+
+        $app->sendMailMessage($app->createMailMessage([
+            'to' => $valuer->profile->emailPrivado ?: $valuer->email,
+            'subject' => $message['title'],
+            'body' => $message['body'],
+        ]), true);
+
+        $notification = new Notification;
+        $notification->user = $valuer;
+        $notification->message = sprintf(
+            i::__('O cadastro %s foi corrigido e reenviado pelo mestre. <a href="%s">Avalie de novo</a>.'),
+            $registration->number,
+            $link
+        );
+        $notification->save(true);
     }
 
     /** @param array<array{name: string, label: string, obs: string}> $refused */
