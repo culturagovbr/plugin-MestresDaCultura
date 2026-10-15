@@ -247,6 +247,14 @@ class Plugin extends \MapasCulturais\Plugin
                 $plugin->programSeal()->remove($this);
             }
         });
+
+        // Com o selo retirado, o link do certificado (o do e-mail de aprovação) daria erro 500: o core usa o vínculo
+        // antes de ver se ele existe. Aqui, vira "não encontrado".
+        $app->hook('GET(seal.sealRelation):before', function () use ($app) {
+            if ($app->view instanceof \MestresDaCultura\Theme && !$app->repo('SealRelation')->find((int) ($this->data['id'] ?? 0))) {
+                $app->pass();
+            }
+        });
     }
 
     // Cadastro aprovado na moderação: o mestre é avisado (ver Services\Moderation).
