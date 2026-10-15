@@ -20,6 +20,9 @@ class Plugin extends \MapasCulturais\Plugin
     /** Telas do v1 que só exibem a inscrição; as que salvam não entram aqui. */
     private const V1_READING_ACTIONS = ['registrationview', 'registrationevaluationtionformview'];
 
+    /** Chave que marca, no arquivo exportado, a oportunidade do programa (ver completeOpportunityImport). */
+    private const IMPORT_MARK = 'mdcOpportunity';
+
     private ?Services\FixedOpportunity $fixedOpportunity = null;
 
     function register()
@@ -84,6 +87,56 @@ class Plugin extends \MapasCulturais\Plugin
         $this->blockOpportunityBrowsing();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
+        $this->completeOpportunityImport();
+    }
+
+    // A oportunidade do programa sobe por importação, já configurada. O importador do core descarta parte do que
+    // o exportador grava (a autoaplicação de resultados e os campos que o avaliador vê) e o exportador não leva o
+    // fluxo contínuo. Só a exportação da oportunidade fixa leva a marca, e só o arquivo com ela é completado: as
+    // outras importações seguem como no core. A comissão fica de fora: são pessoas de cada ambiente, e o gestor
+    // a monta depois de importar.
+    private function completeOpportunityImport(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        // A marca vai na fase de avaliação, a única parte do arquivo que os hooks do exportador alcançam.
+        $app->hook('evaluationMethod(<<*>>).export:after', function (&$result) use ($plugin) {
+            /** @var \MapasCulturais\Entities\EvaluationMethodConfiguration $this */
+            if ($plugin->fixedOpportunity()->matches($this->opportunity)) {
+                $result[self::IMPORT_MARK] = [
+                    'isContinuousFlow' => (bool) $this->opportunity->firstPhase->isContinuousFlow,
+                    'hasEndDate' => (bool) $this->opportunity->firstPhase->hasEndDate,
+                ];
+            }
+        });
+
+        // Chega com os campos já trocados pelos da oportunidade nova; o importador salva a fase em seguida.
+        $app->hook('evaluationMethod(<<*>>).import:after', function (&$data) {
+            /** @var \MapasCulturais\Entities\EvaluationMethodConfiguration $this */
+            $mark = $data[self::IMPORT_MARK] ?? null;
+
+            if (!$mark) {
+                return;
+            }
+
+            foreach (['autoApplicationAllowed', 'publishEvaluationDetails', 'publishValuerNames', 'infos'] as $prop) {
+                if (array_key_exists($prop, $data)) {
+                    $this->$prop = $data[$prop];
+                }
+            }
+
+            $opportunity = $this->opportunity;
+            $opportunity->avaliableEvaluationFields = $data['avaliableEvaluationFields'] ?? [];
+            $opportunity->save(true);
+
+            // A fase final já existe a esta altura; o core só copia o fluxo contínuo para fases criadas depois.
+            foreach ($opportunity->allPhases as $phase) {
+                $phase->isContinuousFlow = $mark['isContinuousFlow'];
+                $phase->hasEndDate = $mark['hasEndDate'];
+                $phase->save(true);
+            }
+        });
     }
 
     // `object_type` é enum do Postgres e também lista fixa em PHP; o db-update cobre uma ponta, este hook a outra.
