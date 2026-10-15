@@ -90,6 +90,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->completeOpportunityImport();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
+        $this->showModerationToOwner();
         $this->allowFinalPhaseSync();
     }
 
@@ -174,6 +175,43 @@ class Plugin extends \MapasCulturais\Plugin
             if ($plugin->fixedOpportunity()->includes($this)) {
                 (new Services\Moderation)->sendBackToValuers($this);
             }
+        });
+    }
+
+    // Cadastro devolvido (tela 8 do protótipo): o mestre vê, acima das abas da inscrição, o resultado de cada campo
+    // moderado, o motivo dos recusados e o caminho para corrigir. O `tabs-alert` é o espaço de aviso do `mc-tabs`;
+    // decidido aqui, no servidor, porque a `Entity` do front só guarda as propriedades que conhece.
+    private function showModerationToOwner(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        $app->hook('template(registration.view.single-tab):begin', function () use ($app, $plugin) {
+            /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
+            $registration = $this->controller->requestedEntity;
+
+            if (!$registration instanceof Registration || !Services\Moderation::isPending($registration) || !$plugin->fixedOpportunity()->includes($registration)) {
+                return;
+            }
+
+            if ($app->user->is('guest') || $registration->owner?->user?->id !== $app->user->id) {
+                return;
+            }
+
+            $moderation = (new Services\Moderation)->pendingView($registration);
+
+            if (!$moderation) {
+                return;
+            }
+
+            $this->import('mdc-moderation-notice');
+            $json = htmlspecialchars(json_encode($moderation), ENT_QUOTES);
+
+            echo <<<HTML
+                <template #tabs-alert>
+                    <mdc-moderation-notice :moderation="{$json}"></mdc-moderation-notice>
+                </template>
+            HTML;
         });
     }
 
@@ -439,6 +477,7 @@ class Plugin extends \MapasCulturais\Plugin
             $iconset['mdc-tree'] = 'mdi:file-tree-outline';
             $iconset['mdc-zoom-in'] = 'mdi:plus';
             $iconset['mdc-zoom-out'] = 'mdi:minus';
+            $iconset['mdc-not-proven'] = 'mdi:close-circle';
         });
     }
 

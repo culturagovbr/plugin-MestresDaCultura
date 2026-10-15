@@ -26,23 +26,23 @@ class Moderation
     const MAIL_RESENT = 'mdc_cadastro_reenviado';
 
     /**
-     * Os campos que o avaliador recusou, pelo nome que a inscrição usa (`field_N` ou `rfc_N`), com o motivo.
-     * A avaliação guarda só o número, e um campo e um anexo podem ter o mesmo: vale o que o avaliador via e, se
-     * via os dois, o de mesmo título.
+     * Os campos que o avaliador marcou, ok (`valid`) ou não ok (`invalid`), pelo nome que a inscrição usa (`field_N`
+     * ou `rfc_N`), com o motivo. Número de campo e de anexo repetido vale pelo que o avaliador via e, nos dois, pelo título.
      *
      * @param array $evaluationData número => {label, evaluation, obs}
      * @param array<string,mixed> $visible nome => "true", os campos que o avaliador vê
      * @param array<string,string> $titles nome => título
-     * @return array<array{name: string, label: string, obs: string}>
+     * @return array<array{name: string, label: string, result: string, obs: string}>
      */
-    static function refusedFields(array $evaluationData, array $visible, array $titles): array
+    static function evaluatedFields(array $evaluationData, array $visible, array $titles): array
     {
-        $refused = [];
+        $evaluated = [];
 
         foreach ($evaluationData as $id => $item) {
             $item = (array) $item;
+            $result = $item['evaluation'] ?? '';
 
-            if (($item['evaluation'] ?? '') !== 'invalid') {
+            if (!in_array($result, ['valid', 'invalid'], true)) {
                 continue;
             }
 
@@ -56,11 +56,129 @@ class Moderation
             }
 
             if ($candidates) {
-                $refused[] = ['name' => $candidates[0], 'label' => (string) ($item['label'] ?? $titles[$candidates[0]]), 'obs' => trim((string) ($item['obs'] ?? ''))];
+                $evaluated[] = [
+                    'name' => $candidates[0],
+                    'label' => (string) ($item['label'] ?? $titles[$candidates[0]]),
+                    'result' => $result,
+                    'obs' => trim((string) ($item['obs'] ?? '')),
+                ];
             }
         }
 
-        return $refused;
+        return $evaluated;
+    }
+
+    /**
+     * Os campos não ok, que voltam ao mestre.
+     *
+     * @return array<array{name: string, label: string, obs: string}>
+     */
+    static function refusedFields(array $evaluationData, array $visible, array $titles): array
+    {
+        $refused = array_filter(self::evaluatedFields($evaluationData, $visible, $titles), fn ($field) => $field['result'] === 'invalid');
+
+        return array_values(array_map(fn ($field) => array_diff_key($field, ['result' => true]), $refused));
+    }
+
+    /** Devolvido e ainda não reenviado: há campos reabertos e a correção não foi enviada. */
+    static function isPending(Registration $registration): bool
+    {
+        return $registration->status === Registration::STATUS_SENT && $registration->editableFields && !$registration->editSentTimestamp;
+    }
+
+    /**
+     * O que o mestre vê enquanto o cadastro está pendente: o resultado de cada campo moderado, com o motivo, e o
+     * caminho para corrigir, já na etapa do primeiro campo recusado. O nome de quem avaliou não vai.
+     *
+     * @return ?array{fields: array<array{name: string, label: string, result: string, obs: string, section: string}>, editUrl: string}
+     */
+    function pendingView(Registration $registration): ?array
+    {
+        if (!self::isPending($registration)) {
+            return null;
+        }
+
+        $app = App::i();
+        $visible = $this->visibleFields($registration);
+        $titles = $this->titles($registration);
+        $fields = [];
+
+        foreach ($app->repo('RegistrationEvaluation')->findBy(['registration' => $registration, 'status' => RegistrationEvaluation::STATUS_SENT]) as $evaluation) {
+            array_push($fields, ...self::evaluatedFields((array) $evaluation->evaluationData, $visible, $titles));
+        }
+
+        if (!$fields) {
+            return null;
+        }
+
+        $sections = $this->sections($registration);
+        $fields = array_map(fn ($field) => $field + ['section' => $sections[$field['name']] ?? ''], $fields);
+
+        $refused = array_values(array_filter($fields, fn ($field) => $field['result'] === 'invalid'));
+        $url = $app->createUrl('registration', 'registrationEdit', [$registration->id]);
+        $step = $refused ? $this->stepNumber($registration, $refused[0]['name']) : null;
+
+        return ['fields' => $fields, 'editUrl' => $step ? "{$url}#etapa_{$step}" : $url];
+    }
+
+    /**
+     * O título da seção de cada campo e anexo ("Reconhecimento pela comunidade"), na ordem de cada etapa.
+     *
+     * @return array<string,string> nome => título da seção
+     */
+    private function sections(Registration $registration): array
+    {
+        $items = [];
+
+        foreach ($registration->opportunity->registrationFieldConfigurations as $field) {
+            $items[] = [$field->step?->id, $field->displayOrder, $field->fieldName, $field->fieldType === 'section' ? (string) $field->title : null];
+        }
+
+        foreach ($registration->opportunity->registrationFileConfigurations as $file) {
+            $items[] = [$file->step?->id, $file->displayOrder, $file->fileGroupName, null];
+        }
+
+        usort($items, fn ($a, $b) => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
+
+        $sections = [];
+        $current = [];
+
+        foreach ($items as [$step, , $name, $section]) {
+            if ($section !== null) {
+                $current[$step] = $section;
+            } else {
+                $sections[$name] = $current[$step] ?? '';
+            }
+        }
+
+        return $sections;
+    }
+
+    // A edição do core abre na etapa de `#etapa_N`, contada na ordem das etapas a partir de 1.
+    private function stepNumber(Registration $registration, string $name): ?int
+    {
+        $opportunity = $registration->opportunity;
+        $step = null;
+
+        foreach ($opportunity->registrationFieldConfigurations as $field) {
+            $step = $field->fieldName === $name ? $field->step : $step;
+        }
+
+        foreach ($opportunity->registrationFileConfigurations as $file) {
+            $step = $file->fileGroupName === $name ? $file->step : $step;
+        }
+
+        $steps = $opportunity->registrationSteps;
+        $steps = is_array($steps) ? $steps : ($steps?->toArray() ?? []);
+        usort($steps, fn ($a, $b) => $a->displayOrder <=> $b->displayOrder);
+
+        foreach (array_values($steps) as $index => $candidate) {
+            if ($step && $candidate->id === $step->id) {
+                return $index + 1;
+            }
+        }
+
+        return null;
     }
 
     /** Devolve o cadastro ao mestre: reabre só os campos recusados e o avisa, com o motivo de cada um. */
