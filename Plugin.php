@@ -90,9 +90,9 @@ class Plugin extends \MapasCulturais\Plugin
         $this->completeOpportunityImport();
     }
 
-    // A oportunidade do programa sobe por importação, já configurada. O importador do core descarta parte do que
-    // o exportador grava (a autoaplicação de resultados e os campos que o avaliador vê) e o exportador não leva o
-    // fluxo contínuo. Só a exportação da oportunidade fixa leva a marca, e só o arquivo com ela é completado: as
+    // A oportunidade do programa sobe por importação, já configurada e com o resultado publicado. O importador do
+    // core descarta parte do que o exportador grava (a autoaplicação de resultados e os campos que o avaliador vê)
+    // e o exportador não leva o fluxo contínuo. Só a exportação da oportunidade fixa leva a marca, e só o arquivo com ela é completado: as
     // outras importações seguem como no core. A comissão fica de fora: são pessoas de cada ambiente, e o gestor
     // a monta depois de importar.
     private function completeOpportunityImport(): void
@@ -136,6 +136,12 @@ class Plugin extends \MapasCulturais\Plugin
                 $phase->hasEndDate = $mark['hasEndDate'];
                 $phase->save(true);
             }
+
+            // O core só mostra o resultado ao inscrito depois da publicação, pensada para sair de uma vez no fim de
+            // um edital. No cadastro cada mestre é avaliado num momento: publicada desde o início, a oportunidade
+            // mostra cada resultado assim que é aplicado, como no Cultura Viva. Nasce sem inscrições, então
+            // publicar não aplica selo nem avisa ninguém.
+            $opportunity->publishRegistrations();
         });
     }
 
