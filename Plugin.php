@@ -25,12 +25,15 @@ class Plugin extends \MapasCulturais\Plugin
 
     private ?Services\FixedOpportunity $fixedOpportunity = null;
 
+    private ?Services\ProgramSeal $programSeal = null;
+
     function register()
     {
         $app = App::i();
 
         // Ids da oportunidade e dos selos, do ambiente e sem padrão; valem também nos jobs da linha de comando.
         $app->config[Services\FixedOpportunity::CONFIG_KEY] ??= env('MDC_OPPORTUNITY_ID');
+        $app->config[Services\ProgramSeal::CONFIG_KEY] ??= env('MDC_SEAL_ID');
 
         $app->registerController('mdc', Controller::class);
         $app->registerRegistrationFieldType(new RegistrationFieldType(Services\ActingField::definition()));
@@ -91,6 +94,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
         $this->showModerationToOwner();
+        $this->applyProgramSeal();
         $this->notifyApproval();
         $this->allowFinalPhaseSync();
     }
@@ -179,9 +183,10 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // Cadastro devolvido (tela 8 do protótipo): o mestre vê, acima das abas da inscrição, o resultado de cada campo
-    // moderado, o motivo dos recusados e o caminho para corrigir. O `tabs-alert` é o espaço de aviso do `mc-tabs`;
-    // decidido aqui, no servidor, porque a `Entity` do front só guarda as propriedades que conhece.
+    // Resultado da moderação para o mestre, acima das abas da inscrição: devolvido (tela 8 do protótipo), com o
+    // resultado de cada campo, o motivo dos recusados e o caminho para corrigir; ou aprovado, com o certificado. O
+    // `tabs-alert` é o espaço de aviso do `mc-tabs`; decidido aqui, no servidor, porque a `Entity` do front só guarda
+    // as propriedades que conhece.
     private function showModerationToOwner(): void
     {
         $app = App::i();
@@ -191,7 +196,7 @@ class Plugin extends \MapasCulturais\Plugin
             /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
             $registration = $this->controller->requestedEntity;
 
-            if (!$registration instanceof Registration || !Services\Moderation::isPending($registration) || !$plugin->fixedOpportunity()->includes($registration)) {
+            if (!$registration instanceof Registration || !$plugin->fixedOpportunity()->includes($registration)) {
                 return;
             }
 
@@ -200,6 +205,10 @@ class Plugin extends \MapasCulturais\Plugin
             }
 
             $moderation = (new Services\Moderation)->pendingView($registration);
+
+            if (!$moderation && $registration->status === Registration::STATUS_APPROVED && ($seal = $plugin->programSeal()->relationOf($registration))) {
+                $moderation = ['status' => 'approved', 'certificateUrl' => $seal->singleUrl];
+            }
 
             if (!$moderation) {
                 return;
@@ -213,6 +222,30 @@ class Plugin extends \MapasCulturais\Plugin
                     <mdc-moderation-notice :moderation="{$json}"></mdc-moderation-notice>
                 </template>
             HTML;
+        });
+    }
+
+    // Selo do programa (ver Services\ProgramSeal): entra na aprovação, antes do aviso que leva o link do
+    // certificado, e sai se o cadastro deixa de estar aprovado. Só na fase de cadastro, como o aviso.
+    private function applyProgramSeal(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        $isRegistrationPhase = fn (Registration $registration): bool => $registration->opportunity->id === $plugin->fixedOpportunity()->get()?->id;
+
+        $app->hook('entity(Registration).status(approved)', function () use ($plugin, $isRegistrationPhase) {
+            /** @var Registration $this */
+            if ($isRegistrationPhase($this)) {
+                $plugin->programSeal()->apply($this);
+            }
+        });
+
+        $app->hook('entity(Registration).status(<<draft|sent|invalid|notapproved|waitlist>>)', function () use ($plugin, $isRegistrationPhase) {
+            /** @var Registration $this */
+            if ($isRegistrationPhase($this)) {
+                $plugin->programSeal()->remove($this);
+            }
         });
     }
 
@@ -231,7 +264,7 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('entity(Registration).status(approved)', function () use ($plugin) {
             /** @var Registration $this */
             if ($this->opportunity->id === $plugin->fixedOpportunity()->get()?->id) {
-                (new Services\Moderation)->notifyApproved($this);
+                (new Services\Moderation)->notifyApproved($this, $plugin->programSeal()->relationOf($this)?->singleUrl);
             }
         });
     }
@@ -541,6 +574,11 @@ class Plugin extends \MapasCulturais\Plugin
     function fixedOpportunity(): Services\FixedOpportunity
     {
         return $this->fixedOpportunity ??= new Services\FixedOpportunity();
+    }
+
+    function programSeal(): Services\ProgramSeal
+    {
+        return $this->programSeal ??= new Services\ProgramSeal();
     }
 
     private function blockOpportunityBrowsing(): void

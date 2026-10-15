@@ -12,7 +12,7 @@ Pelo mesmo mecanismo, a resolução substitui todas as ocorrências do namespace
 
 ## Habilitar
 
-Adicione `MDC` à lista `plugins` da configuração e defina no ambiente `MDC_OPPORTUNITY_ID`, o id da oportunidade do programa (sem padrão: o id muda por ambiente). A chave é lida pelo plugin, e não pelo tema, porque os jobs rodam pela linha de comando como site principal.
+Adicione `MDC` à lista `plugins` da configuração e defina no ambiente `MDC_OPPORTUNITY_ID`, o id da oportunidade do programa, e `MDC_SEAL_ID`, o id do selo "Mestra e Mestre da Cultura", que o gestor cria com o texto do certificado (sem padrão: os ids mudam por ambiente). As chaves são lidas pelo plugin, e não pelo tema, porque os jobs rodam pela linha de comando como site principal.
 
 ## Componentes
 

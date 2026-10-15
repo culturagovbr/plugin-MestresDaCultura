@@ -10,7 +10,27 @@ $this->import('
     mc-status
 ');
 ?>
-<div class="mdc-moderation-notice">
+<div v-if="approved" class="mdc-moderation-notice">
+    <mc-card class="mdc-moderation-notice__card">
+        <template #title>
+            <h3>{{ text('seu cadastro') }}</h3>
+            <mc-status :status-name="text('status aprovado')"></mc-status>
+        </template>
+
+        <template #content>
+            <p class="mdc-moderation-notice__approved">{{ text('aprovado texto') }}</p>
+
+            <footer class="mdc-moderation-notice__footer">
+                <p class="mdc-moderation-notice__note">{{ text('certificado nota') }}</p>
+                <a class="button button--primary button--icon" :href="moderation.certificateUrl">
+                    <mc-icon name="print"></mc-icon> {{ text('ver certificado') }}
+                </a>
+            </footer>
+        </template>
+    </mc-card>
+</div>
+
+<div v-else class="mdc-moderation-notice mdc-moderation-notice--pending">
     <div class="mdc-moderation-notice__alert" role="status">
         <mc-icon name="exclamation"></mc-icon>
         <p><strong>{{ text('aviso título') }}</strong> {{ text('aviso texto') }}</p>

@@ -8,6 +8,9 @@
                         <p>Olá, <strong>{{userName}}</strong></p>
                         <p>A equipe da Rede analisou o seu cadastro <strong>{{registrationNumber}}</strong> e ele foi <strong>aprovado</strong>.</p>
                         <p>Você agora faz parte da Rede Nacional de Mestras e Mestres das Culturas Tradicionais e Populares.</p>
+                        {{#certificateLink}}
+                        <p>O seu certificado de Mestra e Mestre da Cultura já está disponível: <a href="{{certificateLink}}">veja e imprima o certificado</a>.</p>
+                        {{/certificateLink}}
                         <br>
                         <a href="{{registrationLink}}">
                             <div class="status-card status-{{statusNum}}">

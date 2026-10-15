@@ -2,7 +2,7 @@ app.component('mdc-moderation-notice', {
     template: $TEMPLATES['mdc-moderation-notice'],
 
     props: {
-        // o que o plugin acrescenta à inscrição devolvida (MDC\Services\Moderation::pendingView)
+        // o resultado da moderação que o plugin monta: devolvido (MDC\Services\Moderation::pendingView) ou aprovado
         moderation: {
             type: Object,
             required: true,
@@ -16,9 +16,13 @@ app.component('mdc-moderation-notice', {
     },
 
     computed: {
+        approved() {
+            return this.moderation.status === 'approved';
+        },
+
         // Os recusados primeiro.
         fields() {
-            return [...this.moderation.fields].sort((a, b) => (a.result === 'invalid' ? 0 : 1) - (b.result === 'invalid' ? 0 : 1));
+            return [...(this.moderation.fields ?? [])].sort((a, b) => (a.result === 'invalid' ? 0 : 1) - (b.result === 'invalid' ? 0 : 1));
         },
     },
 

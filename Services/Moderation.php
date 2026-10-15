@@ -92,7 +92,7 @@ class Moderation
      * O que o mestre vê enquanto o cadastro está pendente: o resultado de cada campo moderado, com o motivo, e o
      * caminho para corrigir, já na etapa do primeiro campo recusado. O nome de quem avaliou não vai.
      *
-     * @return ?array{fields: array<array{name: string, label: string, result: string, obs: string, section: string}>, editUrl: string}
+     * @return ?array{status: 'pending', fields: array<array{name: string, label: string, result: string, obs: string, section: string}>, editUrl: string}
      */
     function pendingView(Registration $registration): ?array
     {
@@ -120,7 +120,7 @@ class Moderation
         $url = $app->createUrl('registration', 'registrationEdit', [$registration->id]);
         $step = $refused ? $this->stepNumber($registration, $refused[0]['name']) : null;
 
-        return ['fields' => $fields, 'editUrl' => $step ? "{$url}#etapa_{$step}" : $url];
+        return ['status' => 'pending', 'fields' => $fields, 'editUrl' => $step ? "{$url}#etapa_{$step}" : $url];
     }
 
     /**
@@ -264,15 +264,15 @@ class Moderation
         $notification->save(true);
     }
 
-    /** O core não avisa o inscrito quando o resultado sai da autoaplicação. */
-    function notifyApproved(Registration $registration): void
+    /** Avisa o mestre da aprovação, por e-mail com o certificado e no sino. */
+    function notifyApproved(Registration $registration, ?string $certificateUrl = null): void
     {
         $app = App::i();
 
         $app->enqueueJob(SendMailNotification::SLUG, [
             'template' => self::MAIL_APPROVED,
             'registrationId' => $registration->id,
-            'params' => ['registrationLink' => $registration->singleUrl],
+            'params' => ['registrationLink' => $registration->singleUrl, 'certificateLink' => $certificateUrl],
         ]);
 
         $notification = new Notification;
