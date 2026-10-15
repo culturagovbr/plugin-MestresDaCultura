@@ -89,6 +89,33 @@ class Plugin extends \MapasCulturais\Plugin
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
         $this->returnRefusedRegistrations();
+        $this->allowFinalPhaseSync();
+    }
+
+    // A aprovação na moderação vem da autoaplicação, no envio da avaliação, e o core agenda a cópia da inscrição
+    // para a fase final em nome de quem mudou o status: o avaliador, que não controla a oportunidade, e a cópia
+    // falha. Só neste job e só na oportunidade fixa, a cópia roda sem a checagem. O `execute:after` do job não
+    // roda quando ele falha; o `app.executeJob:after` roda sempre.
+    private function allowFinalPhaseSync(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+        $disabled = false;
+
+        $app->hook('job(' . \OpportunityPhases\Jobs\SyncPhaseRegistrations::SLUG . ').execute:before', function () use ($app, $plugin, &$disabled) {
+            /** @var \MapasCulturais\Entities\Job $this */
+            if ($plugin->fixedOpportunity()->matches($this->opportunity)) {
+                $app->disableAccessControl();
+                $disabled = true;
+            }
+        });
+
+        $app->hook('app.executeJob:after', function () use ($app, &$disabled) {
+            if ($disabled) {
+                $app->enableAccessControl();
+                $disabled = false;
+            }
+        });
     }
 
     // Moderação (ver Services\Moderation): "não ok" devolve o cadastro ao mestre em vez de recusá-lo.
