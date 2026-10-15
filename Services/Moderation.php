@@ -14,7 +14,7 @@ use MapasCulturais\i;
  * Moderação do cadastro: uma pessoa da equipe marca cada campo moderado como ok ou não ok. Com algum "não ok", o
  * cadastro não é recusado: fica pendente, com os campos recusados reabertos para o mestre comprovar e reenviar.
  * Sem prazo: fica pendente até que ele atenda o campo, como combinado com a área. No reenvio, a avaliação volta a
- * quem avaliou, para uma nova análise.
+ * quem avaliou, para uma nova análise. Na aprovação, o mestre é avisado.
  */
 class Moderation
 {
@@ -24,6 +24,8 @@ class Moderation
     const MAIL_RETURNED = 'mdc_cadastro_pendente';
 
     const MAIL_RESENT = 'mdc_cadastro_reenviado';
+
+    const MAIL_APPROVED = 'mdc_cadastro_aprovado';
 
     /**
      * Os campos que o avaliador marcou, ok (`valid`) ou não ok (`invalid`), pelo nome que a inscrição usa (`field_N`
@@ -260,6 +262,33 @@ class Moderation
             $link
         );
         $notification->save(true);
+    }
+
+    /** O core não avisa o inscrito quando o resultado sai da autoaplicação. */
+    function notifyApproved(Registration $registration): void
+    {
+        $app = App::i();
+
+        $app->enqueueJob(SendMailNotification::SLUG, [
+            'template' => self::MAIL_APPROVED,
+            'registrationId' => $registration->id,
+            'params' => ['registrationLink' => $registration->singleUrl],
+        ]);
+
+        $notification = new Notification;
+        $notification->user = $registration->owner->user;
+        $notification->message = sprintf(
+            i::__('Seu cadastro na Rede de Mestras e Mestres foi aprovado. <a href="%s">Veja o seu cadastro</a>.'),
+            $registration->singleUrl
+        );
+
+        $app->disableAccessControl();
+
+        try {
+            $notification->save(true);
+        } finally {
+            $app->enableAccessControl();
+        }
     }
 
     /** @param array<array{name: string, label: string, obs: string}> $refused */

@@ -91,6 +91,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
         $this->showModerationToOwner();
+        $this->notifyApproval();
         $this->allowFinalPhaseSync();
     }
 
@@ -212,6 +213,26 @@ class Plugin extends \MapasCulturais\Plugin
                     <mdc-moderation-notice :moderation="{$json}"></mdc-moderation-notice>
                 </template>
             HTML;
+        });
+    }
+
+    // Cadastro aprovado na moderação: o mestre é avisado (ver Services\Moderation).
+    private function notifyApproval(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        $app->config['mailer.templates'][Services\Moderation::MAIL_APPROVED] = [
+            'title' => i::__('[Rede de Mestras e Mestres] Seu cadastro foi aprovado'),
+            'template' => Services\Moderation::MAIL_APPROVED . '.html',
+        ];
+
+        // Só na fase de cadastro: a cópia para a fase final também passa por aqui e avisaria duas vezes.
+        $app->hook('entity(Registration).status(approved)', function () use ($plugin) {
+            /** @var Registration $this */
+            if ($this->opportunity->id === $plugin->fixedOpportunity()->get()?->id) {
+                (new Services\Moderation)->notifyApproved($this);
+            }
         });
     }
 
