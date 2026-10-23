@@ -96,6 +96,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->sendForeignRegistrationsHome();
         $this->keepTheProgramOnItsSite();
         $this->closeOtherPanelScreens();
+        $this->showOnlyTheProgramSeal();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
@@ -897,6 +898,63 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->hook('GET(panel.<<*>>):before', function () use ($app, $open) {
             if (Plugin::isTheme() && !$app->user->is('admin') && !in_array(strtolower($this->action), $open, true)) {
+                $app->pass();
+            }
+        });
+    }
+
+    // No site dos Mestres, quem não é admin só vê o selo do programa: na API de selos, nos selos que a API de agentes
+    // devolve e nas páginas de selo e de certificado. Os selos do agente vêm da consulta do agente, não da API de selos,
+    // e são filtrados na saída da API, depois do cache dela, que não separa usuários. O perfil público do mestre já
+    // esconde o bloco de selos do core (_mdc-master-profile.scss) e mostra o do programa no cabeçalho.
+    private function showOnlyTheProgramSeal(): void
+    {
+        $app = App::i();
+        $programSeal = $this->programSeal();
+        $applies = fn (): bool => Plugin::isTheme() && !$app->user->is('admin') && $programSeal->configuredId();
+
+        $keepProgramSeal = function (array &$agents) use ($programSeal): void {
+            foreach ($agents as &$agent) {
+                foreach (['seals', 'verifiedSeals'] as $key) {
+                    if (is_array($agent[$key] ?? null)) {
+                        $agent[$key] = array_values(array_filter($agent[$key], fn ($seal) => (int) ($seal['sealId'] ?? 0) === $programSeal->configuredId()));
+                    }
+                }
+            }
+        };
+
+        $app->hook('ApiQuery(Seal).params', function (&$params) use ($programSeal, $applies) {
+            /** @var ApiQuery $this */
+            if ($this->parentQuery || !$applies()) {
+                return;
+            }
+
+            $only = API::EQ($programSeal->configuredId());
+            $params['id'] = isset($params['id']) ? API::AND($params['id'], $only) : $only;
+        });
+
+        $app->hook('API.<<find|findOne>>(agent).result', function ($params, &$result) use ($applies, $keepProgramSeal) {
+            if (!$applies() || !is_array($result)) {
+                return;
+            }
+
+            if (isset($result['id'])) {
+                $one = [&$result];
+                $keepProgramSeal($one);
+            } else {
+                $keepProgramSeal($result);
+            }
+        });
+
+        $app->hook('GET(seal.<<single|sealRelation|printsealrelation>>):before', function () use ($app, $programSeal, $applies) {
+            if (!$applies()) {
+                return;
+            }
+
+            $id = (int) ($this->data['id'] ?? 0);
+            $seal = $this->action === 'single' ? $app->repo('Seal')->find($id) : $app->repo('SealRelation')->find($id)?->seal;
+
+            if (!$seal || !$programSeal->isTheProgramSeal($seal)) {
                 $app->pass();
             }
         });

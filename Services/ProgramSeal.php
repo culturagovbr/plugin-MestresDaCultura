@@ -85,6 +85,12 @@ class ProgramSeal
         }
     }
 
+    // Só a chave: get() avisa no log quando falta, e há quem pergunte a cada consulta.
+    function configuredId(): ?int
+    {
+        return ((int) (App::i()->config[self::CONFIG_KEY] ?? 0)) ?: null;
+    }
+
     // Compara com o id configurado, sem registrar erro.
     function isTheProgramSeal(Seal $seal): bool
     {
