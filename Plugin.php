@@ -784,9 +784,9 @@ class Plugin extends \MapasCulturais\Plugin
         });
 
         // Clonar a oportunidade só pede "modify" ou "@control" no core, e o gerar modelo do gestor quebrava no meio.
-        // Tornar modelo público abriria o clone a qualquer usuário.
+        // Tornar modelo público abriria o clone a qualquer usuário. Sem login, segue para o core, que pede para entrar.
         $app->hook('ALL(opportunity.<<duplicate|generatemodel|generateopportunity|modelpublic>>):before', function () use ($app, $guard) {
-            if ($guard->locks($this->requestedEntity, $app->user)) {
+            if (!$app->user->is('guest') && $guard->locks($this->requestedEntity, $app->user)) {
                 throw new PermissionDenied($app->user, $this->requestedEntity, $this->action);
             }
         });
