@@ -2,6 +2,7 @@
 
 namespace MDC;
 
+use MapasCulturais\API;
 use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
 use MapasCulturais\Definitions\RegistrationFieldType;
@@ -91,6 +92,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->protectFixedOpportunity();
+        $this->scopeRegistrationsToFixedOpportunity();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
@@ -781,6 +783,31 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('GET(opportunity.<<edit|single>>):before', function () use ($app, $guard) {
             if ($guard->locks($this->requestedEntity, $app->user)) {
                 $app->view->bodyClasses[] = 'mdc-structure-locked';
+            }
+        });
+    }
+
+    // Ver Services\RegistrationScope.
+    private function scopeRegistrationsToFixedOpportunity(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+
+        $app->hook('ApiQuery(Registration).params', function (&$params) use ($app, $fixedOpportunity) {
+            /** @var ApiQuery $this */
+            if ($this->parentQuery || !$app->view instanceof \MestresDaCultura\Theme || $app->user->is('admin')) {
+                return;
+            }
+
+            // Sem oportunidade configurada, segue o core, sem registrar o aviso a cada consulta.
+            if (!($app->config[Services\FixedOpportunity::CONFIG_KEY] ?? null)) {
+                return;
+            }
+
+            $allowed = $fixedOpportunity->ids();
+
+            if ($allowed) {
+                $params['opportunity'] = API::IN(Services\RegistrationScope::narrow($params['opportunity'] ?? null, $allowed));
             }
         });
     }

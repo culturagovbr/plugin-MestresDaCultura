@@ -70,6 +70,33 @@ class FixedOpportunity
         return App::i()->em->getUnitOfWork()->getOriginalEntityData($opportunity)['parent'] ?? null;
     }
 
+    /**
+     * A oportunidade e as fases dela, em qualquer status. Vazio sem oportunidade configurada.
+     *
+     * @return int[]
+     */
+    function ids(): array
+    {
+        $fixed = $this->get();
+
+        if (!$fixed) {
+            return [];
+        }
+
+        $ids = [$fixed->id];
+        $level = [$fixed->id];
+
+        while ($level) {
+            $level = App::i()->em->createQuery('SELECT o.id FROM MapasCulturais\Entities\Opportunity o WHERE o.parent IN (:parents)')
+                ->setParameter('parents', $level)
+                ->getSingleColumnResult();
+            $level = array_values(array_diff(array_map('intval', $level), $ids));
+            $ids = [...$ids, ...$level];
+        }
+
+        return $ids;
+    }
+
     function includes(Registration $registration): bool
     {
         return $this->matches($registration->opportunity);
