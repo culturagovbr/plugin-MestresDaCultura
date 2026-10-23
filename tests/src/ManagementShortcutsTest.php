@@ -4,11 +4,7 @@ namespace Tests\MDC;
 
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\User;
-use MDC\Services\FixedOpportunity;
 use Tests\Abstract\TestCase;
-use Tests\Builders\PhasePeriods\ConcurrentEndingAfter;
-use Tests\Builders\PhasePeriods\Open;
-use Tests\Enums\EvaluationMethods;
 use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
@@ -18,6 +14,7 @@ use Tests\Traits\UserDirector;
 class ManagementShortcutsTest extends TestCase
 {
     use OpportunityBuilder;
+    use ProgramOpportunity;
     use RequestFactory;
     use UserDirector;
 
@@ -27,23 +24,7 @@ class ManagementShortcutsTest extends TestCase
     {
         parent::setUp();
 
-        $superAdmin = $this->userDirector->createUser('saasSuperAdmin');
-        $this->login($superAdmin);
-
-        $this->opportunityBuilder
-            ->reset(owner: $superAdmin->profile, owner_entity: $superAdmin->profile)
-            ->fillRequiredProperties()
-            ->firstPhase()
-                ->setRegistrationPeriod(new Open)
-                ->done()
-            ->save()
-            ->addEvaluationPhase(EvaluationMethods::documentary)
-                ->setEvaluationPeriod(new ConcurrentEndingAfter)
-                ->save()
-                ->done();
-
-        $this->fixed = $this->opportunityBuilder->refresh()->getInstance();
-        $this->app->config[FixedOpportunity::CONFIG_KEY] = $this->fixed->id;
+        $this->fixed = $this->createProgramOpportunity();
     }
 
     private function navFor(User $user): array
