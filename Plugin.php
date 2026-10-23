@@ -97,6 +97,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->applyProgramSeal();
         $this->showMasterProfile();
         $this->markFormSections();
+        $this->showAgeInForm();
         $this->notifyApproval();
         $this->allowFinalPhaseSync();
     }
@@ -267,6 +268,19 @@ class Plugin extends \MapasCulturais\Plugin
             if ($relation && $plugin->programSeal()->isTheProgramSeal($relation->seal)) {
                 $this->import('mdc-certificate-actions');
                 echo '<mdc-certificate-actions></mdc-certificate-actions>';
+            }
+        });
+    }
+
+    // A idade calculada da data de nascimento, abaixo do campo do formulário que grava nela (ver o componente mdc-age).
+    private function showAgeInForm(): void
+    {
+        $app = App::i();
+
+        $app->hook('template(<<*>>.<<*>>.entity-field):end', function () use ($app) {
+            if ($app->view instanceof \MestresDaCultura\Theme) {
+                $this->import('mdc-age');
+                echo '<mdc-age v-if="description?.registrationFieldConfiguration?.config?.entityField === \'dataDeNascimento\'" :value="entity[prop]"></mdc-age>';
             }
         });
     }
@@ -552,6 +566,7 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->hook("{$job}.getHeader:after", function ($job, &$header) use ($spreadsheet) {
             $spreadsheet->removeEmptyColumns($job->owner, $header);
+            $spreadsheet->addAgeColumn($job->owner, $header);
         });
 
         $app->hook("{$job}.getBatch:before", function ($job, &$query) use ($spreadsheet) {
@@ -563,7 +578,8 @@ class Plugin extends \MapasCulturais\Plugin
             $spreadsheet->readAsCells($this);
         });
 
-        $app->hook("{$job}.getBatch:after", function () use ($spreadsheet) {
+        $app->hook("{$job}.getBatch:after", function ($job, &$rows) use ($spreadsheet) {
+            $spreadsheet->fillAge($rows);
             $spreadsheet->finishBatch();
         });
     }

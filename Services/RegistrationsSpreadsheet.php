@@ -10,13 +10,9 @@ use MapasCulturais\Entities\RegistrationFieldConfiguration;
 use MapasCulturais\i;
 
 /**
- * Ajustes na planilha de inscrições do core (job `registrations-spreadsheets`, módulo Spreadsheets), que
- * junta valores em lista com vírgula e apaga quebras de linha:
- * - a atuação sairia "Array, Array": enquanto o job monta cada lote, ela é lida como texto de célula;
- * - na oportunidade do programa, o mesmo vale para fotos (em branco), vídeos ("Array"), links (num link só,
- *   que não abre) e caixas de marcar ("1" ou vazio); a consulta sempre pede o status, sem o qual os campos do agente saem do perfil atual, e
- *   não do que foi enviado, e os dados dos agentes, sem os quais o responsável sai em branco; e as colunas
- *   que nunca têm resposta (seções do formulário e nome do projeto) saem do arquivo.
+ * Ajustes na planilha de inscrições do core (job `registrations-spreadsheets`): a atuação e o festejo saem como texto de
+ * célula; na oportunidade do programa, também as fotos, os vídeos, os links e as caixas de marcar, a consulta pede o
+ * status e os dados dos agentes, saem as colunas sem resposta e entra a idade depois da data de nascimento.
  */
 class RegistrationsSpreadsheet
 {
@@ -24,6 +20,11 @@ class RegistrationsSpreadsheet
 
     /** Pedidos em toda consulta da planilha do programa; o arquivo é escrito pelo cabeçalho, sem eles. */
     private const ALWAYS_SELECTED = ['status', 'agentsData'];
+
+    private const AGE_COLUMN = 'mdcAge';
+
+    // A coluna da data de nascimento, lida no cabeçalho e usada em cada lote.
+    private ?string $birthColumn = null;
 
     private bool $exporting = false;
 
@@ -55,6 +56,57 @@ class RegistrationsSpreadsheet
                 }
             }
         }
+    }
+
+    /** @param array<string,string> $header coluna => título */
+    function addAgeColumn(Opportunity $opportunity, array &$header): void
+    {
+        $this->birthColumn = null;
+
+        if (!$this->fixedOpportunity->matches($opportunity)) {
+            return;
+        }
+
+        foreach ($opportunity->firstPhase->registrationFieldConfigurations as $field) {
+            if (($field->config['entityField'] ?? null) === 'dataDeNascimento' && isset($header[$field->fieldName])) {
+                $this->birthColumn = $field->fieldName;
+            }
+        }
+
+        if (!$this->birthColumn) {
+            return;
+        }
+
+        $position = array_search($this->birthColumn, array_keys($header), true) + 1;
+        $header = array_slice($header, 0, $position, true) + [self::AGE_COLUMN => i::__('Idade')] + array_slice($header, $position, null, true);
+    }
+
+    /** @param array<array<string,mixed>> $rows */
+    function fillAge(array &$rows): void
+    {
+        if (!$this->birthColumn) {
+            return;
+        }
+
+        $today = new \DateTimeImmutable('today');
+
+        foreach ($rows as &$row) {
+            $row[self::AGE_COLUMN] = self::age($row[$this->birthColumn] ?? null, $today);
+        }
+    }
+
+    // Anos completos na data; a data vem como texto ("1958-03-20") ou já como data.
+    static function age(mixed $birth, \DateTimeInterface $on): ?int
+    {
+        if ($birth instanceof \DateTimeInterface) {
+            $date = $birth;
+        } elseif (is_string($birth) && ($parsed = date_create_immutable(substr($birth, 0, 10)))) {
+            $date = $parsed;
+        } else {
+            return null;
+        }
+
+        return $date > $on ? null : $date->diff($on)->y;
     }
 
     function startBatch(Opportunity $opportunity, array &$query): void
