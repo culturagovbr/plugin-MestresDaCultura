@@ -189,4 +189,16 @@ class RegistrationsSpreadsheetTest extends TestCase
         $this->assertArrayNotHasKey('projectName', $program_columns, 'O programa não usa projeto');
         $this->assertArrayHasKey($program_name, $program_columns);
     }
+
+    function testCountsTheAgeInCompleteYearsOnTheExportDate()
+    {
+        $on = new \DateTimeImmutable('2026-10-23');
+
+        $this->assertSame(68, RegistrationsSpreadsheet::age('1958-03-20', $on));
+        $this->assertSame(67, RegistrationsSpreadsheet::age('1958-10-24', $on), 'O aniversário ainda não chegou');
+        $this->assertSame(68, RegistrationsSpreadsheet::age('1958-10-23', $on), 'No dia do aniversário, já conta');
+        $this->assertSame(68, RegistrationsSpreadsheet::age(new \DateTime('1958-03-20'), $on));
+        $this->assertNull(RegistrationsSpreadsheet::age(null, $on));
+        $this->assertNull(RegistrationsSpreadsheet::age('2030-01-01', $on), 'Data no futuro não vira idade negativa');
+    }
 }
