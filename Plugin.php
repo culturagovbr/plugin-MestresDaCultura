@@ -259,7 +259,7 @@ class Plugin extends \MapasCulturais\Plugin
         // Com o selo retirado, o link do certificado (o do e-mail de aprovação) daria erro 500: o core usa o vínculo
         // antes de ver se ele existe. Aqui, vira "não encontrado".
         $app->hook('GET(seal.sealRelation):before', function () use ($app) {
-            if ($app->view instanceof \MestresDaCultura\Theme && !$app->repo('SealRelation')->find((int) ($this->data['id'] ?? 0))) {
+            if (Plugin::isTheme() && !$app->repo('SealRelation')->find((int) ($this->data['id'] ?? 0))) {
                 $app->pass();
             }
         });
@@ -283,7 +283,7 @@ class Plugin extends \MapasCulturais\Plugin
         $app = App::i();
 
         $app->hook('template(<<*>>.<<*>>.entity-field):end', function () use ($app) {
-            if ($app->view instanceof \MestresDaCultura\Theme) {
+            if (Plugin::isTheme()) {
                 $this->import('mdc-age');
                 echo '<mdc-age v-if="description?.registrationFieldConfiguration?.config?.entityField === \'dataDeNascimento\'" :value="entity[prop]"></mdc-age>';
             }
@@ -297,7 +297,7 @@ class Plugin extends \MapasCulturais\Plugin
         $app = App::i();
 
         $app->hook('component(registration-form):end', function () use ($app) {
-            if ($app->view instanceof \MestresDaCultura\Theme) {
+            if (Plugin::isTheme()) {
                 $this->import('mdc-section-marks');
                 echo '<mdc-section-marks></mdc-section-marks>';
             }
@@ -607,13 +607,12 @@ class Plugin extends \MapasCulturais\Plugin
     private function addTreeCurationPage(): void
     {
         $app = App::i();
-        $isTheme = fn (): bool => $app->view instanceof \MestresDaCultura\Theme;
 
-        $app->hook('GET(panel.mdc-tree-curation)', function () use ($app, $isTheme) {
+        $app->hook('GET(panel.mdc-tree-curation)', function () use ($app) {
             /** @var \MapasCulturais\Controllers\Panel $this */
             $this->requireAuthentication();
 
-            if (!$isTheme()) {
+            if (!Plugin::isTheme()) {
                 $app->pass();
             }
 
@@ -626,8 +625,8 @@ class Plugin extends \MapasCulturais\Plugin
             $this->render('mdc-tree-curation');
         });
 
-        $app->hook('panel.nav', function (&$nav) use ($app, $isTheme) {
-            if (!$isTheme() || !isset($nav['admin'])) {
+        $app->hook('panel.nav', function (&$nav) use ($app) {
+            if (!Plugin::isTheme() || !isset($nav['admin'])) {
                 return;
             }
 
@@ -684,6 +683,12 @@ class Plugin extends \MapasCulturais\Plugin
         return !$count;
     }
 
+    // O plugin roda na instalação inteira; as regras do programa valem só no site dos Mestres.
+    static function isTheme(): bool
+    {
+        return App::i()->view instanceof \MestresDaCultura\Theme;
+    }
+
     function fixedOpportunity(): Services\FixedOpportunity
     {
         return $this->fixedOpportunity ??= new Services\FixedOpportunity();
@@ -698,26 +703,24 @@ class Plugin extends \MapasCulturais\Plugin
     {
         $app = \MapasCulturais\App::i();
 
-        $isTheme = fn (): bool => $app->view instanceof \MestresDaCultura\Theme;
-
         // O plugin roda na instalação inteira; a oportunidade do programa nasce em outro subsite.
-        $app->hook('entity(Opportunity).canUser(create)', function ($user, &$result) use ($isTheme) {
-            if ($isTheme() && !$user->is('saasSuperAdmin')) {
+        $app->hook('entity(Opportunity).canUser(create)', function ($user, &$result) {
+            if (Plugin::isTheme() && !$user->is('saasSuperAdmin')) {
                 $result = false;
             }
         });
 
         // O tema roda sobre uma oportunidade fixa: não há o que listar.
-        $app->hook('GET(<<search|panel>>.opportunities):before', function () use ($app, $isTheme) {
-            if ($isTheme() && !$app->user->is('admin')) {
+        $app->hook('GET(<<search|panel>>.opportunities):before', function () use ($app) {
+            if (Plugin::isTheme() && !$app->user->is('admin')) {
                 $app->pass();
             }
         });
 
         // Esconder o link não fecha a porta: sem isto, qualquer oportunidade da instalação
         // abre por URL direta. Alcança toda ação do controlador, e não só a página.
-        $app->hook('ALL(opportunity.<<*>>):before', function () use ($app, $isTheme) {
-            if (!$isTheme() || $app->user->is('admin')) {
+        $app->hook('ALL(opportunity.<<*>>):before', function () use ($app) {
+            if (!Plugin::isTheme() || $app->user->is('admin')) {
                 return;
             }
 
@@ -795,12 +798,12 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->hook('ApiQuery(Registration).params', function (&$params) use ($app, $fixedOpportunity) {
             /** @var ApiQuery $this */
-            if ($this->parentQuery || !$app->view instanceof \MestresDaCultura\Theme || $app->user->is('admin')) {
+            if ($this->parentQuery || !Plugin::isTheme() || $app->user->is('admin')) {
                 return;
             }
 
             // Sem oportunidade configurada, segue o core, sem registrar o aviso a cada consulta.
-            if (!($app->config[Services\FixedOpportunity::CONFIG_KEY] ?? null)) {
+            if (!$fixedOpportunity->isConfigured()) {
                 return;
             }
 

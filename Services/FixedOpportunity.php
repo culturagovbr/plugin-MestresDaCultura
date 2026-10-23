@@ -42,6 +42,12 @@ class FixedOpportunity
         return $this->opportunity = $opportunity;
     }
 
+    // Confere só a chave de configuração, sem avisar no log.
+    function isConfigured(): bool
+    {
+        return (bool) (App::i()->config[self::CONFIG_KEY] ?? null);
+    }
+
     // A oportunidade fixa ou uma das fases dela, que são filhas dela. Vale o pai gravado: o `parent` trocado na
     // requisição, ainda sem salvar, não pode tirar uma fase da conta (e com ela da proteção).
     function matches(?Opportunity $opportunity): bool
