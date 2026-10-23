@@ -80,6 +80,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->registerTreeNodeObjectType();
         $this->renderActingField();
         $this->validateActingFieldOnSend();
+        $this->validatePrizeIdOnSend();
         $this->freezeActingFieldOnSend();
         $this->showFieldsOnV1Reading();
         $this->renderPhotoViewer();
@@ -459,6 +460,19 @@ class Plugin extends \MapasCulturais\Plugin
                 } elseif ($this->status === Registration::STATUS_DRAFT && $removed = Services\ActingField::removedFromTree($value)) {
                     $errors[$field->fieldName][] = Services\ActingField::staleMessage($removed);
                 }
+            }
+        });
+    }
+
+    // Premiado pelo MinC: o ID do painel ou a marca de que não o localizou (ver Services\PrizeId).
+    private function validatePrizeIdOnSend(): void
+    {
+        App::i()->hook('entity(Registration).sendValidationErrors', function (&$errors) {
+            /** @var Registration $this */
+            $fields = Services\PrizeId::fieldsOf($this);
+
+            if ($fields && Services\PrizeId::isMissing($this->{$fields['id']->fieldName}, $this->{$fields['notFound']->fieldName})) {
+                $errors[$fields['id']->fieldName][] = Services\PrizeId::message();
             }
         });
     }
