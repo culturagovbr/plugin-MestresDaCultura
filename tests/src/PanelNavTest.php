@@ -3,11 +3,15 @@
 namespace Tests\MDC;
 
 use MapasCulturais\App;
+use MapasCulturais\Entities\User;
 use Tests\Abstract\TestCase;
+use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\UserDirector;
 
 class PanelNavTest extends TestCase
 {
+    use OpportunityBuilder;
+    use ProgramOpportunity;
     use UserDirector;
 
     private function coreNav(App $app): array
@@ -133,5 +137,52 @@ class PanelNavTest extends TestCase
 
         $this->login($this->userDirector->createUser());
         $this->assertNotContains('Curadoria da Árvore de Atuação', $this->labels($this->applyNav()));
+    }
+
+    /** @return array<string, array> os itens do menu de quem está logado, pelo rótulo */
+    private function itemsOf(User $user): array
+    {
+        $this->login($user);
+        $items = [];
+        foreach ($this->applyNav() as $group) {
+            foreach ($group['items'] ?? [] as $item) {
+                if (!isset($item['condition']) || ($item['condition'])()) {
+                    $items[$item['label']] = $item;
+                }
+            }
+        }
+
+        return $items;
+    }
+
+    // O moderador do programa vai direto à lista da moderação.
+    function testTheModeratorGoesStraightToTheModeration()
+    {
+        $fixed = $this->createProgramOpportunity();
+        $moderator = $this->userDirector->createUser();
+        $fixed->evaluationMethodConfiguration->createAgentRelation($moderator->profile, 'Moderação', true);
+
+        $items = $this->itemsOf($moderator);
+
+        $this->assertSame(['opportunity/userEvaluations', [$fixed->id]], [$items['Moderação de cadastros']['route'] ?? null, $items['Moderação de cadastros']['params'] ?? null], 'O item leva à lista da moderação');
+        $this->assertArrayNotHasKey('Minhas avaliações', $items, 'No lugar de "Minhas avaliações"');
+    }
+
+    function testWhoIsNotAnActiveModeratorDoesNotSeeTheItem()
+    {
+        $fixed = $this->createProgramOpportunity();
+        $disabled = $this->userDirector->createUser();
+        $fixed->evaluationMethodConfiguration->createAgentRelation($disabled->profile, 'Moderação', true)->disable();
+
+        $other = $this->opportunityBuilder->reset(owner: $fixed->owner, owner_entity: $fixed->owner)->fillRequiredProperties()->save()
+            ->addEvaluationPhase(\Tests\Enums\EvaluationMethods::simple)->save()->done()->getInstance();
+        $evaluator = $this->userDirector->createUser();
+        $other->evaluationMethodConfiguration->createAgentRelation($evaluator->profile, 'Comissão', true);
+
+        foreach (['desabilitado' => $disabled, 'de outro edital' => $evaluator] as $who => $user) {
+            $labels = array_keys($this->itemsOf($user));
+            $this->assertNotContains('Moderação de cadastros', $labels, "O avaliador {$who} não vê a moderação");
+            $this->assertNotContains('Minhas avaliações', $labels, "Nem as avaliações de outros editais");
+        }
     }
 }
