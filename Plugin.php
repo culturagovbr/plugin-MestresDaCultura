@@ -7,6 +7,7 @@ use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
 use MapasCulturais\Definitions\RegistrationFieldType;
 use MapasCulturais\Entities\Agent;
+use MapasCulturais\Entities\EvaluationMethodConfiguration;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Exceptions\PermissionDenied;
@@ -92,6 +93,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->protectFixedOpportunity();
+        $this->lockFixedOpportunityStructure();
         $this->scopeRegistrationsToFixedOpportunity();
         $this->sendForeignRegistrationsHome();
         $this->keepTheProgramOnItsSite();
@@ -789,10 +791,94 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
-        // Os dois botões também só pedem "modify": a classe deixa o tema escondê-los (_entity-actions.scss).
-        $app->hook('GET(opportunity.<<edit|single>>):before', function () use ($app, $guard) {
+        // Os dois botões também só pedem "modify": a classe deixa o tema escondê-los (_entity-actions.scss), e também
+        // o que lockFixedOpportunityStructure recusa na configuração de fases e do formulário.
+        $app->hook('GET(opportunity.<<edit|single|formbuilder>>):before', function () use ($app, $guard) {
             if ($guard->locks($this->requestedEntity, $app->user)) {
                 $app->view->bodyClasses[] = 'mdc-structure-locked';
+            }
+        });
+    }
+
+    // Fases, datas e formulário da oportunidade do programa vêm da importação e só o saasSuperAdmin os altera. Na
+    // comissão, o gestor inclui e desabilita moderadores; excluir apaga as avaliações do moderador e reabrir as
+    // devolve a ele. Importação e jobs gravam com o controle de acesso desligado e não passam por aqui.
+    private function lockFixedOpportunityStructure(): void
+    {
+        $app = App::i();
+        $guard = new Services\FixedOpportunityGuard($this->fixedOpportunity());
+
+        // Fase nova é oportunidade com o programa de pai, ou configuração de avaliação; excluir já é recusado em
+        // protectFixedOpportunity. Só a entidade nova: o metadado novo pede "create" à dona, já gravada, e o gestor
+        // segue gravando os dele (como a distribuição da comissão).
+        $app->hook('entity(<<Opportunity|EvaluationMethodConfiguration>>).canUser(create)', function ($user, &$result) use ($guard) {
+            $opportunity = $this instanceof Opportunity ? $this : $this->opportunity;
+
+            if (!$this->id && $guard->locks($opportunity, $user)) {
+                $result = false;
+            }
+        });
+
+        // Campos e anexos pedem "modifyRegistrationFields" à fase dona.
+        $app->hook('entity(Opportunity).canUser(modifyRegistrationFields)', function ($user, &$result) use ($guard) {
+            /** @var Opportunity $this */
+            if ($guard->locks($this, $user)) {
+                $result = false;
+            }
+        });
+
+        $app->hook('entity(RegistrationStep).canUser(<<create|modify|remove|destroy>>)', function ($user, &$result) use ($guard) {
+            if ($guard->locks($this->opportunity, $user)) {
+                $result = false;
+            }
+        });
+
+        $app->hook('entity(EvaluationMethodConfigurationAgentRelation).canUser(<<remove|destroy>>)', function ($user, &$result) use ($guard) {
+            if ($guard->locks($this->owner->opportunity, $user)) {
+                $result = false;
+            }
+        });
+
+        $app->hook('entity(EvaluationMethodConfigurationAgentRelation).reopen:before', function () use ($app, $guard) {
+            if ($app->isAccessControlEnabled() && $guard->locks($this->owner->opportunity, $app->user)) {
+                throw new PermissionDenied($app->user, $this, 'reopen');
+            }
+        });
+
+        // Reabrir pela oportunidade e importar campos não passam por uma permissão que dê para recusar. Cada uma lê o
+        // id de um lugar, como o core.
+        $app->hook('POST(opportunity.<<importfields|reopenevaluations>>):before', function () use ($app, $guard) {
+            $id = strtolower($this->action) === 'importfields' ? ($this->urlData['id'] ?? 0) : ($this->data['opportunityId'] ?? 0);
+            $opportunity = $app->repo('Opportunity')->find((int) $id);
+
+            if ($guard->locks($opportunity, $app->user)) {
+                throw new PermissionDenied($app->user, $opportunity, $this->action);
+            }
+        });
+
+        // A tela salva a fase inteira: a recusa é por data, comparada com o que está gravado. O erro de validação dá a
+        // mensagem na tela; a recusa ao salvar vale para o Force-Save, que grava mesmo com erro.
+        $lockedDates = function (Opportunity|EvaluationMethodConfiguration $entity) use ($app, $guard): array {
+            $opportunity = $entity instanceof Opportunity ? $entity : $entity->opportunity;
+
+            if (!$app->isAccessControlEnabled() || !$guard->locks($opportunity, $app->user)) {
+                return [];
+            }
+
+            return $guard->changedDates($entity);
+        };
+
+        $message = i::__('Só a administração da plataforma altera as datas do programa.');
+
+        $app->hook('entity(<<Opportunity|EvaluationMethodConfiguration>>).validationErrors', function (&$errors) use ($lockedDates, $message) {
+            foreach ($lockedDates($this) as $property) {
+                $errors[$property][] = $message;
+            }
+        });
+
+        $app->hook('entity(<<Opportunity|EvaluationMethodConfiguration>>).save:before', function () use ($app, $lockedDates, $message) {
+            if ($lockedDates($this)) {
+                throw new PermissionDenied($app->user, $this, 'modify', $message);
             }
         });
     }

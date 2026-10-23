@@ -10,6 +10,9 @@ class FixedOpportunity
 {
     const CONFIG_KEY = 'mdc.opportunityId';
 
+    /** Quantos níveis de pai a conferência sobe: raiz, fase e recurso, com folga. */
+    private const MAX_DEPTH = 5;
+
     private bool $resolved = false;
 
     private ?Opportunity $opportunity = null;
@@ -48,23 +51,20 @@ class FixedOpportunity
         return (bool) (App::i()->config[self::CONFIG_KEY] ?? null);
     }
 
-    // A oportunidade fixa ou uma das fases dela, que são filhas dela. Vale o pai gravado: o `parent` trocado na
-    // requisição, ainda sem salvar, não pode tirar uma fase da conta (e com ela da proteção).
+    // A oportunidade fixa ou uma das fases dela, em qualquer nível, pelo pai gravado.
     function matches(?Opportunity $opportunity): bool
     {
         $fixed = $this->get();
 
-        if (!$fixed || !$opportunity) {
-            return false;
+        for ($level = 0; $fixed && $opportunity && $level < self::MAX_DEPTH; $level++) {
+            if ($opportunity->id && $opportunity->id === $fixed->id) {
+                return true;
+            }
+
+            $opportunity = $this->storedParent($opportunity) ?? $opportunity->parent;
         }
 
-        if ($opportunity->id && $opportunity->id === $fixed->id) {
-            return true;
-        }
-
-        $parent = $this->storedParent($opportunity) ?? $opportunity->parent;
-
-        return $parent?->id === $fixed->id;
+        return false;
     }
 
     private function storedParent(Opportunity $opportunity): ?Opportunity
