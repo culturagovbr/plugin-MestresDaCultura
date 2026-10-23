@@ -105,6 +105,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
+        $this->sendEachEvaluationOnce();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
         $this->showModerationToOwner();
@@ -138,6 +139,33 @@ class Plugin extends \MapasCulturais\Plugin
             if ($disabled) {
                 $app->enableAccessControl();
                 $disabled = false;
+            }
+        });
+    }
+
+    // Ver Services\EvaluationSendLock. Só no programa: no servidor, a trava segura a linha da avaliação durante a
+    // gravação; na tela, os botões esperam a resposta.
+    private function sendEachEvaluationOnce(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+        $lock = new Services\EvaluationSendLock;
+
+        $app->hook('entity(RegistrationEvaluation).save:before', function () use ($plugin, $lock) {
+            /** @var \MapasCulturais\Entities\RegistrationEvaluation $this */
+            if (Services\EvaluationSendLock::isSending($this) && $plugin->fixedOpportunity()->includes($this->registration)) {
+                $lock->claim($this);
+            }
+        });
+
+        $app->hook('entity(RegistrationEvaluation).save:finish', function () use ($lock) {
+            $lock->release($this);
+        });
+
+        // Na tela, os botões ficam travados enquanto a gravação está em andamento (evaluation-lock.js).
+        $app->hook('GET(registration.evaluation):before', function () use ($app, $plugin) {
+            if ($this->requestedEntity instanceof Registration && $plugin->fixedOpportunity()->includes($this->requestedEntity)) {
+                $app->view->enqueueScript('app-v2', 'mdc-evaluation-lock', 'js/evaluation-lock.js');
             }
         });
     }
