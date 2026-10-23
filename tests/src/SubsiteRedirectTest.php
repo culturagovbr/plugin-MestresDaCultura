@@ -2,6 +2,7 @@
 
 namespace Tests\MDC;
 
+use Laminas\Diactoros\ServerRequest;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\Subsite;
@@ -13,7 +14,8 @@ use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
-// No site dos Mestres, a inscrição de outro edital abre no site daquele edital.
+// Cada inscrição e oportunidade abre no site dela: a de outro edital, aberta no site dos Mestres, vai para o site do
+// edital; a do programa, aberta em outro site, vai para o site dos Mestres.
 class SubsiteRedirectTest extends TestCase
 {
     use OpportunityBuilder;
@@ -71,13 +73,29 @@ class SubsiteRedirectTest extends TestCase
     }
 
     /** @return array{int, string} status e Location */
-    private function open(User $user, Registration $registration, string $action = 'single'): array
+    private function open(User $user, Registration|Opportunity $entity, string $action = 'single'): array
     {
+        $controller = $entity instanceof Registration ? 'registration' : 'opportunity';
         $this->login($this->app->repo('User')->find($user->id));
         $this->app->reset();
-        $this->app->run($this->requestFactory->GET('registration', $action, [$registration->id]), false);
+        $this->app->run($this->requestFactory->GET($controller, $action, [$entity->id]), false);
 
         return [$this->app->response->getStatusCode(), $this->app->response->getHeaderLine('Location')];
+    }
+
+    /** @return int[] ids das oportunidades que a busca devolve, pedida da página indicada */
+    private function searchFrom(string $referer): array
+    {
+        $this->app->reset();
+        $request = new ServerRequest(
+            method: 'GET',
+            uri: '/api/opportunity/find',
+            queryParams: ['@select' => 'id'],
+            headers: ['X-Requested-With' => 'XMLHttpRequest', 'Referer' => $referer],
+        );
+        $this->app->run($request, false);
+
+        return array_column(json_decode((string) $this->app->response->getBody(), true) ?: [], 'id');
     }
 
     function testARegistrationOfAnotherSiteOpensThere()
@@ -123,5 +141,37 @@ class SubsiteRedirectTest extends TestCase
         // O rascunho pode redirecionar, mas só dentro do próprio subsite.
         $this->assertNotEquals(404, $status);
         $this->assertTrue($location === '' || str_starts_with($location, $this->app->baseUrl), 'O cadastro do programa fica no site dos Mestres');
+    }
+
+    function testTheProgramOpenedOnAnotherSiteGoesToTheMestresSite()
+    {
+        $fixed = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $user = $this->userDirector->createUser();
+        $own = $this->registrationOf($user, $fixed);
+        $mestres = $this->moveToAnotherSite($fixed);
+
+        foreach ([$this->app->repo('Opportunity')->find($fixed->id), $this->app->repo('Registration')->find($own->id)] as $entity) {
+            [$status, $location] = $this->open($user, $entity);
+
+            $this->assertContains($status, [301, 302, 303, 307], 'A página do programa aberta em outro site redireciona');
+            $this->assertStringStartsWith($mestres->getSubsiteUrl(), $location, 'Para o site dos Mestres');
+        }
+    }
+
+    function testTheProgramIsLeftOutOfTheOpportunitySearchOfOtherSites()
+    {
+        $fixed = $this->createOpportunity();
+        $other = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $this->moveToAnotherSite($fixed);
+        $this->login($this->userDirector->createUser());
+
+        $fromSearch = $this->searchFrom($this->app->createUrl('search', 'opportunities'));
+        $this->assertNotContains($fixed->id, $fromSearch, 'A busca de oportunidades de outro site não traz o programa');
+        $this->assertContains($other->id, $fromSearch);
+
+        $this->assertNotContains($fixed->id, $this->searchFrom($this->app->createUrl('site', 'index')), 'Nem a home');
+        $this->assertContains($fixed->id, $this->searchFrom($this->app->createUrl('panel', 'index')), 'Fora da busca e da home, segue como no core');
     }
 }
