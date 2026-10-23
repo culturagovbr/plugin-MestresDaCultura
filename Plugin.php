@@ -690,7 +690,7 @@ class Plugin extends \MapasCulturais\Plugin
         return !$count;
     }
 
-    // O plugin roda na instalação inteira; as regras do programa valem só no site dos Mestres.
+    // Diz se a tela é do subsite dos Mestres, onde valem as regras do programa.
     static function isTheme(): bool
     {
         return App::i()->view instanceof \MestresDaCultura\Theme;
@@ -908,7 +908,7 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // No site dos Mestres, a inscrição de outro edital abre no site daquele edital (ver Services\SubsiteRedirect).
+    // No subsite dos Mestres, a inscrição de outro edital abre no subsite daquele edital (ver Services\SubsiteRedirect).
     // Se o site dela é este mesmo, não há para onde mandar: não abre.
     private function sendForeignRegistrationsHome(): void
     {
@@ -937,8 +937,8 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // Fora do site dos Mestres, a oportunidade do programa sai da busca e da home, e as páginas dela e das inscrições
-    // dela vão para o site dos Mestres, como o Cultura Viva faz com as dele. A busca só é filtrada quando pedida dessas
+    // Fora do subsite dos Mestres, a oportunidade do programa sai da busca e da home, e as páginas dela e das inscrições
+    // dela vão para o subsite dos Mestres, como o Cultura Viva faz com as dele. A busca só é filtrada quando pedida dessas
     // duas páginas: painéis, listas de avaliação e jobs seguem como no core.
     private function keepTheProgramOnItsSite(): void
     {
@@ -977,7 +977,7 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // O menu do site dos Mestres só mostra as telas do programa, mas as do Mapa genérico (eventos, aplicativos,
+    // O menu do subsite dos Mestres só mostra as telas do programa, mas as do Mapa genérico (eventos, aplicativos,
     // validações, prestação de contas) abriam por URL. Para quem não é admin, só estas abrem; a curadoria confere
     // sozinha quem é curador.
     private function closeOtherPanelScreens(): void
@@ -992,7 +992,7 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // No site dos Mestres, quem não é admin só vê o selo do programa: na API de selos, nos selos que a API de agentes
+    // No subsite dos Mestres, quem não é admin só vê o selo do programa: na API de selos, nos selos que a API de agentes
     // devolve e nas páginas de selo e de certificado. Os selos do agente vêm da consulta do agente, não da API de selos,
     // e são filtrados na saída da API, depois do cache dela, que não separa usuários. O perfil público do mestre já
     // esconde o bloco de selos do core (_mdc-master-profile.scss) e mostra o do programa no cabeçalho.

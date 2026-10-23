@@ -7,8 +7,8 @@ use MapasCulturais\Controller;
 use MapasCulturais\Entities\Subsite;
 
 /**
- * A mesma página (controlador, ação e parâmetros) em outro site da instalação, como o Cultura Viva faz com as
- * oportunidades dele: o core monta a URL pelo site atual, então ele é trocado só durante a montagem.
+ * A URL da mesma página (controlador, ação e parâmetros) em outro subsite da instalação, com o subsite atual trocado
+ * só durante a montagem.
  */
 class SubsiteRedirect
 {

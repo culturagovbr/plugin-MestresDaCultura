@@ -14,8 +14,8 @@ use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
-// Cada inscrição e oportunidade abre no site dela: a de outro edital, aberta no site dos Mestres, vai para o site do
-// edital; a do programa, aberta em outro site, vai para o site dos Mestres.
+// Cada inscrição e oportunidade abre no subsite dela: a de outro edital, aberta no subsite dos Mestres, vai para o site do
+// edital; a do programa, aberta em outro subsite, vai para o subsite dos Mestres.
 class SubsiteRedirectTest extends TestCase
 {
     use OpportunityBuilder;
@@ -49,7 +49,7 @@ class SubsiteRedirectTest extends TestCase
         return $registration;
     }
 
-    /** Põe a oportunidade num outro site da instalação. */
+    /** Põe a oportunidade num outro subsite da instalação. */
     private function moveToAnotherSite(Opportunity $opportunity): Subsite
     {
         $this->app->disableAccessControl();
@@ -111,7 +111,7 @@ class SubsiteRedirectTest extends TestCase
             [$status, $location] = $this->open($user, $foreign, $action);
 
             $this->assertContains($status, [301, 302, 303, 307], "A {$action} de outro edital redireciona");
-            $this->assertStringStartsWith($subsite->getSubsiteUrl(), $location, "A {$action} vai para o site do edital");
+            $this->assertStringStartsWith($subsite->getSubsiteUrl(), $location, "A {$action} vai para o subsite do edital");
             $this->assertStringContainsString((string) $foreign->id, $location, 'Na mesma inscrição');
         }
     }
@@ -126,7 +126,7 @@ class SubsiteRedirectTest extends TestCase
 
         [$status] = $this->open($user, $foreign);
 
-        $this->assertEquals(404, $status, 'Sem outro site para onde ir, não abre aqui');
+        $this->assertEquals(404, $status, 'Sem outro subsite para onde ir, não abre aqui');
     }
 
     function testTheProgramRegistrationOpensNormally()
@@ -140,7 +140,7 @@ class SubsiteRedirectTest extends TestCase
 
         // O rascunho pode redirecionar, mas só dentro do próprio subsite.
         $this->assertNotEquals(404, $status);
-        $this->assertTrue($location === '' || str_starts_with($location, $this->app->baseUrl), 'O cadastro do programa fica no site dos Mestres');
+        $this->assertTrue($location === '' || str_starts_with($location, $this->app->baseUrl), 'O cadastro do programa fica no subsite dos Mestres');
     }
 
     function testTheProgramOpenedOnAnotherSiteGoesToTheMestresSite()
@@ -154,8 +154,8 @@ class SubsiteRedirectTest extends TestCase
         foreach ([$this->app->repo('Opportunity')->find($fixed->id), $this->app->repo('Registration')->find($own->id)] as $entity) {
             [$status, $location] = $this->open($user, $entity);
 
-            $this->assertContains($status, [301, 302, 303, 307], 'A página do programa aberta em outro site redireciona');
-            $this->assertStringStartsWith($mestres->getSubsiteUrl(), $location, 'Para o site dos Mestres');
+            $this->assertContains($status, [301, 302, 303, 307], 'A página do programa aberta em outro subsite redireciona');
+            $this->assertStringStartsWith($mestres->getSubsiteUrl(), $location, 'Para o subsite dos Mestres');
         }
     }
 
@@ -168,7 +168,7 @@ class SubsiteRedirectTest extends TestCase
         $this->login($this->userDirector->createUser());
 
         $fromSearch = $this->searchFrom($this->app->createUrl('search', 'opportunities'));
-        $this->assertNotContains($fixed->id, $fromSearch, 'A busca de oportunidades de outro site não traz o programa');
+        $this->assertNotContains($fixed->id, $fromSearch, 'A busca de oportunidades de outro subsite não traz o programa');
         $this->assertContains($other->id, $fromSearch);
 
         $this->assertNotContains($fixed->id, $this->searchFrom($this->app->createUrl('site', 'index')), 'Nem a home');

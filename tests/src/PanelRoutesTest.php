@@ -10,7 +10,7 @@ use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
-// No site dos Mestres, o painel de quem não é admin tem só as telas do programa; as do Mapa genérico não abrem por URL.
+// No subsite dos Mestres, o painel de quem não é admin tem só as telas do programa; as do Mapa genérico não abrem por URL.
 class PanelRoutesTest extends TestCase
 {
     use OpportunityBuilder;
