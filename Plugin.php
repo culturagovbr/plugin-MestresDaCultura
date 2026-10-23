@@ -94,6 +94,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->protectFixedOpportunity();
         $this->scopeRegistrationsToFixedOpportunity();
         $this->sendForeignRegistrationsHome();
+        $this->keepTheProgramOnItsSite();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
@@ -842,6 +843,46 @@ class Plugin extends \MapasCulturais\Plugin
             }
 
             $app->redirect(Services\SubsiteRedirect::urlOn($origin, $this));
+        });
+    }
+
+    // Fora do site dos Mestres, a oportunidade do programa sai da busca e da home, e as páginas dela e das inscrições
+    // dela vão para o site dos Mestres, como o Cultura Viva faz com as dele. A busca só é filtrada quando pedida dessas
+    // duas páginas: painéis, listas de avaliação e jobs seguem como no core.
+    private function keepTheProgramOnItsSite(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+        $elsewhere = fn (): bool => $fixedOpportunity->isConfigured()
+            && ($fixed = $fixedOpportunity->get())
+            && !Services\SubsiteRedirect::isCurrent($fixed->subsite);
+
+        $app->hook('ApiQuery(Opportunity).params', function (&$params) use ($app, $fixedOpportunity, $elsewhere) {
+            /** @var ApiQuery $this */
+            if ($this->parentQuery || !$app->request?->isAjax() || !$elsewhere()) {
+                return;
+            }
+
+            $referer = $app->request->getReferer();
+            $referer = strtok(is_array($referer) ? ($referer[0] ?? '') : (string) $referer, '?#');
+
+            if (!in_array($referer, [$app->createUrl('site', 'index'), $app->createUrl('search', 'opportunities')], true)) {
+                return;
+            }
+
+            $hidden = API::NOT_IN($fixedOpportunity->ids());
+            $params['id'] = isset($params['id']) ? API::AND($params['id'], $hidden) : $hidden;
+        });
+
+        $app->hook('GET(<<opportunity|registration>>.<<*>>):before', function () use ($app, $fixedOpportunity, $elsewhere) {
+            $entity = $this->requestedEntity;
+            $opportunity = $entity instanceof Registration ? $entity->opportunity : $entity;
+
+            if (!$opportunity instanceof Opportunity || !$fixedOpportunity->matches($opportunity) || !$elsewhere()) {
+                return;
+            }
+
+            $app->redirect(Services\SubsiteRedirect::urlOn($fixedOpportunity->get()->subsite, $this));
         });
     }
 
