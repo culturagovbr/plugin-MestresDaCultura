@@ -97,9 +97,12 @@ class RegistrationScopeTest extends TestCase
         $inFixed = $this->registrationOf($master, $fixed);
         $inOther = $this->registrationOf($master, $other);
 
+        // Os números de inscrição são sorteados: compara sem a ordem.
         $found = $this->idsFound($this->userDirector->createUser('admin'), ['id' => API::IN([$inFixed->id, $inOther->id])]);
+        $expected = [$inFixed->id, $inOther->id];
         sort($found);
+        sort($expected);
 
-        $this->assertSame([$inFixed->id, $inOther->id], $found, 'O admin segue vendo tudo, como no core');
+        $this->assertSame($expected, $found, 'O admin segue vendo tudo, como no core');
     }
 }
