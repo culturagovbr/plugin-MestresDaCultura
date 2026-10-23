@@ -3,8 +3,10 @@
 namespace MDC\Services;
 
 use MapasCulturais\App;
+use MapasCulturais\Entities\EvaluationMethodConfigurationAgentRelation;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
+use MapasCulturais\UserInterface;
 
 class FixedOpportunity
 {
@@ -106,5 +108,23 @@ class FixedOpportunity
     function includes(Registration $registration): bool
     {
         return $this->matches($registration->opportunity);
+    }
+
+    // A fase do programa em que o usuário modera, com a relação habilitada na comissão.
+    function moderatedBy(UserInterface $user): ?Opportunity
+    {
+        if ($user->is('guest')) {
+            return null;
+        }
+
+        foreach ($this->get()?->allPhases ?? [] as $phase) {
+            $relation = $phase->evaluationMethodConfiguration?->getUserRelation($user);
+
+            if ($relation?->status === EvaluationMethodConfigurationAgentRelation::STATUS_ENABLED) {
+                return $phase;
+            }
+        }
+
+        return null;
     }
 }

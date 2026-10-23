@@ -91,6 +91,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->adjustRegistrationsSpreadsheet();
         $this->addTreeCurationPage();
         $this->addManagementShortcuts();
+        $this->addModerationShortcut();
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->protectFixedOpportunity();
@@ -692,6 +693,31 @@ class Plugin extends \MapasCulturais\Plugin
 
             $app->redirect($app->createUrl('opportunity', 'edit', [$fixedOpportunity->get()->id]) . '#config');
         });
+    }
+
+    // "Minhas avaliações" do core lista as avaliações da instalação inteira. No subsite dos Mestres, o moderador ativo
+    // vai direto à lista da moderação e quem não é não vê o item; o saasSuperAdmin mantém o menu do core.
+    private function addModerationShortcut(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+
+        $app->hook('panel.nav', function (&$nav) use ($app, $fixedOpportunity) {
+            if (!Plugin::isTheme() || $app->user->is('saasSuperAdmin')) {
+                return;
+            }
+
+            $phase = $fixedOpportunity->isConfigured() ? $fixedOpportunity->moderatedBy($app->user) : null;
+            $moderation = $phase ? ['route' => 'opportunity/userEvaluations', 'params' => [$phase->id], 'icon' => 'opportunity', 'label' => i::__('Moderação de cadastros')] : null;
+
+            foreach ($nav as &$group) {
+                if (isset($group['items'])) {
+                    $items = array_map(fn ($item) => ($item['route'] ?? '') === 'panel/evaluations' ? $moderation : $item, $group['items']);
+                    $group['items'] = array_values(array_filter($items));
+                }
+            }
+            unset($group);
+        }, 1001);
     }
 
     // O limite do core conta por agente responsável, não por pessoa.
