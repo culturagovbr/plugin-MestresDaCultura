@@ -97,6 +97,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->keepTheProgramOnItsSite();
         $this->closeOtherPanelScreens();
         $this->showOnlyTheProgramSeal();
+        $this->leaveOutOtherProgramsNotifications();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
@@ -956,6 +957,27 @@ class Plugin extends \MapasCulturais\Plugin
 
             if (!$seal || !$programSeal->isTheProgramSeal($seal)) {
                 $app->pass();
+            }
+        });
+    }
+
+    // Ver Services\NotificationScope. No parâmetro da consulta, e não no resultado, para o sino (que conta à parte)
+    // bater com a lista.
+    private function leaveOutOtherProgramsNotifications(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+        $scope = new Services\NotificationScope($fixedOpportunity);
+
+        $app->hook('ApiQuery(Notification).params', function (&$params) use ($app, $fixedOpportunity, $scope) {
+            /** @var ApiQuery $this */
+            if ($this->parentQuery || !Plugin::isTheme() || $app->user->is('guest') || $app->user->is('admin') || !$fixedOpportunity->isConfigured()) {
+                return;
+            }
+
+            if ($hidden = $scope->hiddenFor($app->user)) {
+                $outside = API::NOT_IN($hidden);
+                $params['id'] = isset($params['id']) ? API::AND($params['id'], $outside) : $outside;
             }
         });
     }
