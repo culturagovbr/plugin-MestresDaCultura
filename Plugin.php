@@ -1035,6 +1035,14 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
+        // A página do perfil leva o agente num JSON para a tela, montado sem passar pela API.
+        $app->hook('view.requestedEntity(Agent).result', function (&$entity) use ($applies, $keepProgramSeal) {
+            if ($applies()) {
+                $one = [&$entity];
+                $keepProgramSeal($one);
+            }
+        });
+
         $app->hook('GET(seal.<<single|sealRelation|printsealrelation>>):before', function () use ($app, $programSeal, $applies) {
             if (!$applies()) {
                 return;
