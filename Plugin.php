@@ -8,6 +8,7 @@ use MapasCulturais\Definitions\RegistrationFieldType;
 use MapasCulturais\Entities\Agent;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
+use MapasCulturais\Exceptions\PermissionDenied;
 use MapasCulturais\i;
 
 // O autoloader tem mapa plano e registra temas antes de plugins: repetir `MestresDaCultura` faria
@@ -89,6 +90,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->addTreeCurationPage();
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
+        $this->protectFixedOpportunity();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
@@ -731,6 +733,54 @@ class Plugin extends \MapasCulturais\Plugin
 
             if (!$fixed || !$root || $root->id !== $fixed->id) {
                 $app->pass();
+            }
+        });
+    }
+
+    // A estrutura da oportunidade do programa só muda pelo saasSuperAdmin (ver Services\FixedOpportunityGuard).
+    private function protectFixedOpportunity(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+        $guard = new Services\FixedOpportunityGuard($fixedOpportunity);
+
+        $app->hook('entity(Opportunity).canUser(<<archive|remove|destroy|unpublish>>)', function ($user, &$result) use ($guard) {
+            /** @var Opportunity $this */
+            if ($guard->locks($this, $user)) {
+                $result = false;
+            }
+        });
+
+        // A fase de moderação fica na raiz; excluí-la é remover a configuração de avaliação.
+        $app->hook('entity(EvaluationMethodConfiguration).canUser(<<remove|destroy>>)', function ($user, &$result) use ($guard) {
+            if ($guard->locks($this->opportunity, $user)) {
+                $result = false;
+            }
+        });
+
+        // Rascunho e desativada não pedem permissão no core e tiram a oportunidade do ar como arquivar. Só a raiz:
+        // as fases nascem fora do ar.
+        $app->hook('entity(Opportunity).setStatus(<<*>>)', function ($status) use ($app, $guard, $fixedOpportunity) {
+            /** @var Opportunity $this */
+            $isRoot = $this->id && $this->id === $fixedOpportunity->get()?->id;
+
+            if ($status <= 0 && $this->status > 0 && $isRoot && $app->isAccessControlEnabled() && $guard->locks($this, $app->user)) {
+                throw new PermissionDenied($app->user, $this, 'unpublish');
+            }
+        });
+
+        // Clonar a oportunidade só pede "modify" ou "@control" no core, e o gerar modelo do gestor quebrava no meio.
+        // Tornar modelo público abriria o clone a qualquer usuário.
+        $app->hook('ALL(opportunity.<<duplicate|generatemodel|generateopportunity|modelpublic>>):before', function () use ($app, $guard) {
+            if ($guard->locks($this->requestedEntity, $app->user)) {
+                throw new PermissionDenied($app->user, $this->requestedEntity, $this->action);
+            }
+        });
+
+        // Os dois botões também só pedem "modify": a classe deixa o tema escondê-los (_entity-actions.scss).
+        $app->hook('GET(opportunity.<<edit|single>>):before', function () use ($app, $guard) {
+            if ($guard->locks($this->requestedEntity, $app->user)) {
+                $app->view->bodyClasses[] = 'mdc-structure-locked';
             }
         });
     }

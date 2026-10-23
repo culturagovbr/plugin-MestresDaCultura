@@ -42,13 +42,32 @@ class FixedOpportunity
         return $this->opportunity = $opportunity;
     }
 
-    // A oportunidade fixa ou uma das fases dela, que são filhas dela.
+    // A oportunidade fixa ou uma das fases dela, que são filhas dela. Vale o pai gravado: o `parent` trocado na
+    // requisição, ainda sem salvar, não pode tirar uma fase da conta (e com ela da proteção).
     function matches(?Opportunity $opportunity): bool
     {
         $fixed = $this->get();
-        $root = $opportunity?->parent ?: $opportunity;
 
-        return $fixed && $root?->id === $fixed->id;
+        if (!$fixed || !$opportunity) {
+            return false;
+        }
+
+        if ($opportunity->id && $opportunity->id === $fixed->id) {
+            return true;
+        }
+
+        $parent = $this->storedParent($opportunity) ?? $opportunity->parent;
+
+        return $parent?->id === $fixed->id;
+    }
+
+    private function storedParent(Opportunity $opportunity): ?Opportunity
+    {
+        if (!$opportunity->id) {
+            return null;
+        }
+
+        return App::i()->em->getUnitOfWork()->getOriginalEntityData($opportunity)['parent'] ?? null;
     }
 
     function includes(Registration $registration): bool
