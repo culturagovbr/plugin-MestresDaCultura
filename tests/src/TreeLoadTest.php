@@ -50,7 +50,7 @@ class TreeLoadTest extends TestCase
 
     function testLoadsEveryNodeOfTheSpreadsheet()
     {
-        $this->assertSame(354, $this->repo()->count(['status' => Node::STATUS_ENABLED]));
+        $this->assertSame(356, $this->repo()->count(['status' => Node::STATUS_ENABLED]));
         $this->assertCount(7, $this->repo()->findTree());
     }
 
@@ -60,7 +60,7 @@ class TreeLoadTest extends TestCase
             'SELECT level, COUNT(*) FROM mdc_tree_node GROUP BY level ORDER BY level'
         );
 
-        $this->assertEquals([1 => 7, 2 => 129, 3 => 150, 4 => 68], $levels);
+        $this->assertEquals([1 => 7, 2 => 129, 3 => 151, 4 => 69], $levels);
     }
 
     function testMatchesTheJsonFileInContentAndOrder()
@@ -117,6 +117,6 @@ class TreeLoadTest extends TestCase
 
         $updates[self::UPDATE]();
 
-        $this->assertSame(354, $this->repo()->count([]));
+        $this->assertSame(356, $this->repo()->count([]));
     }
 }

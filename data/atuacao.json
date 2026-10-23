@@ -277,10 +277,10 @@
         ]
       },
       {
-        "name": "Espiritualidade e Medicina Popular e Tradicional",
+        "name": "Medicina Popular e Tradicional",
         "children": [
           {
-            "name": "Espiritualidades, Curas e Natureza",
+            "name": "Curas e Natureza",
             "children": [
               {
                 "name": "Benzedeira"
@@ -846,7 +846,17 @@
         "name": "Marujada"
       },
       {
-        "name": "Palhaçaria"
+        "name": "Circo",
+        "children": [
+          {
+            "name": "Palhaçaria",
+            "children": [
+              {
+                "name": "Palhaço"
+              }
+            ]
+          }
+        ]
       },
       {
         "name": "Bonecões"
