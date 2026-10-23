@@ -17,6 +17,9 @@ class FixedOpportunityGuard
 
     private const EVALUATION_DATES = ['evaluationFrom', 'evaluationTo'];
 
+    /** Os campos do fluxo contínuo, que mudam as datas finais das fases. */
+    private const FLOW = ['hasEndDate', 'isContinuousFlow'];
+
     function __construct(private FixedOpportunity $fixedOpportunity)
     {
     }
@@ -27,8 +30,8 @@ class FixedOpportunityGuard
     }
 
     /**
-     * As datas que mudaram em relação ao que está gravado. Ao minuto: a tela não manda os segundos, e reenviar a
-     * mesma data não é mudança.
+     * As datas (e o fluxo contínuo, que decide se há data final) que mudaram em relação ao que está gravado,
+     * comparadas ao minuto.
      *
      * @return string[]
      */
@@ -40,8 +43,25 @@ class FixedOpportunityGuard
 
         $stored = App::i()->em->getUnitOfWork()->getOriginalEntityData($entity);
         $properties = $entity instanceof Opportunity ? self::DATES : self::EVALUATION_DATES;
+        $changed = array_filter($properties, fn ($property) => self::minute($stored[$property] ?? null) !== self::minute($entity->$property));
 
-        return array_values(array_filter($properties, fn ($property) => self::minute($stored[$property] ?? null) !== self::minute($entity->$property)));
+        // Os metadados do fluxo, comparados com o banco.
+        if ($entity instanceof Opportunity) {
+            $stored = App::i()->conn->fetchAllKeyValue(
+                'SELECT key, value FROM opportunity_meta WHERE object_id = :id AND key IN (:keys)',
+                ['id' => $entity->id, 'keys' => self::FLOW],
+                ['keys' => \Doctrine\DBAL\ArrayParameterType::STRING]
+            );
+            $changed = [...$changed, ...array_filter(self::FLOW, fn ($key) => self::flag($stored[$key] ?? null) !== self::flag($entity->$key))];
+        }
+
+        return array_values($changed);
+    }
+
+    // Lê como booleano o texto gravado ("1", "") e o valor da tela; vazio vale falso.
+    private static function flag(mixed $value): bool
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     private static function minute(?\DateTimeInterface $date): ?string
