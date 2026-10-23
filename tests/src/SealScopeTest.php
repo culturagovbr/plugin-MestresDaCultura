@@ -8,15 +8,19 @@ use MapasCulturais\ApiQuery;
 use MapasCulturais\Entities\Agent;
 use MapasCulturais\Entities\Seal;
 use MapasCulturais\Entities\User;
+use MDC\Services\FixedOpportunity;
 use MDC\Services\ProgramSeal;
 use Tests\Abstract\TestCase;
+use Tests\Builders\PhasePeriods\Open;
 use Tests\Builders\SealBuilder;
+use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
-// No site dos Mestres, quem não é admin só vê o selo do programa: na API, no perfil e nas páginas de selo.
+// No subsite dos Mestres, quem não é admin só vê o selo do programa: na API, no perfil e nas páginas de selo.
 class SealScopeTest extends TestCase
 {
+    use OpportunityBuilder;
     use RequestFactory;
     use UserDirector;
 
@@ -95,6 +99,29 @@ class SealScopeTest extends TestCase
         foreach (['find', 'findOne'] as $action) {
             $this->assertSame([$this->programSeal->id], $this->agentApiSeals($visitor, $action), "api/agent/{$action} traz só o selo do programa");
         }
+    }
+
+    // O JSON do agente na página do perfil leva só o selo do programa.
+    function testTheProfilePageCarriesOnlyTheProgramSeal()
+    {
+        // Configura a oportunidade do programa, que a página do perfil procura.
+        $manager = $this->userDirector->createUser('saasSuperAdmin');
+        $this->login($manager);
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $this->opportunityBuilder
+            ->reset(owner: $manager->profile, owner_entity: $manager->profile)
+            ->fillRequiredProperties()
+            ->firstPhase()
+                ->setRegistrationPeriod(new Open)
+                ->done()
+            ->save()
+            ->getInstance()->id;
+
+        $this->login($this->userDirector->createUser());
+        $this->app->reset();
+        $this->app->run($this->requestFactory->GET('agent', 'single', [$this->master->id]), false);
+        $agent = $this->app->view->jsObject['requestedEntity'] ?? [];
+
+        $this->assertSame([$this->programSeal->id], array_map('intval', array_column($agent['seals'] ?? [], 'sealId')), 'O JSON do perfil traz só o selo do programa');
     }
 
     function testPagesOfOtherSealsAreNotFound()

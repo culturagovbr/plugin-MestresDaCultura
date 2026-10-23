@@ -121,6 +121,18 @@ class FixedOpportunityStructureTest extends TestCase
 
         $this->assertFalse($this->phase()->canUser('remove', $this->manager), 'Nem exclui fase');
 
+        // Sem o tema dos Mestres, a recusa geral de criar oportunidade (blockOpportunityBrowsing) não vale: quem
+        // recusa a fase é a trava do programa.
+        $theme = $this->app->view;
+        $this->app->view = (new \ReflectionClass(\MapasCulturais\Themes\BaseV2\Theme::class))->newInstanceWithoutConstructor();
+        try {
+            $phase = new ($this->fixed->specializedClassName);
+            $phase->parent = $this->fixed;
+            $this->assertFalse($phase->canUser('create', $this->manager), 'Nem fora do subsite dos Mestres');
+        } finally {
+            $this->app->view = $theme;
+        }
+
         $this->login($this->superAdmin);
         $phases = count($this->fixed->allPhases);
         $this->opportunityBuilder->addDataCollectionPhase();
@@ -160,6 +172,24 @@ class FixedOpportunityStructureTest extends TestCase
         foreach ($changes as [$entity, $property]) {
             $this->assertSame([], $this->lockedDates($entity), "O saasSuperAdmin segue mudando {$property}");
         }
+    }
+
+    // O gestor não muda a data final nem o fluxo contínuo.
+    function testTheContinuousFlowIsLockedToTheManager()
+    {
+        $this->login($this->manager);
+        foreach (['hasEndDate', 'isContinuousFlow'] as $property) {
+            $original = (bool) $this->fixed->$property;
+            $this->fixed->$property = !$original;
+            $this->assertContains($property, $this->lockedDates($this->fixed), "O gestor não muda {$property}");
+
+            $this->fixed->$property = $original;
+            $this->assertNotContains($property, $this->lockedDates($this->fixed), "Reenviar {$property} sem mudar segue valendo");
+            $this->fixed->$property = !$original;
+        }
+
+        $this->login($this->superAdmin);
+        $this->assertSame([], $this->lockedDates($this->fixed), 'O saasSuperAdmin segue mudando o fluxo');
     }
 
     function testForcingTheSaveDoesNotChangeTheDates()

@@ -107,6 +107,19 @@ class FixedOpportunityGuardTest extends TestCase
         $this->assertEquals(200, $this->statusOf('duplicate', $fixed, $this->userDirector->createUser('saasSuperAdmin')), 'O saasSuperAdmin segue podendo duplicar');
     }
 
+    // Sem login, duplicar pede para entrar (401), e não 403.
+    function testAVisitorIsAskedToLogInBeforeDuplicating()
+    {
+        $fixed = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+
+        $this->logout();
+        $this->app->reset();
+        $this->app->run($this->requestFactory->POST('opportunity', 'duplicate', [$fixed->id], ajax: true), false);
+
+        $this->assertEquals(401, $this->app->response->getStatusCode(), 'O visitante é mandado entrar, como no core');
+    }
+
     // A fase segue protegida com o pai trocado e ainda não gravado.
     function testAPhaseStaysProtectedAfterItsParentIsUnset()
     {
