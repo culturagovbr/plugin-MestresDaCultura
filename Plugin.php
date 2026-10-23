@@ -90,6 +90,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->showActingFieldAsTextInPdf();
         $this->adjustRegistrationsSpreadsheet();
         $this->addTreeCurationPage();
+        $this->addManagementShortcuts();
         $this->blockDisabledEntities();
         $this->blockOpportunityBrowsing();
         $this->protectFixedOpportunity();
@@ -654,6 +655,45 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
+    // Quem controla a oportunidade do programa (o gestor do subsite ou quem ela tem como administrador) ganha no menu
+    // do painel atalhos para os cadastros, as avaliações e a comissão. Depois do menu do tema (prioridade 1000).
+    private function addManagementShortcuts(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+        $controls = fn (): bool => $fixedOpportunity->isConfigured() && (bool) $fixedOpportunity->get()?->canUser('@control');
+
+        $app->hook('panel.nav', function (&$nav) use ($controls, $fixedOpportunity) {
+            if (!Plugin::isTheme() || !$controls()) {
+                return;
+            }
+
+            $fixed = $fixedOpportunity->get();
+            $items = [['route' => 'opportunity/registrations', 'params' => [$fixed->id], 'icon' => 'registration', 'label' => i::__('Cadastros')]];
+
+            if ($fixed->evaluationMethodConfiguration) {
+                $items[] = ['route' => 'opportunity/allEvaluations', 'params' => [$fixed->id], 'icon' => 'check', 'label' => i::__('Avaliações')];
+                $items[] = ['route' => 'panel/mdc-committee', 'icon' => 'agents', 'label' => i::__('Comissão')];
+            }
+
+            $group = ['mdc-gestao' => ['label' => i::__('Gestão do cadastro'), 'column' => 'left', 'items' => $items]];
+            $position = array_search('mdc-criar', array_keys($nav), true);
+            $nav = $position === false ? $group + $nav : array_slice($nav, 0, $position + 1, true) + $group + $nav;
+        }, 1001);
+
+        // O menu do core não passa âncora ao link: a comissão fica na aba de fases da edição.
+        $app->hook('GET(panel.mdc-committee)', function () use ($app, $controls, $fixedOpportunity) {
+            /** @var \MapasCulturais\Controllers\Panel $this */
+            $this->requireAuthentication();
+
+            if (!Plugin::isTheme() || !$controls()) {
+                $app->pass();
+            }
+
+            $app->redirect($app->createUrl('opportunity', 'edit', [$fixedOpportunity->get()->id]) . '#config');
+        });
+    }
+
     // O limite do core conta por agente responsável, não por pessoa.
     private function limitToOneRegistrationPerUser(): void
     {
@@ -991,7 +1031,7 @@ class Plugin extends \MapasCulturais\Plugin
     private function closeOtherPanelScreens(): void
     {
         $app = App::i();
-        $open = ['index', 'my-account', 'deleteaccount', 'terms', 'requireauth', 'registrations', 'evaluations', 'mdc-tree-curation'];
+        $open = ['index', 'my-account', 'deleteaccount', 'terms', 'requireauth', 'registrations', 'evaluations', 'mdc-tree-curation', 'mdc-committee'];
 
         $app->hook('GET(panel.<<*>>):before', function () use ($app, $open) {
             if (Plugin::appliesToCurrentUser() && !in_array(strtolower($this->action), $open, true)) {
