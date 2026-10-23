@@ -696,6 +696,14 @@ class Plugin extends \MapasCulturais\Plugin
         return App::i()->view instanceof \MestresDaCultura\Theme;
     }
 
+    // Os filtros de visibilidade do programa (oportunidades, inscrições, painel, selos, notificações) valem para quem
+    // não é admin; o admin vê a instalação como no core. As travas de estrutura seguem outra regra: só o
+    // saasSuperAdmin passa (ver Services\FixedOpportunityGuard).
+    static function appliesToCurrentUser(): bool
+    {
+        return self::isTheme() && !App::i()->user->is('admin');
+    }
+
     function fixedOpportunity(): Services\FixedOpportunity
     {
         return $this->fixedOpportunity ??= new Services\FixedOpportunity();
@@ -721,7 +729,7 @@ class Plugin extends \MapasCulturais\Plugin
 
         // O tema roda sobre uma oportunidade fixa: não há o que listar.
         $app->hook('GET(<<search|panel>>.opportunities):before', function () use ($app) {
-            if (Plugin::isTheme() && !$app->user->is('admin')) {
+            if (Plugin::appliesToCurrentUser()) {
                 $app->pass();
             }
         });
@@ -729,7 +737,7 @@ class Plugin extends \MapasCulturais\Plugin
         // Esconder o link não fecha a porta: sem isto, qualquer oportunidade da instalação
         // abre por URL direta. Alcança toda ação do controlador, e não só a página.
         $app->hook('ALL(opportunity.<<*>>):before', function () use ($app) {
-            if (!Plugin::isTheme() || $app->user->is('admin')) {
+            if (!Plugin::appliesToCurrentUser()) {
                 return;
             }
 
@@ -891,7 +899,7 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->hook('ApiQuery(Registration).params', function (&$params) use ($app, $fixedOpportunity) {
             /** @var ApiQuery $this */
-            if ($this->parentQuery || !Plugin::isTheme() || $app->user->is('admin')) {
+            if ($this->parentQuery || !Plugin::appliesToCurrentUser()) {
                 return;
             }
 
@@ -986,7 +994,7 @@ class Plugin extends \MapasCulturais\Plugin
         $open = ['index', 'my-account', 'deleteaccount', 'terms', 'requireauth', 'registrations', 'evaluations', 'mdc-tree-curation'];
 
         $app->hook('GET(panel.<<*>>):before', function () use ($app, $open) {
-            if (Plugin::isTheme() && !$app->user->is('admin') && !in_array(strtolower($this->action), $open, true)) {
+            if (Plugin::appliesToCurrentUser() && !in_array(strtolower($this->action), $open, true)) {
                 $app->pass();
             }
         });
@@ -1000,7 +1008,7 @@ class Plugin extends \MapasCulturais\Plugin
     {
         $app = App::i();
         $programSeal = $this->programSeal();
-        $applies = fn (): bool => Plugin::isTheme() && !$app->user->is('admin') && $programSeal->configuredId();
+        $applies = fn (): bool => Plugin::appliesToCurrentUser() && $programSeal->configuredId();
 
         $keepProgramSeal = function (array &$agents) use ($programSeal): void {
             foreach ($agents as &$agent) {
@@ -1067,7 +1075,7 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->hook('ApiQuery(Notification).params', function (&$params) use ($app, $fixedOpportunity, $scope) {
             /** @var ApiQuery $this */
-            if ($this->parentQuery || !Plugin::isTheme() || $app->user->is('guest') || $app->user->is('admin') || !$fixedOpportunity->isConfigured()) {
+            if ($this->parentQuery || !Plugin::appliesToCurrentUser() || $app->user->is('guest') || !$fixedOpportunity->isConfigured()) {
                 return;
             }
 
