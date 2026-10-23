@@ -95,6 +95,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->scopeRegistrationsToFixedOpportunity();
         $this->sendForeignRegistrationsHome();
         $this->keepTheProgramOnItsSite();
+        $this->closeOtherPanelScreens();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
@@ -883,6 +884,21 @@ class Plugin extends \MapasCulturais\Plugin
             }
 
             $app->redirect(Services\SubsiteRedirect::urlOn($fixedOpportunity->get()->subsite, $this));
+        });
+    }
+
+    // O menu do site dos Mestres só mostra as telas do programa, mas as do Mapa genérico (eventos, aplicativos,
+    // validações, prestação de contas) abriam por URL. Para quem não é admin, só estas abrem; a curadoria confere
+    // sozinha quem é curador.
+    private function closeOtherPanelScreens(): void
+    {
+        $app = App::i();
+        $open = ['index', 'my-account', 'deleteaccount', 'terms', 'requireauth', 'registrations', 'evaluations', 'mdc-tree-curation'];
+
+        $app->hook('GET(panel.<<*>>):before', function () use ($app, $open) {
+            if (Plugin::isTheme() && !$app->user->is('admin') && !in_array(strtolower($this->action), $open, true)) {
+                $app->pass();
+            }
         });
     }
 
