@@ -93,6 +93,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->blockOpportunityBrowsing();
         $this->protectFixedOpportunity();
         $this->scopeRegistrationsToFixedOpportunity();
+        $this->sendForeignRegistrationsHome();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
@@ -812,6 +813,35 @@ class Plugin extends \MapasCulturais\Plugin
             if ($allowed) {
                 $params['opportunity'] = API::IN(Services\RegistrationScope::narrow($params['opportunity'] ?? null, $allowed));
             }
+        });
+    }
+
+    // No site dos Mestres, a inscrição de outro edital abre no site daquele edital (ver Services\SubsiteRedirect).
+    // Se o site dela é este mesmo, não há para onde mandar: não abre.
+    private function sendForeignRegistrationsHome(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+
+        $app->hook('GET(registration.<<*>>):before', function () use ($app, $fixedOpportunity) {
+            /** @var \MapasCulturais\Controllers\Registration $this */
+            if (!Plugin::isTheme() || !$fixedOpportunity->isConfigured()) {
+                return;
+            }
+
+            $registration = $this->requestedEntity;
+
+            if (!$registration instanceof Registration || $fixedOpportunity->includes($registration)) {
+                return;
+            }
+
+            $origin = $registration->opportunity?->subsite;
+
+            if (!$registration->opportunity || Services\SubsiteRedirect::isCurrent($origin)) {
+                $app->pass();
+            }
+
+            $app->redirect(Services\SubsiteRedirect::urlOn($origin, $this));
         });
     }
 
