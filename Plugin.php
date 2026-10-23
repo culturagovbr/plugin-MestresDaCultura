@@ -708,9 +708,11 @@ class Plugin extends \MapasCulturais\Plugin
     {
         $app = \MapasCulturais\App::i();
 
-        // O plugin roda na instalação inteira; a oportunidade do programa nasce em outro subsite.
+        // O plugin roda na instalação inteira; a oportunidade do programa nasce em outro subsite. Só a oportunidade
+        // nova: o metadado novo pede "create" à oportunidade já gravada.
         $app->hook('entity(Opportunity).canUser(create)', function ($user, &$result) {
-            if (Plugin::isTheme() && !$user->is('saasSuperAdmin')) {
+            /** @var Opportunity $this */
+            if (!$this->id && Plugin::isTheme() && !$user->is('saasSuperAdmin')) {
                 $result = false;
             }
         });
