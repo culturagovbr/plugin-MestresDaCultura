@@ -186,6 +186,17 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
+        // Antes de cada redistribuição da moderação, como no Cultura Viva (ver ModerationQueue::releasePhase).
+        $app->hook('job(' . \Opportunities\Jobs\RedistributeCommitteeRegistrations::SLUG . ').execute:before', function () use ($plugin) {
+            /** @var \MapasCulturais\Entities\Job $this */
+            $configuration = $this->evaluationMethodConfiguration ?? null;
+            $moderation = $plugin->fixedOpportunity()->isConfigured() ? $plugin->fixedOpportunity()->get()?->evaluationMethodConfiguration : null;
+
+            if ($configuration && $moderation && $configuration->id === $moderation->id) {
+                (new Services\ModerationQueue($plugin->fixedOpportunity()))->releasePhase($configuration);
+            }
+        });
+
         // As opções da fila, logo depois das comissões, só na fase de moderação do programa e com a distribuição
         // automática. Por gancho do componente da fase: o Cultura Viva sobrescreve o template das comissões.
         $app->hook('component(opportunity-phase-config-evaluation).documentary-config:before', function () use ($plugin) {
