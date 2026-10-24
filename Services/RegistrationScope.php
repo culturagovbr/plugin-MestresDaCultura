@@ -3,9 +3,8 @@
 namespace MDC\Services;
 
 /**
- * No subsite, a API de inscrições só alcança a oportunidade do programa e as fases dela: o "Minhas inscrições" do
- * core e as consultas da tela listam por ela, e uma pessoa com inscrição em outro edital do Mapa não a vê aqui.
- * Admin e subconsultas seguem como no core (como no Cultura Viva).
+ * No subsite, a API de inscrições só alcança a oportunidade do programa e as fases dela; admin e subconsultas seguem
+ * como no core.
  */
 class RegistrationScope
 {
