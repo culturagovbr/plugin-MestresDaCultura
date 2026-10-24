@@ -3,12 +3,14 @@
 namespace Tests\MDC;
 
 use MapasCulturais\ApiQuery;
+use MapasCulturais\Cache;
 use MapasCulturais\Entities\Notification;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\User;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\NotificationScope;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Tests\Abstract\TestCase;
 use Tests\Builders\PhasePeriods\Open;
 use Tests\Traits\OpportunityBuilder;
@@ -87,6 +89,31 @@ class NotificationScopeTest extends TestCase
         sort($expected);
 
         $this->assertSame([$expected, 2], $this->seenBy($master), 'Lista e sino com as da Rede e as sem link, nada de outros editais');
+    }
+
+    // Com o cálculo guardado, a notificação nova de outro edital também fica de fora.
+    function testANewNotificationOfAnotherProgramIsLeftOutToo()
+    {
+        $fixed = $this->createOpportunity();
+        $other = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $master = $this->userDirector->createUser();
+        $foreign = $this->registrationOf($master, $other);
+        $plain = $this->notify($master, 'Sua senha foi alterada.');
+
+        // Os testes usam um cache que não guarda nada; aqui, um em memória, para o cálculo ficar guardado de fato.
+        $cache = $this->app->cache;
+        $this->app->cache = new Cache(new ArrayAdapter());
+
+        try {
+            $this->assertSame([[$plain], 1], $this->seenBy($master));
+
+            $this->notify($master, "Sua inscrição foi enviada. <a href=\"{$this->app->baseUrl}inscricao/{$foreign->id}/\">Ver</a>.");
+
+            $this->assertSame([[$plain], 1], $this->seenBy($master), 'A que chegou depois também fica de fora');
+        } finally {
+            $this->app->cache = $cache;
+        }
     }
 
     function testAdminKeepsEveryNotification()
