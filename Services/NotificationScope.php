@@ -19,12 +19,36 @@ class NotificationScope
 
     private const OPPORTUNITY_LINK = '#/(?:oportunidade|gestao-de-oportunidade|configuracao-de-formulario|lista-de-inscricoes|lista-de-avaliacoes|avaliacoes)/(\d+)|/opportunity/[A-Za-z]+/(\d+)#';
 
+    private const CACHE_SECONDS = 86400;
+
     function __construct(private FixedOpportunity $fixedOpportunity)
     {
     }
 
-    /** @return int[] as notificações do usuário que são de outro edital */
+    /**
+     * O sino conta as notificações a cada requisição: o cálculo fica no cache até chegar ou sair uma notificação do
+     * usuário (a chave leva o total e a maior), e a cada requisição sobra só essa contagem.
+     *
+     * @return int[] as notificações do usuário que são de outro edital
+     */
     function hiddenFor(UserInterface $user): array
+    {
+        $app = App::i();
+        $state = $app->conn->fetchAssociative('SELECT count(*) AS total, max(id) AS last FROM notification WHERE user_id = :user', ['user' => $user->id]);
+        $key = "mdc:hidden-notifications:{$user->id}:{$state['total']}:{$state['last']}";
+
+        if ($app->cache->contains($key)) {
+            return $app->cache->fetch($key);
+        }
+
+        $hidden = $this->compute($user);
+        $app->cache->save($key, $hidden, self::CACHE_SECONDS);
+
+        return $hidden;
+    }
+
+    /** @return int[] */
+    private function compute(UserInterface $user): array
     {
         $em = App::i()->em;
         $rows = $em->createQuery(
