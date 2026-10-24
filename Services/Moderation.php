@@ -82,10 +82,39 @@ class Moderation
         return array_values(array_map(fn ($field) => array_diff_key($field, ['result' => true]), $refused));
     }
 
+    /** Situações da moderação, na ordem do caminho do cadastro. */
+    const SITUATIONS = ['draft', 'waiting', 'returned', 'resent', 'approved'];
+
+    /** @return array<string, string> o nome de cada situação, para a gestão */
+    static function situationLabels(): array
+    {
+        return [
+            'draft' => i::__('Rascunho'),
+            'waiting' => i::__('Aguardando moderação'),
+            'returned' => i::__('Devolvido ao mestre'),
+            'resent' => i::__('Reenviado'),
+            'approved' => i::__('Aprovado'),
+        ];
+    }
+
+    /**
+     * Em que ponto da moderação o cadastro está, pelos valores da linha. Enviado: devolvido com campos reabertos e a
+     * correção não enviada, reenviado depois disso, aguardando sem campos reabertos. Fora dos status do programa, null.
+     */
+    static function situation(int $status, mixed $editableFields, mixed $editSentTimestamp): ?string
+    {
+        return match ($status) {
+            Registration::STATUS_DRAFT => 'draft',
+            Registration::STATUS_APPROVED => 'approved',
+            Registration::STATUS_SENT => !$editableFields ? 'waiting' : ($editSentTimestamp ? 'resent' : 'returned'),
+            default => null,
+        };
+    }
+
     /** Devolvido e ainda não reenviado: há campos reabertos e a correção não foi enviada. */
     static function isPending(Registration $registration): bool
     {
-        return $registration->status === Registration::STATUS_SENT && $registration->editableFields && !$registration->editSentTimestamp;
+        return self::situation($registration->status, $registration->editableFields, $registration->editSentTimestamp) === 'returned';
     }
 
     /**

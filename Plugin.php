@@ -136,6 +136,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->completeOpportunityImport();
         $this->sendEachEvaluationOnce();
         $this->passOnTheDisabledModeratorsWork();
+        $this->adjustTheRegistrationsList();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
         $this->showModerationToOwner();
@@ -171,6 +172,52 @@ class Plugin extends \MapasCulturais\Plugin
                 $disabled = false;
             }
         });
+    }
+
+    // Ver Services\RegistrationsTable. Só na lista de cadastros do programa; nas outras oportunidades, como no core.
+    private function adjustTheRegistrationsList(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+        $isProgram = fn (?Opportunity $opportunity): bool => Plugin::isTheme() && $plugin->fixedOpportunity()->isConfigured() && $plugin->fixedOpportunity()->matches($opportunity);
+
+        $app->hook('entity(Registration).propertiesMetadata', function (&$result) {
+            if (Plugin::isTheme()) {
+                $result[Services\RegistrationsTable::MODERATION] = Services\RegistrationsTable::property();
+            }
+        });
+
+        $app->hook('component(opportunity-registrations-table).additionalHeaders', function (&$headers, &$select) use ($app, $isProgram) {
+            if ($isProgram($app->view->controller->requestedEntity ?? null)) {
+                Services\RegistrationsTable::adjust($headers, $select);
+                $app->view->jsObject['config']['mdcRegistrationsTable'] = ['after' => Services\RegistrationsTable::PLACED_AFTER, 'hidden' => Services\RegistrationsTable::UNUSED];
+            }
+        });
+
+        // A situação de cada linha da lista, como o Cultura Viva acrescenta a data de envio na lista de avaliações.
+        $app->hook('ApiQuery(Registration).findResult', function (&$result) use ($app, $isProgram) {
+            $request = $app->request;
+
+            if (!$request || $request->controllerId !== 'opportunity' || $request->action !== 'findRegistrations') {
+                return;
+            }
+
+            if ($isProgram($app->repo('Opportunity')->find((int) $request->get('@opportunity')))) {
+                foreach ($result as &$row) {
+                    if (is_array($row) && array_key_exists('status', $row)) {
+                        $row[Services\RegistrationsTable::MODERATION] = Services\RegistrationsTable::label($row);
+                    }
+                }
+                unset($row);
+            }
+        });
+
+        // O padrão de colunas do programa (registrations-table.js), junto do script do componente.
+        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
+            if ($component === 'opportunity-registrations-table' && Plugin::isTheme()) {
+                $this->enqueueScript('components', 'mdc-registrations-table', 'js/registrations-table.js', ['opportunity-registrations-table']);
+            }
+        }, 1000);
     }
 
     // Ver Services\ModerationQueue. O reenvio da correção com o moderador desabilitado fica em Services\Moderation.
