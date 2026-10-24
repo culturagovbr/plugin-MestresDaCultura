@@ -10,6 +10,7 @@ use MDC\Jobs\ReleaseStaleDrafts;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\Moderation;
 use MDC\Services\ModerationQueue;
+use Opportunities\Jobs\RedistributeCommitteeRegistrations;
 use Tests\Abstract\TestCase;
 use Tests\Builders\PhasePeriods\ConcurrentEndingAfter;
 use Tests\Builders\PhasePeriods\Open;
@@ -276,26 +277,53 @@ class ModerationQueueTest extends TestCase
         $this->assertSame([$this->other($holder)->agent->user->id], $this->valuers(), 'A correção vai para o outro moderador');
     }
 
-    // O outro moderador já tem um cadastro enviado: a distribuição, que equilibra a carga, devolveria o cadastro a
-    // quem o deixou parado. Parado de novo com o outro, ele volta à primeira, sem ficar sem ninguém.
-    function testAStaleDraftGoesToAnotherModeratorAndCanComeBack()
+    // O rascunho parado sai e a redistribuição da comissão decide para quem vai o cadastro.
+    function testAStaleDraftGoesBackToTheQueue()
     {
-        $this->createProgram(['Moderadora A', 'Moderadora B'], registrations: 2);
-        $holder = $this->holder();
-        $other = $this->other($holder);
-        $this->assertSame([$other->agent->user->id], $this->valuers($this->registrationIds[1]), 'Cada moderador começa com um cadastro');
-        $this->evaluate($other, RegistrationEvaluation::STATUS_SENT, $this->registrationIds[1]);
-        $draft = $this->evaluate($holder, RegistrationEvaluation::STATUS_DRAFT);
+        $this->createProgram(['Moderadora A', 'Moderadora B']);
+        $draft = $this->evaluate($this->holder(), RegistrationEvaluation::STATUS_DRAFT);
 
         $this->idleFor($draft, 6);
         $this->assertTrue($this->exists($draft), 'Com 6 dias, o rascunho fica');
 
         $this->idleFor($draft, 8);
         $this->assertFalse($this->exists($draft), 'Com mais de 7 dias, volta para a fila');
-        $this->assertSame([$other->agent->user->id], $this->valuers(), 'E vai para o outro moderador');
 
-        $this->idleFor($this->evaluate($other, RegistrationEvaluation::STATUS_DRAFT), 8);
-        $this->assertSame([$holder->agent->user->id], $this->valuers(), 'Parado de novo, volta para o primeiro');
+        $active = array_map(fn ($relation) => $relation->agent->user->id, $this->moderators);
+        $this->assertCount(1, array_intersect($this->valuers(), $active), 'E a redistribuição o dá a um moderador ativo');
+    }
+
+    function testAStaleDraftWithManualDistributionStays()
+    {
+        $this->createProgram(['Moderadora A', 'Moderadora B']);
+        $this->configure('distributionConfiguration', 'deactivate');
+        $draft = $this->evaluate($this->holder(), RegistrationEvaluation::STATUS_DRAFT);
+
+        $this->idleFor($draft, 8);
+        $this->assertTrue($this->exists($draft), 'Com a distribuição manual, fica para o gestor');
+
+        // Nem quando o gestor distribui na mão ("Distribuir avaliações agora").
+        $this->app->enqueueOrReplaceJob(RedistributeCommitteeRegistrations::SLUG, ['evaluationMethodConfiguration' => $this->registration()->evaluationMethodConfiguration], 'now');
+        $this->runJobs();
+        $this->assertTrue($this->exists($draft), 'Nem na distribuição feita pelo gestor');
+    }
+
+    // Desabilitado com a opção desligada, os rascunhos ficam; ligada depois, a próxima redistribuição os libera.
+    function testDraftsKeptWhenTheModeratorWasDisabledAreReleasedByALaterRedistribution()
+    {
+        $this->createProgram(['Moderadora A', 'Moderadora B']);
+        $this->configure(ModerationQueue::RELEASE_DISABLED, false);
+        $holder = $this->holder();
+        $draft = $this->evaluate($holder, RegistrationEvaluation::STATUS_DRAFT);
+        $this->disable($holder);
+        $this->assertTrue($this->exists($draft));
+
+        $this->configure(ModerationQueue::RELEASE_DISABLED, true);
+        $this->app->enqueueOrReplaceJob(RedistributeCommitteeRegistrations::SLUG, ['evaluationMethodConfiguration' => $this->registration()->evaluationMethodConfiguration], 'now');
+        $this->runJobs();
+
+        $this->assertFalse($this->exists($draft), 'A redistribuição seguinte libera o rascunho do desabilitado');
+        $this->assertSame([$this->other($holder)->agent->user->id], $this->valuers());
     }
 
     function testAStaleDraftOfTheOnlyModeratorStaysWithHim()
@@ -316,6 +344,7 @@ class ModerationQueueTest extends TestCase
         $this->app->conn->executeStatement("UPDATE registration_evaluation SET update_timestamp = NULL, create_timestamp = now() - interval '8 days' WHERE id = :id", ['id' => $draft]);
 
         (new ModerationQueue)->releaseStaleDrafts();
+        $this->runJobs();
 
         $this->assertFalse($this->exists($draft), 'Sem data de alteração, conta da criação');
     }
