@@ -212,19 +212,26 @@ class Moderation
     }
 
     /**
-     * O mestre reenviou a correção: a avaliação enviada volta a rascunho, com as marcações de antes, e quem avaliou
-     * é avisado. Só a desta inscrição; reabrir pela tela do gestor reabriria todas as do avaliador.
+     * O mestre reenviou a correção: as avaliações enviadas desta inscrição voltam a rascunho, com as marcações, e quem
+     * avaliou é avisado; a de moderador desabilitado passa a outro.
      */
     function sendBackToValuers(Registration $registration): void
     {
         $app = App::i();
         $evaluations = $app->repo('RegistrationEvaluation')->findBy(['registration' => $registration, 'status' => RegistrationEvaluation::STATUS_SENT]);
+        $queue = new ModerationQueue;
 
         // Altera a avaliação sem checar a permissão do mestre que reenviou.
         $app->disableAccessControl();
 
         try {
             foreach ($evaluations as $evaluation) {
+                // A correção do moderador desabilitado vai para outro.
+                if (!$queue->isActive($evaluation)) {
+                    $queue->releaseEvaluation($evaluation);
+                    continue;
+                }
+
                 $evaluation->status = RegistrationEvaluation::STATUS_DRAFT;
                 $evaluation->save(true);
 

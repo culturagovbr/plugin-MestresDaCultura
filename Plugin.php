@@ -40,6 +40,35 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->registerController('mdc', Controller::class);
         $app->registerRegistrationFieldType(new RegistrationFieldType(Services\ActingField::definition()));
+        $app->registerJobType(new Jobs\ReleaseStaleDrafts(Jobs\ReleaseStaleDrafts::SLUG));
+        $this->registerModerationQueueOptions();
+    }
+
+    // Opções da devolução dos rascunhos de moderação (ver Services\ModerationQueue), válidas também fora do subsite.
+    private function registerModerationQueueOptions(): void
+    {
+        [$min, $max] = Services\ModerationQueue::STALE_DAYS_RANGE;
+
+        $this->registerEvauationMethodConfigurationMetadata(Services\ModerationQueue::RELEASE_DISABLED, [
+            'label' => i::__('Devolver à fila os rascunhos de moderadores desabilitados'),
+            'type' => 'boolean',
+            'default' => true,
+        ]);
+
+        $this->registerEvauationMethodConfigurationMetadata(Services\ModerationQueue::RELEASE_STALE, [
+            'label' => i::__('Devolver à fila os rascunhos parados'),
+            'type' => 'boolean',
+            'default' => true,
+        ]);
+
+        $this->registerEvauationMethodConfigurationMetadata(Services\ModerationQueue::STALE_DAYS, [
+            'label' => i::__('Dias sem alteração para o rascunho voltar à fila'),
+            'type' => 'integer',
+            'default' => Services\ModerationQueue::DEFAULT_STALE_DAYS,
+            'validations' => [
+                "v::intVal()->between({$min}, {$max})" => sprintf(i::__('Informe uma quantidade de dias entre %d e %d.'), $min, $max),
+            ],
+        ]);
     }
 
     // O campo do formulário grava no perfil do agente: sem a opção na definição do metadado, o perfil não
@@ -106,6 +135,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->addTraditionalCommunities();
         $this->completeOpportunityImport();
         $this->sendEachEvaluationOnce();
+        $this->passOnTheDisabledModeratorsWork();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
         $this->showModerationToOwner();
@@ -139,6 +169,31 @@ class Plugin extends \MapasCulturais\Plugin
             if ($disabled) {
                 $app->enableAccessControl();
                 $disabled = false;
+            }
+        });
+    }
+
+    // Ver Services\ModerationQueue. O reenvio da correção com o moderador desabilitado fica em Services\Moderation.
+    private function passOnTheDisabledModeratorsWork(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        $app->hook('entity(EvaluationMethodConfigurationAgentRelation).disable:after', function () use ($plugin) {
+            /** @var \MapasCulturais\Entities\EvaluationMethodConfigurationAgentRelation $this */
+            if ($plugin->fixedOpportunity()->matches($this->owner->opportunity)) {
+                (new Services\ModerationQueue($plugin->fixedOpportunity()))->releaseFrom($this);
+            }
+        });
+
+        // As opções da fila, logo depois das comissões, só na fase de moderação do programa e com a distribuição
+        // automática. Por gancho do componente da fase: o Cultura Viva sobrescreve o template das comissões.
+        $app->hook('component(opportunity-phase-config-evaluation).documentary-config:before', function () use ($plugin) {
+            $moderation = Plugin::isTheme() && $plugin->fixedOpportunity()->isConfigured() ? $plugin->fixedOpportunity()->get()?->evaluationMethodConfiguration : null;
+
+            if ($moderation) {
+                $this->import('mdc-moderation-queue-config');
+                echo "<section v-if=\"phase.id == {$moderation->id} && phase.distributionConfiguration != 'deactivate'\" class=\"evaluation-section col-12\"><mdc-moderation-queue-config :entity=\"phase\"></mdc-moderation-queue-config></section>";
             }
         });
     }

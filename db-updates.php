@@ -194,4 +194,8 @@ return [
             __exec("INSERT INTO mdc_tree_legit_repeat (name_key) VALUES ('{$key}')");
         }
     },
+
+    'mdc: agenda a devolução diária dos rascunhos de moderação parados' => function () {
+        \MDC\Jobs\ReleaseStaleDrafts::schedule();
+    },
 ];
