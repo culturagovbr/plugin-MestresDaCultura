@@ -199,7 +199,7 @@ class Plugin extends \MapasCulturais\Plugin
     }
 
     // Ver Services\EvaluationSendLock. Só no programa: no servidor, a trava segura a linha da avaliação durante a
-    // gravação; na tela, os botões esperam a resposta.
+    // gravação; na tela, os botões esperam a ação anterior terminar.
     private function sendEachEvaluationOnce(): void
     {
         $app = App::i();
@@ -217,12 +217,13 @@ class Plugin extends \MapasCulturais\Plugin
             $lock->release($this);
         });
 
-        // Na tela, os botões ficam travados enquanto a gravação está em andamento (evaluation-lock.js).
-        $app->hook('GET(registration.evaluation):before', function () use ($app, $plugin) {
-            if ($this->requestedEntity instanceof Registration && $plugin->fixedOpportunity()->includes($this->requestedEntity)) {
-                $app->view->enqueueScript('app-v2', 'mdc-evaluation-lock', 'js/evaluation-lock.js');
+        // Na tela, uma ação por vez nos botões da avaliação (evaluation-submit-guard.js), como no Cultura Viva: junto do
+        // script do componente, em toda tela que o usa no subsite.
+        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
+            if ($component === 'evaluation-actions' && Plugin::isTheme()) {
+                $this->enqueueScript('components', 'mdc-evaluation-submit-guard', 'js/evaluation-submit-guard.js', ['evaluation-actions']);
             }
-        });
+        }, 1000);
     }
 
     // Moderação (ver Services\Moderation): "não ok" devolve o cadastro ao mestre em vez de recusá-lo.
