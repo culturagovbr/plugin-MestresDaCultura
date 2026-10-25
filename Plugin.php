@@ -280,8 +280,8 @@ class Plugin extends \MapasCulturais\Plugin
             $phase = $app->view->controller->requestedEntity ?? null;
 
             if (Plugin::isTheme() && $plugin->fixedOpportunity()->isConfigured() && $plugin->fixedOpportunity()->matches($phase)) {
-                Services\EvaluationsTable::addColumn($headers);
-                $app->view->jsObject['config']['mdcEvaluationsTable'] = ['opportunity' => $phase->id, 'visible' => [Services\EvaluationsTable::SLUG], 'tables' => Services\EvaluationsTable::TABLES];
+                Services\EvaluationsTable::adjust($headers, $app->view->controller->action === 'userEvaluations');
+                $app->view->jsObject['config']['mdcEvaluationsTable'] = ['opportunity' => $phase->id, 'visible' => [Services\EvaluationsTable::SLUG], 'tables' => Services\EvaluationsTable::TABLES, 'hidden' => Services\EvaluationsTable::UNUSED];
             }
         });
 

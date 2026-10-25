@@ -12,4 +12,14 @@
         const key = `opportunity-findEvaluations-${config.opportunity}-${identifier}`;
         tables[key] ??= { visible: config.visible };
     }
+
+    // Tira da tela as colunas que o programa não usa, inclusive o coletivo e as metas que o componente acrescenta.
+    const component = app.component('opportunity-evaluations-table');
+    const headers = component?.computed?.headers;
+
+    if (headers) {
+        component.computed.headers = function () {
+            return headers.call(this).filter((header) => !config.hidden.includes(header.slug));
+        };
+    }
 })();

@@ -5,9 +5,8 @@ namespace MDC\Services;
 use MapasCulturais\i;
 
 /**
- * Lista de avaliações do programa na gestão: a data de envio de cada parecer, como o Cultura Viva acrescenta a dele
- * (themes/CulturaViva/Theme.php, `component(opportunity-evaluations-table).additionalHeaders`). À vista pelo padrão
- * de colunas do programa (evaluations-table.js): o componente do core fixa as colunas visíveis no template.
+ * Lista de avaliações do programa, do gestor e do moderador: os textos da moderação, sem as colunas que o programa não
+ * usa e com a data de envio de cada parecer.
  */
 class EvaluationsTable
 {
@@ -18,6 +17,36 @@ class EvaluationsTable
 
     /** Os identificadores da tabela nas telas de todas as avaliações e das avaliações de um avaliador. */
     const TABLES = ['allEvaluationsTable', 'userEvaluationsTable'];
+
+    /** Pelo `slug` ou pelo `value` da coluna: as da lista de cadastros e o coletivo do Cultura Viva. */
+    const UNUSED = [...RegistrationsTable::UNUSED, 'coletivo'];
+
+    /** Os textos da moderação, pelo `slug` da coluna do core. */
+    const TEXTS = [
+        'committeeSequentialNumber' => 'Nº moderador',
+        'valuerUserId' => 'ID usuário do moderador',
+        'valuerAgentId' => 'ID agente do moderador',
+        'evaluator' => 'Moderador',
+    ];
+
+    /**
+     * `$own`: a lista do próprio moderador, sem as colunas sobre ele; senão, a do gestor, com todas as avaliações.
+     */
+    static function adjust(array &$headers, bool $own): void
+    {
+        $unused = $own ? [...self::UNUSED, ...array_keys(self::TEXTS)] : self::UNUSED;
+        $headers = array_values(array_filter($headers, fn ($header) => !in_array($header['slug'] ?? null, $unused, true) && !in_array($header['value'] ?? null, $unused, true)));
+        $texts = [...self::TEXTS, 'result' => $own ? 'Resultado da sua moderação' : 'Resultado da moderação'];
+
+        foreach ($headers as &$header) {
+            if (isset($texts[$header['slug'] ?? ''])) {
+                $header['text'] = i::__($texts[$header['slug']]);
+            }
+        }
+        unset($header);
+
+        self::addColumn($headers);
+    }
 
     // Logo depois do resultado do avaliador; no fim, se a coluna não vier.
     static function addColumn(array &$headers): void
