@@ -14,6 +14,8 @@ Pelo mesmo mecanismo, a resolução substitui todas as ocorrências do namespace
 
 Adicione `MDC` à lista `plugins` da configuração e defina no ambiente `MDC_OPPORTUNITY_ID`, o id da oportunidade do programa, e `MDC_SEAL_ID`, o id do selo "Mestra e Mestre da Cultura", que o gestor cria com o texto do certificado (sem padrão: os ids mudam por ambiente). As chaves são lidas pelo plugin, e não pelo tema, porque os jobs rodam pela linha de comando como site principal. A oportunidade do programa precisa estar no subsite dos Mestres: é o subsite dela que diz para onde vão as páginas do programa abertas em outro site.
 
+Na configuração do subsite dos Mestres, ligue "Filtrar oportunidades do subsite", "Filtrar projetos do subsite" e "Filtrar eventos do subsite" (`filter_subsite_opportunity`, `filter_subsite_project` e `filter_subsite_event`): sem isso, o saasSuperAdmin vê no subsite as oportunidades, os projetos e os eventos dos outros subsites. Agentes ficam sem filtro: mestres e moderadores podem ter se cadastrado por outro subsite.
+
 ## Componentes
 
 Os componentes Vue ficam em `components/` e o visual deles fica no tema `MestresDaCultura`. A exceção é a ficha da inscrição, uma tela do BaseV1 onde o CSS do tema não chega: o estilo dela fica aqui, em `assets-src/sass/` (compilado com `pnpm run build` em `assets/css/plugin-MDC.css`).
