@@ -16,10 +16,11 @@ use Tests\Builders\PhasePeriods\Open;
 use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\UserDirector;
 
-// No subsite dos Mestres, o sino e a lista de notificações de quem não é admin deixam de fora as de outros editais.
+// No subsite dos Mestres, o sino e a lista de notificações deixam de fora as de outros editais e outros subsites.
 class NotificationScopeTest extends TestCase
 {
     use OpportunityBuilder;
+    use ProgramSubsite;
     use UserDirector;
 
     private function createOpportunity(): Opportunity
@@ -128,10 +129,43 @@ class NotificationScopeTest extends TestCase
         $this->assertSame([[], 0], $this->seenBy($admin));
     }
 
+    // No subsite dos Mestres, ficam de fora os alertas de segurança que citam no texto entidades de outros subsites.
+    function testSecurityAlertsOfOtherSubsitesAreLeftOut()
+    {
+        $fixed = $this->createOpportunity();
+        $other = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        // Grava só a linha do projeto, para o alerta citar.
+        $project = (int) $this->app->conn->fetchOne("INSERT INTO project (id, name, create_timestamp, status, type, agent_id) VALUES (nextval('project_id_seq'), 'Fora', now(), 1, 1, :owner) RETURNING id", ['owner' => $this->app->user->profile->id]);
+        $local = (int) $this->app->conn->fetchOne("INSERT INTO project (id, name, create_timestamp, status, type, agent_id) VALUES (nextval('project_id_seq'), 'Dos Mestres', now(), 1, 1, :owner) RETURNING id", ['owner' => $this->app->user->profile->id]);
+        $subsite = $this->createProgramSubsite($this->app->user->profile->id);
+        $this->putInSubsite('opportunity', $fixed->id, $subsite);
+        $this->putInSubsite('project', $local, $subsite);
+        $admin = $this->userDirector->createUser('saasSuperAdmin');
+        $this->app->conn->executeStatement('UPDATE agent SET subsite_id = :subsite WHERE id = :id', ['subsite' => $subsite, 'id' => $admin->profile->id]);
+        $alert = fn (string $entity) => $this->notify($admin, "Tentativa de upload de risco bloqueada em {$entity}. Usuário: X. Arquivo: a.php.zip.");
+
+        $alert("Oportunidade #{$other->id}");
+        $alert("Projeto #{$project}");
+        $alert("Agente #{$other->owner->id}");
+        $kept = [$alert("Oportunidade #{$fixed->id}"), $alert("Projeto #{$local}"), $alert("Agente #{$admin->profile->id}")];
+        sort($kept);
+
+        $this->assertSame([$kept, 3], $this->seenBy($admin));
+    }
+
+    function testFindsTheEntitiesAnAlertNames()
+    {
+        $this->assertSame(
+            ['registrations' => [7], 'opportunities' => [5], 'projects' => [3], 'spaces' => [], 'events' => [9], 'agents' => [11]],
+            NotificationScope::referencedIds('Bloqueada em Oportunidade #5. Em Projeto #3, Inscrição #7 e Evento #9. Agente #11.')
+        );
+    }
+
     function testFindsTheRegistrationsAndOpportunitiesALinkPointsTo()
     {
         $this->assertSame(
-            ['registrations' => [12, 34, 56], 'opportunities' => [78, 90]],
+            ['registrations' => [12, 34, 56], 'opportunities' => [78, 90], 'projects' => [], 'spaces' => [], 'events' => [], 'agents' => []],
             NotificationScope::referencedIds('<a href="http://x/inscricao/12/">a</a> <a href="https://y/avaliacao/34">b</a> '
                 . '<a href="/inscricoes/registrationEdit/56/">c</a> <a href="http://z/oportunidade/78/">d</a> '
                 . '<a href="http://z/opportunity/edit/90/#config">e</a> <a href="http://z/agente/11/">f</a>')
