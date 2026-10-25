@@ -137,6 +137,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->sendEachEvaluationOnce();
         $this->passOnTheDisabledModeratorsWork();
         $this->adjustTheRegistrationsList();
+        $this->showEvaluationSentDate();
         $this->keepOnePlacePerModerator();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
@@ -242,6 +243,48 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
             if ($component === 'opportunity-registrations-table' && Plugin::isTheme()) {
                 $this->enqueueScript('components', 'mdc-registrations-table', 'js/registrations-table.js', ['opportunity-registrations-table']);
+            }
+        }, 1000);
+    }
+
+    // Ver Services\EvaluationsTable. Como no Cultura Viva: a data entra na consulta e sai formatada só na lista de
+    // avaliações, aqui só na do programa.
+    private function showEvaluationSentDate(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+        $isProgramList = function () use ($app, $plugin): bool {
+            $request = $app->request;
+
+            return Plugin::isTheme() && $request && $request->controllerId === 'opportunity' && $request->action === 'findEvaluations'
+                && $plugin->fixedOpportunity()->isConfigured()
+                && $plugin->fixedOpportunity()->matches($app->repo('Opportunity')->find((int) $request->get('@opportunity')));
+        };
+
+        $app->hook('ApiQuery(RegistrationEvaluation).params', function (&$params) use ($isProgramList) {
+            if (!empty($params['@select']) && !str_contains($params['@select'], 'sentTimestamp') && $isProgramList()) {
+                $params['@select'] .= ',sentTimestamp';
+            }
+        });
+
+        $app->hook('ApiQuery(RegistrationEvaluation).findResult', function (&$result) use ($isProgramList) {
+            if ($isProgramList()) {
+                Services\EvaluationsTable::format($result);
+            }
+        });
+
+        $app->hook('component(opportunity-evaluations-table).additionalHeaders', function (&$headers) use ($app, $plugin) {
+            $phase = $app->view->controller->requestedEntity ?? null;
+
+            if (Plugin::isTheme() && $plugin->fixedOpportunity()->isConfigured() && $plugin->fixedOpportunity()->matches($phase)) {
+                Services\EvaluationsTable::addColumn($headers);
+                $app->view->jsObject['config']['mdcEvaluationsTable'] = ['opportunity' => $phase->id, 'visible' => [Services\EvaluationsTable::SLUG], 'tables' => Services\EvaluationsTable::TABLES];
+            }
+        });
+
+        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
+            if ($component === 'opportunity-evaluations-table' && Plugin::isTheme()) {
+                $this->enqueueScript('components', 'mdc-evaluations-table', 'js/evaluations-table.js', ['opportunity-evaluations-table']);
             }
         }, 1000);
     }
