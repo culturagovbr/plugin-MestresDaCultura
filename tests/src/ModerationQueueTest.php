@@ -233,14 +233,14 @@ class ModerationQueueTest extends TestCase
         $this->assertTrue($this->exists($draft), 'O rascunho fica com o core');
     }
 
-    // O mesmo moderador incluído duas vezes na comissão: desabilitado numa relação, segue ativo pela outra.
+    // Com o moderador duas vezes na comissão, desabilitado numa relação e ativo pela outra, o rascunho fica.
     function testWithAnotherEnabledRelationTheDraftsStay()
     {
         $this->createProgram(['Moderadora A', 'Moderadora B']);
         $holder = $this->holder();
         $draft = $this->evaluate($holder, RegistrationEvaluation::STATUS_DRAFT);
-        $this->login($this->app->repo('User')->find($this->superAdmin->id));
-        $this->registration()->evaluationMethodConfiguration->createAgentRelation($this->app->repo('Agent')->find($holder->agent->id), 'Moderação', true);
+        $this->app->conn->executeStatement('INSERT INTO agent_relation (agent_id, object_type, object_id, type, has_control, create_timestamp, status) SELECT agent_id, object_type, object_id, type, has_control, now(), status FROM agent_relation WHERE id = :id', ['id' => $holder->id]);
+        $this->app->em->clear();
 
         $this->disable($holder);
 
