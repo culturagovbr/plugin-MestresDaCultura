@@ -42,15 +42,20 @@ class DisabledEntitiesAccessTest extends TestCase
         }
     }
 
-    function testSearchOfDisabledEntityIsAllowedForAdmin()
+    // O gestor do subsite (admin) segue com os agentes, sem espaços e projetos.
+    function testTheManagerKeepsOnlyTheAgents()
     {
         $this->login($this->userDirector->createUser('admin'));
 
-        foreach (self::DISABLED as $entity) {
-            $this->assertStatus200(
-                $this->requestFactory->GET('search', $entity),
-                "A busca de {$entity} deve liberar administrador"
-            );
+        $this->assertStatus200($this->requestFactory->GET('search', 'agents'), 'A busca de agentes segue com o gestor');
+
+        foreach (['spaces', 'projects'] as $entity) {
+            $this->assertStatus404($this->requestFactory->GET('search', $entity), "A busca de {$entity} recusa o gestor");
+            $this->assertStatus404($this->requestFactory->GET('panel', $entity), "A lista de {$entity} no painel recusa o gestor");
+        }
+
+        foreach (['space', 'project'] as $controller) {
+            $this->assertStatus404($this->requestFactory->GET($controller, 'create'), "A criação de {$controller} recusa o gestor");
         }
     }
 
@@ -138,11 +143,23 @@ class DisabledEntitiesAccessTest extends TestCase
         );
     }
 
-    function testDisabledEntityRemainsOpenForSaasSuperAdmin()
+    // Espaços não são usados no subsite, nem pelo saasSuperAdmin. Projetos seguem com ele: a oportunidade do programa
+    // pertence a um projeto, configurado em cada ambiente.
+    function testSpacesAreClosedEvenForTheSaasSuperAdmin()
     {
         $this->login($this->userDirector->createUser('saasSuperAdmin'));
 
-        foreach (self::DISABLED as $entity) {
+        $this->assertStatus404($this->requestFactory->GET('search', 'spaces'), 'A busca de espaços recusa o saasSuperAdmin');
+        $this->assertStatus404($this->requestFactory->GET('panel', 'spaces'), 'A lista de espaços no painel recusa o saasSuperAdmin');
+        $this->assertStatus404($this->requestFactory->GET('space', 'create'), 'A criação de espaço recusa o saasSuperAdmin');
+        $this->assertStatus404($this->requestFactory->POST('space', 'index', [], ['name' => 'Teste']), 'A gravação de espaço recusa o saasSuperAdmin');
+    }
+
+    function testAgentsAndProjectsRemainOpenForSaasSuperAdmin()
+    {
+        $this->login($this->userDirector->createUser('saasSuperAdmin'));
+
+        foreach (['agents', 'projects'] as $entity) {
             $this->assertStatus200(
                 $this->requestFactory->GET('search', $entity),
                 "A busca de {$entity} deve liberar o super administrador do SaaS"

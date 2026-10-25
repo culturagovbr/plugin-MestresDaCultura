@@ -13,6 +13,7 @@ use Tests\Traits\UserDirector;
 class OpportunityAccessByUrlTest extends TestCase
 {
     use OpportunityBuilder;
+    use ProgramSubsite;
     use RequestFactory;
     use UserDirector;
 
@@ -82,18 +83,32 @@ class OpportunityAccessByUrlTest extends TestCase
         $this->assertNotEquals(404, $this->statusOf('single', $phase->id), 'A fase da oportunidade fixa precisa abrir');
     }
 
-    function testAdminIsNotBlocked()
+    // O gestor do subsite (admin), como o mestre, só alcança o programa.
+    function testTheManagerReachesOnlyTheProgram()
     {
         $fixed = $this->createOpportunity();
         $other = $this->createOpportunity();
         $this->configure($fixed);
         $this->login($this->userDirector->createUser('admin'));
 
-        $this->assertNotEquals(
-            404,
-            $this->statusOf('single', $other->id),
-            'Administrador precisa alcançar qualquer oportunidade'
-        );
+        $this->assertEquals(404, $this->statusOf('single', $other->id), 'Outra oportunidade não abre para o gestor');
+        $this->assertNotEquals(404, $this->statusOf('single', $fixed->id), 'O programa abre');
+    }
+
+    // O saasSuperAdmin abre as oportunidades do subsite dos Mestres, e não as dos outros.
+    function testTheSaasSuperAdminReachesOnlyTheProgramSubsite()
+    {
+        $fixed = $this->createOpportunity();
+        $sibling = $this->createOpportunity();
+        $other = $this->createOpportunity();
+        $this->configure($fixed);
+        $subsite = $this->createProgramSubsite($fixed->owner->id);
+        $this->putInSubsite('opportunity', $fixed->id, $subsite);
+        $this->putInSubsite('opportunity', $sibling->id, $subsite);
+        $this->login($this->userDirector->createUser('saasSuperAdmin'));
+
+        $this->assertNotEquals(404, $this->statusOf('single', $sibling->id), 'Outra oportunidade do subsite dos Mestres abre');
+        $this->assertEquals(404, $this->statusOf('edit', $other->id), 'A de outro subsite não abre');
     }
 
     function testEverythingIsBlockedWhenTheOpportunityIsNotConfigured()

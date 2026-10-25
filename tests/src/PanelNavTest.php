@@ -29,6 +29,7 @@ class PanelNavTest extends TestCase
                     ['route' => 'panel/opportunities', 'label' => 'Minhas oportunidades'],
                     ['route' => 'panel/registrations', 'label' => 'Minhas inscrições'],
                     ['route' => 'panel/evaluations', 'label' => 'Minhas avaliações'],
+                    ['route' => 'panel/validations', 'label' => 'Minhas validações'],
                 ],
                 'condition' => fn() => $app->isEnabled('opportunities'),
             ],
@@ -44,6 +45,11 @@ class PanelNavTest extends TestCase
                 'label' => 'Administração',
                 'column' => 'right',
                 'items' => [['route' => 'panel/seals', 'label' => 'Gestão de Selos']],
+            ],
+            'more' => [
+                'label' => 'Mais',
+                'column' => 'right',
+                'items' => [['route' => 'panel/apps', 'label' => 'Meus aplicativos']],
             ],
             'user' => [
                 'label' => 'Usuário Logado',
@@ -88,8 +94,12 @@ class PanelNavTest extends TestCase
         $nav = $this->applyNav();
         $labels = $this->labels($nav);
 
-        foreach (['Painel de Controle', 'Minhas oportunidades', 'Minhas inscrições', 'Meus Agentes', 'Meus Espaços', 'Gestão de Selos'] as $expected) {
+        foreach (['Painel de Controle', 'Minhas oportunidades', 'Minhas inscrições', 'Meus Agentes', 'Gestão de Selos'] as $expected) {
             $this->assertContains($expected, $labels, "saasSuperAdmin não pode perder \"{$expected}\" do menu");
+        }
+
+        foreach (['Meus Espaços', 'Meus aplicativos', 'Minhas validações'] as $unused) {
+            $this->assertNotContains($unused, $labels, "\"{$unused}\" leva a uma tela que o subsite não usa");
         }
 
         $this->assertArrayHasKey('mdc-criar', $nav, 'O grupo do programa deve ser acrescentado ao menu do core');
@@ -127,7 +137,26 @@ class PanelNavTest extends TestCase
 
         $this->assertNotContains('Meus Agentes', $labels, 'Admin mantém o menu enxuto: só saasSuperAdmin é preservado');
         $this->assertContains('Gestão de Selos', $labels, 'O grupo de administração é preservado');
-        $this->assertContains('Minhas oportunidades', $labels, 'Minhas oportunidades passa para o grupo de administração');
+        $this->assertNotContains('Minhas oportunidades', $labels, 'O gestor chega ao programa pela Gestão do cadastro');
+    }
+
+    // A trilha do gestor não leva a "Minhas oportunidades".
+    function testTheManagerBreadcrumbSkipsMyOpportunities()
+    {
+        $opportunity = $this->createProgramOpportunity();
+        $crumbs = function () use ($opportunity) {
+            $this->app->view->breadcrumb = [];
+            $this->app->view->addOpportunityBreadcramb('Lista de inscrições', $opportunity);
+
+            return array_column($this->app->view->breadcrumb, 'label');
+        };
+
+        $this->login($this->userDirector->createUser('admin'));
+        $this->assertNotContains('Minhas oportunidades', $crumbs());
+        $this->assertContains('Lista de inscrições', $crumbs());
+
+        $this->login($this->userDirector->createUser('saasSuperAdmin'));
+        $this->assertContains('Minhas oportunidades', $crumbs(), 'O saasSuperAdmin segue como no core');
     }
 
     function testOnlyAdminsSeeTheTreeCuration()

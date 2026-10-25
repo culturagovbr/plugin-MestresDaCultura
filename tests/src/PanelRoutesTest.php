@@ -68,12 +68,35 @@ class PanelRoutesTest extends TestCase
         }
     }
 
-    function testAdminKeepsEveryScreen()
+    // Aplicativos e validações não abrem no subsite, nem para o gestor nem para o saasSuperAdmin.
+    function testUnusedScreensAreClosedForEveryone()
+    {
+        foreach (['admin', 'saasSuperAdmin'] as $role) {
+            $user = $this->userDirector->createUser($role);
+
+            foreach (['apps', 'my-app', 'validations', 'accountability'] as $action) {
+                $this->assertEquals(404, $this->statusOf($user, $action), "panel/{$action} não abre para {$role}");
+            }
+
+            $this->login($user);
+            $this->assertStatus404($this->requestFactory->POST('app', 'index', [], ['name' => 'Teste']), "A criação de aplicativo recusa {$role}");
+        }
+    }
+
+    function testTheManagerKeepsTheAdministrationScreens()
     {
         $admin = $this->userDirector->createUser('admin');
 
-        foreach (['apps', 'validations'] as $action) {
-            $this->assertNotEquals(404, $this->statusOf($admin, $action), "panel/{$action} segue aberto para o admin");
+        foreach (['seals', 'user-management'] as $action) {
+            $this->assertNotEquals(404, $this->statusOf($admin, $action), "panel/{$action} segue aberto para o gestor");
         }
+    }
+
+    // "Minhas oportunidades" só abre para o saasSuperAdmin.
+    function testMyOpportunitiesOpensOnlyForTheSaasSuperAdmin()
+    {
+        $this->assertEquals(404, $this->statusOf($this->userDirector->createUser('admin'), 'opportunities'), 'O gestor não abre');
+        $this->assertEquals(404, $this->statusOf($this->userDirector->createUser(), 'opportunities'), 'O mestre não abre');
+        $this->assertNotEquals(404, $this->statusOf($this->userDirector->createUser('saasSuperAdmin'), 'opportunities'), 'O saasSuperAdmin abre');
     }
 }

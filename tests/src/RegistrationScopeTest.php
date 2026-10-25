@@ -13,7 +13,7 @@ use Tests\Builders\PhasePeriods\Open;
 use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\UserDirector;
 
-// No subsite, a API de inscrições só alcança a oportunidade do programa e as fases dela.
+// No subsite, a API de inscrições só alcança a oportunidade do programa e as fases dela, para todos.
 class RegistrationScopeTest extends TestCase
 {
     use OpportunityBuilder;
@@ -88,7 +88,8 @@ class RegistrationScopeTest extends TestCase
         $this->assertSame([$inPhase->id], $this->idsFound($master, ['opportunity' => API::EQ($phase->id)]), 'As fases do programa seguem na consulta');
     }
 
-    function testAdminKeepsSeeingEveryRegistration()
+    // Nada de outros subsites no subsite dos Mestres, nem para o gestor nem para o saasSuperAdmin.
+    function testTheManagerAndTheSaasSuperAdminSeeOnlyTheProgramRegistrations()
     {
         $fixed = $this->createOpportunity();
         $other = $this->createOpportunity();
@@ -97,12 +98,9 @@ class RegistrationScopeTest extends TestCase
         $inFixed = $this->registrationOf($master, $fixed);
         $inOther = $this->registrationOf($master, $other);
 
-        // Os números de inscrição são sorteados: compara sem a ordem.
-        $found = $this->idsFound($this->userDirector->createUser('admin'), ['id' => API::IN([$inFixed->id, $inOther->id])]);
-        $expected = [$inFixed->id, $inOther->id];
-        sort($found);
-        sort($expected);
-
-        $this->assertSame($expected, $found, 'O admin segue vendo tudo, como no core');
+        foreach (['admin', 'saasSuperAdmin'] as $role) {
+            $found = $this->idsFound($this->userDirector->createUser($role), ['id' => API::IN([$inFixed->id, $inOther->id])]);
+            $this->assertSame([$inFixed->id], $found, "{$role} só vê o cadastro do programa");
+        }
     }
 }

@@ -21,6 +21,7 @@ use Tests\Traits\UserDirector;
 class SealScopeTest extends TestCase
 {
     use OpportunityBuilder;
+    use ProgramSubsite;
     use RequestFactory;
     use UserDirector;
 
@@ -85,11 +86,33 @@ class SealScopeTest extends TestCase
 
     function testTheApiBringsOnlyTheProgramSealToWhoIsNotAdmin()
     {
-        $visitor = $this->userDirector->createUser();
-        $admin = $this->userDirector->createUser('admin');
+        $this->assertSame([$this->programSeal->id], $this->sealIds($this->userDirector->createUser()), 'Só o selo do programa');
+    }
 
-        $this->assertSame([$this->programSeal->id], $this->sealIds($visitor), 'Só o selo do programa');
-        $this->assertContains($this->otherSeal->id, $this->sealIds($admin), 'O admin segue vendo todos');
+    // O gestor e o saasSuperAdmin veem só os selos do subsite dos Mestres: na Gestão de selos, nos selos do agente e nas
+    // páginas de selo.
+    function testAdminsSeeOnlyTheProgramSubsiteSeals()
+    {
+        $manager = $this->userDirector->createUser('saasSuperAdmin');
+        $this->login($manager);
+        $fixed = $this->opportunityBuilder->reset(owner: $manager->profile, owner_entity: $manager->profile)->fillRequiredProperties()->save()->getInstance();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $localSeal = (new SealBuilder)->reset($manager->profile)->fillRequiredProperties()->save()->getInstance();
+        $subsite = $this->createProgramSubsite($manager->profile->id);
+        $this->putInSubsite('opportunity', $fixed->id, $subsite);
+        $this->putInSubsite('seal', $this->programSeal->id, $subsite);
+        $this->putInSubsite('seal', $localSeal->id, $subsite);
+        $expected = [$this->programSeal->id, $localSeal->id];
+        sort($expected);
+
+        foreach (['admin', 'saasSuperAdmin'] as $role) {
+            $user = $this->userDirector->createUser($role);
+
+            $this->assertSame($expected, $this->sealIds($user), "{$role}: só os selos do subsite dos Mestres");
+            $this->assertSame([$this->programSeal->id], $this->agentApiSeals($user, 'find'), "{$role}: o agente traz só os selos do subsite");
+            $this->assertEquals(404, $this->statusOf($user, 'single', $this->otherSeal->id), "{$role}: a página de selo de fora não abre");
+            $this->assertNotEquals(404, $this->statusOf($user, 'single', $localSeal->id), "{$role}: a de um selo do subsite abre");
+        }
     }
 
     function testTheAgentApiBringsOnlyTheProgramSeal()

@@ -14,8 +14,8 @@ use Tests\Enums\EvaluationMethods;
 use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\UserDirector;
 
-// Lista de avaliações do programa na gestão: a data de envio de cada parecer, como no Cultura Viva
-// (themes/CulturaViva/Theme.php). As outras oportunidades não mudam.
+// Lista de avaliações do programa na gestão: a data de envio de cada parecer; as outras oportunidades não aparecem
+// no subsite.
 class EvaluationsTableTest extends TestCase
 {
     use OpportunityBuilder;
@@ -95,15 +95,14 @@ class EvaluationsTableTest extends TestCase
         $this->assertSame('20/10/2026 14:35', $row['evaluation'][EvaluationsTable::SENT] ?? null);
     }
 
-    function testOtherOpportunitiesFollowTheCore()
+    function testOtherOpportunitiesListNothingInTheSubsite()
     {
         $this->evaluationPhaseWithASentEvaluation();
         $program = $this->app->config[FixedOpportunity::CONFIG_KEY];
         $phase = $this->evaluationPhaseWithASentEvaluation();
         $this->app->config[FixedOpportunity::CONFIG_KEY] = $program;
 
-        [$row] = $this->listRows($phase) + [null];
-        $this->assertNotNull($row, 'A lista traz o parecer');
-        $this->assertArrayNotHasKey(EvaluationsTable::SENT, $row['evaluation'] ?? []);
+        // No subsite dos Mestres, nem o saasSuperAdmin vê as inscrições de outra oportunidade (Services\RegistrationScope).
+        $this->assertSame([], $this->listRows($phase), 'A lista de outra oportunidade vem vazia');
     }
 }

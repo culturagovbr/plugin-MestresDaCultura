@@ -15,7 +15,7 @@ use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\UserDirector;
 
 // Lista de cadastros do programa na gestão: a situação da moderação no lugar do resultado da avaliação documental, a
-// última atualização à vista e sem as colunas que o programa não usa. As outras oportunidades não mudam.
+// última atualização à vista e sem as colunas que o programa não usa; as outras oportunidades não aparecem no subsite.
 class RegistrationsTableTest extends TestCase
 {
     use OpportunityBuilder;
@@ -119,6 +119,7 @@ class RegistrationsTableTest extends TestCase
         $this->assertSame('Devolvido ao mestre', $rows[$returned->id][RegistrationsTable::MODERATION] ?? null);
         $this->assertSame('Reenviado', $rows[$resent->id][RegistrationsTable::MODERATION] ?? null);
 
-        $this->assertArrayNotHasKey(RegistrationsTable::MODERATION, $this->listRows($manager, $other)[$elsewhere->id] ?? [], 'Outra oportunidade segue como no core');
+        // No subsite dos Mestres, nem o saasSuperAdmin vê as inscrições de outra oportunidade.
+        $this->assertArrayNotHasKey($elsewhere->id, $this->listRows($manager, $other), 'Outra oportunidade não lista nada no subsite');
     }
 }

@@ -116,7 +116,8 @@ class NotificationScopeTest extends TestCase
         }
     }
 
-    function testAdminKeepsEveryNotification()
+    // Nada de outros editais no subsite dos Mestres, nem para o gestor.
+    function testTheManagerAlsoLosesOtherProgramsNotifications()
     {
         $fixed = $this->createOpportunity();
         $other = $this->createOpportunity();
@@ -124,10 +125,7 @@ class NotificationScopeTest extends TestCase
         $admin = $this->userDirector->createUser('admin');
         $this->notify($admin, "Convite. <a href=\"http://localhost/oportunidade/{$other->id}/\">Ver</a>.");
 
-        [$ids, $count] = $this->seenBy($admin);
-
-        $this->assertCount(1, $ids);
-        $this->assertSame(1, $count);
+        $this->assertSame([[], 0], $this->seenBy($admin));
     }
 
     function testFindsTheRegistrationsAndOpportunitiesALinkPointsTo()

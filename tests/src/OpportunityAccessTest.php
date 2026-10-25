@@ -88,15 +88,14 @@ class OpportunityAccessTest extends TestCase
         );
     }
 
-    function testCreateButtonIsHiddenForAdmin()
+    // "Minhas oportunidades" é só do saasSuperAdmin.
+    function testMyOpportunitiesIsClosedForAdmin()
     {
         $this->login($this->userDirector->createUser('admin'));
 
-        $this->assertStringNotContainsString(
-            '<create-opportunity',
-            $this->panelOpportunitiesActions(),
-            'Nenhum outro papel cria oportunidade por aqui'
-        );
+        foreach (['search', 'panel'] as $controller) {
+            $this->assertStatus404($this->requestFactory->GET($controller, 'opportunities'), "A listagem de oportunidades em {$controller} recusa o gestor");
+        }
     }
 
     function testOpportunityBrowsingIsBlockedForRegularUser()
@@ -111,13 +110,13 @@ class OpportunityAccessTest extends TestCase
         }
     }
 
-    function testOpportunityBrowsingIsAllowedForAdmin()
+    function testOpportunityBrowsingIsAllowedForSaasSuperAdmin()
     {
-        $this->login($this->userDirector->createUser('admin'));
+        $this->login($this->userDirector->createUser('saasSuperAdmin'));
 
         $this->assertStatus200(
             $this->requestFactory->GET('search', 'opportunities'),
-            'A listagem de oportunidades segue acessível a administrador'
+            'A listagem de oportunidades segue acessível ao saasSuperAdmin'
         );
     }
 
