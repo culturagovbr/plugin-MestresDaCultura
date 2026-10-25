@@ -9,15 +9,22 @@ use MapasCulturais\Entities\Registration;
 use MapasCulturais\UserInterface;
 
 /**
- * No subsite dos Mestres, as notificações de outros editais ficam fora do sino e da lista. O core e os plugins gravam a
- * notificação como texto, quase sempre sem pedido vinculado; o edital sai dos links do texto (o número da inscrição
- * ou da oportunidade, não o domínio) e, quando há, do pedido. Sem link nem pedido, não há como saber: fica.
+ * Tira do sino e da lista, no subsite dos Mestres, as notificações de outros editais. O edital sai dos links do texto,
+ * do pedido vinculado e da entidade citada ("em Oportunidade #5"); sem nenhum deles, a notificação fica.
  */
 class NotificationScope
 {
     private const REGISTRATION_LINK = '#/(?:inscricao|avaliacao)/(\d+)|/(?:registration|inscricoes)/[A-Za-z]+/(\d+)#';
 
     private const OPPORTUNITY_LINK = '#/(?:oportunidade|gestao-de-oportunidade|configuracao-de-formulario|lista-de-inscricoes|lista-de-avaliacoes|avaliacoes)/(\d+)|/opportunity/[A-Za-z]+/(\d+)#';
+
+    /** A entidade citada no texto, como "Oportunidade #5" nos alertas de segurança. */
+    private const TEXT_REFERENCE = '/\b(Oportunidade|Inscrição|Projeto|Espaço|Evento|Agente) #(\d+)/u';
+
+    private const TEXT_KINDS = ['Oportunidade' => 'opportunities', 'Inscrição' => 'registrations', 'Projeto' => 'projects', 'Espaço' => 'spaces', 'Evento' => 'events', 'Agente' => 'agents'];
+
+    /** Projetos, espaços, eventos e agentes de outro subsite (ver FixedOpportunity::subsiteId) tiram a notificação. */
+    private const SUBSITE_TABLES = ['projects' => 'project', 'spaces' => 'space', 'events' => 'event', 'agents' => 'agent'];
 
     private const CACHE_SECONDS = 86400;
 
@@ -35,7 +42,8 @@ class NotificationScope
     {
         $app = App::i();
         $state = $app->conn->fetchAssociative('SELECT count(*) AS total, max(id) AS last FROM notification WHERE user_id = :user', ['user' => $user->id]);
-        $key = "mdc:hidden-notifications:{$user->id}:{$state['total']}:{$state['last']}";
+        // A versão muda quando a regra muda: o cálculo guardado com a regra antiga não vale mais.
+        $key = "mdc:hidden-notifications:v3:{$user->id}:{$state['total']}:{$state['last']}";
 
         if ($app->cache->contains($key)) {
             return $app->cache->fetch($key);
@@ -74,6 +82,7 @@ class NotificationScope
         }
 
         $opportunityOf = $this->opportunitiesOf($references);
+        $outsideTheSubsite = $this->outsideTheSubsite($references);
         $allowed = $this->fixedOpportunity->ids();
         $hidden = [];
 
@@ -88,15 +97,22 @@ class NotificationScope
                     }
                 }
             }
+
+            foreach (array_keys(self::SUBSITE_TABLES) as $kind) {
+                if (array_intersect($ids[$kind] ?? [], $outsideTheSubsite[$kind])) {
+                    $hidden[] = $notification;
+                    continue 2;
+                }
+            }
         }
 
         return $hidden;
     }
 
-    /** @return array{registrations: int[], opportunities: int[]} */
+    /** @return array{registrations: int[], opportunities: int[], projects: int[], spaces: int[], events: int[], agents: int[]} */
     static function referencedIds(string $message): array
     {
-        $found = ['registrations' => [], 'opportunities' => []];
+        $found = ['registrations' => [], 'opportunities' => [], 'projects' => [], 'spaces' => [], 'events' => [], 'agents' => []];
 
         foreach (['registrations' => self::REGISTRATION_LINK, 'opportunities' => self::OPPORTUNITY_LINK] as $kind => $pattern) {
             preg_match_all($pattern, $message, $matches, PREG_SET_ORDER);
@@ -106,7 +122,42 @@ class NotificationScope
             }
         }
 
+        preg_match_all(self::TEXT_REFERENCE, $message, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as [, $name, $id]) {
+            $found[self::TEXT_KINDS[$name]][] = (int) $id;
+        }
+
         return $found;
+    }
+
+    /**
+     * Os projetos, espaços, eventos e agentes citados que são de outro subsite; o que não existe mais fica de fora.
+     *
+     * @return array<string, int[]>
+     */
+    private function outsideTheSubsite(array $references): array
+    {
+        $conn = App::i()->conn;
+        $subsite = $this->fixedOpportunity->subsiteId();
+        $result = [];
+
+        foreach (self::SUBSITE_TABLES as $kind => $table) {
+            $wanted = array_values(array_unique(array_merge([], ...array_map(fn ($ids) => $ids[$kind] ?? [], array_values($references)))));
+            $result[$kind] = [];
+
+            if ($wanted) {
+                $rows = $conn->fetchAllKeyValue("SELECT id, subsite_id FROM {$table} WHERE id IN (" . implode(',', array_map('intval', $wanted)) . ')');
+
+                foreach ($rows as $id => $owner) {
+                    if (($owner === null ? null : (int) $owner) !== $subsite) {
+                        $result[$kind][] = (int) $id;
+                    }
+                }
+            }
+        }
+
+        return $result;
     }
 
     private static function kindOf(string $class): ?string
