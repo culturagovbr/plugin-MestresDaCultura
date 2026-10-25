@@ -137,6 +137,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->sendEachEvaluationOnce();
         $this->passOnTheDisabledModeratorsWork();
         $this->adjustTheRegistrationsList();
+        $this->keepOnePlacePerModerator();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
         $this->showModerationToOwner();
@@ -172,6 +173,31 @@ class Plugin extends \MapasCulturais\Plugin
                 $disabled = false;
             }
         });
+    }
+
+    // Ver Services\CommitteeMembership. Como no Cultura Viva: recusa no servidor e aviso na tela, que o componente do
+    // core não mostra o erro da API.
+    private function keepOnePlacePerModerator(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        $app->hook('entity(EvaluationMethodConfigurationAgentRelation).validationErrors', function (&$errors) use ($plugin) {
+            /** @var \MapasCulturais\Entities\EvaluationMethodConfigurationAgentRelation $this */
+            if ($this->isNew() && $plugin->fixedOpportunity()->isConfigured() && $plugin->fixedOpportunity()->matches($this->owner?->opportunity) && Services\CommitteeMembership::alreadyIn($this->owner, $this->group, $this->agent?->id)) {
+                $errors['agent'] = [Services\CommitteeMembership::message()];
+            }
+        });
+
+        $app->hook('component(<<*>>.<<*>>.opportunity-evaluation-committee).texts', function (&$texts) {
+            $texts['mdcAlreadyInCommittee'] = Services\CommitteeMembership::message();
+        });
+
+        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
+            if ($component === 'opportunity-evaluation-committee' && Plugin::isTheme()) {
+                $this->enqueueScript('components', 'mdc-committee-duplicate-guard', 'js/committee-duplicate-guard.js', ['opportunity-evaluation-committee']);
+            }
+        }, 1000);
     }
 
     // Ver Services\RegistrationsTable. Só na lista de cadastros do programa; nas outras oportunidades, como no core.
