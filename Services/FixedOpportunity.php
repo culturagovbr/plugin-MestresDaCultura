@@ -47,6 +47,23 @@ class FixedOpportunity
         return $this->opportunity = $opportunity;
     }
 
+    /**
+     * O subsite dos Mestres, lido no banco: o da oportunidade do programa (null, o site principal); antes de ela ser
+     * configurada, o atual.
+     */
+    function subsiteId(): ?int
+    {
+        $app = App::i();
+        $id = (int) ($app->config[self::CONFIG_KEY] ?? 0);
+        $subsite = $id ? $app->conn->fetchOne('SELECT subsite_id FROM opportunity WHERE id = :id', ['id' => $id]) : false;
+
+        if ($subsite === false) {
+            return $app->getCurrentSubsiteId();
+        }
+
+        return $subsite === null ? null : (int) $subsite;
+    }
+
     // Confere só a chave de configuração, sem avisar no log.
     function isConfigured(): bool
     {

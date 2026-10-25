@@ -20,6 +20,9 @@ class Plugin extends \MapasCulturais\Plugin
     /** Povos e comunidades da planilha do programa que a lista do core não tem. */
     const TRADITIONAL_COMMUNITIES = ['Castanheiras', 'Isqueiros', 'Piaçaveiros', 'Seringueiros'];
 
+    /** Telas do painel que o subsite não usa: não abrem para ninguém, nem para o saasSuperAdmin (ver o menu do tema). */
+    const UNUSED_PANEL_SCREENS = ['spaces', 'apps', 'my-app', 'validations', 'accountability'];
+
     /** Telas do v1 que só exibem a inscrição; as que salvam não entram aqui. */
     private const V1_READING_ACTIONS = ['registrationview', 'registrationevaluationtionformview'];
 
@@ -1004,17 +1007,19 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
-        // O tema roda sobre uma oportunidade fixa: não há o que listar.
+        // O tema roda sobre uma oportunidade fixa: não há o que listar. Só o saasSuperAdmin, que configura a do programa,
+        // lista; o gestor do subsite chega a ela pela Gestão do cadastro (ver addManagementShortcuts).
         $app->hook('GET(<<search|panel>>.opportunities):before', function () use ($app) {
-            if (Plugin::appliesToCurrentUser()) {
+            if (Plugin::isTheme() && !$app->user->is('saasSuperAdmin')) {
                 $app->pass();
             }
         });
 
         // Esconder o link não fecha a porta: sem isto, qualquer oportunidade da instalação
-        // abre por URL direta. Alcança toda ação do controlador, e não só a página.
+        // abre por URL direta. Alcança toda ação do controlador, e não só a página. Vale também para o gestor do
+        // subsite; o saasSuperAdmin, que configura o programa, abre as oportunidades do subsite dos Mestres.
         $app->hook('ALL(opportunity.<<*>>):before', function () use ($app) {
-            if (!Plugin::appliesToCurrentUser()) {
+            if (!Plugin::isTheme()) {
                 return;
             }
 
@@ -1025,6 +1030,15 @@ class Plugin extends \MapasCulturais\Plugin
             }
 
             $opportunity = $app->repo('Opportunity')->find((int) $requested);
+
+            if ($app->user->is('saasSuperAdmin')) {
+                if ($opportunity && $opportunity->subsite?->id !== (new Services\FixedOpportunity)->subsiteId()) {
+                    $app->pass();
+                }
+
+                return;
+            }
+
             $fixed = (new Services\FixedOpportunity)->get();
 
             // A fase é filha da raiz e precisa passar junto: é ela que publica o resultado.
@@ -1168,7 +1182,8 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // Ver Services\RegistrationScope.
+    // Ver Services\RegistrationScope. Para todos no subsite dos Mestres, inclusive o gestor e o saasSuperAdmin: o core
+    // não tem filtro de inscrições por subsite (o de oportunidades, na configuração do subsite, não alcança a inscrição).
     private function scopeRegistrationsToFixedOpportunity(): void
     {
         $app = App::i();
@@ -1176,7 +1191,7 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->hook('ApiQuery(Registration).params', function (&$params) use ($app, $fixedOpportunity) {
             /** @var ApiQuery $this */
-            if ($this->parentQuery || !Plugin::appliesToCurrentUser()) {
+            if ($this->parentQuery || !Plugin::isTheme()) {
                 return;
             }
 
@@ -1264,86 +1279,116 @@ class Plugin extends \MapasCulturais\Plugin
 
     // O menu do subsite dos Mestres só mostra as telas do programa, mas as do Mapa genérico (eventos, aplicativos,
     // validações, prestação de contas) abriam por URL. Para quem não é admin, só estas abrem; a curadoria confere
-    // sozinha quem é curador.
+    // sozinha quem é curador. Aplicativos e validações não são usados no subsite: não abrem para ninguém, nem a gravação
+    // de aplicativo (o controlador `app`).
     private function closeOtherPanelScreens(): void
     {
         $app = App::i();
         $open = ['index', 'my-account', 'deleteaccount', 'terms', 'requireauth', 'registrations', 'evaluations', 'mdc-tree-curation', 'mdc-committee'];
 
         $app->hook('GET(panel.<<*>>):before', function () use ($app, $open) {
-            if (Plugin::appliesToCurrentUser() && !in_array(strtolower($this->action), $open, true)) {
+            $action = strtolower($this->action);
+
+            if (Plugin::isTheme() && in_array($action, Plugin::UNUSED_PANEL_SCREENS, true)) {
+                $app->pass();
+            }
+
+            if (Plugin::appliesToCurrentUser() && !in_array($action, $open, true)) {
+                $app->pass();
+            }
+        });
+
+        $app->hook('ALL(app.<<*>>):before', function () use ($app) {
+            if (Plugin::isTheme()) {
                 $app->pass();
             }
         });
     }
 
-    // No subsite dos Mestres, quem não é admin só vê o selo do programa: na API de selos, nos selos que a API de agentes
-    // devolve e nas páginas de selo e de certificado. Os selos do agente vêm da consulta do agente, não da API de selos,
-    // e são filtrados na saída da API, depois do cache dela, que não separa usuários. O perfil público do mestre já
-    // esconde o bloco de selos do core (_mdc-master-profile.scss) e mostra o do programa no cabeçalho.
+    // No subsite dos Mestres, quem não é admin só vê o selo do programa, e o gestor e o saasSuperAdmin só os selos do
+    // subsite (o do programa e os que criarem nele): na API de selos, nos selos que a API de agentes devolve e nas
+    // páginas de selo e de certificado. Os selos do agente vêm da consulta do agente, não da API de selos, e são
+    // filtrados na saída da API, depois do cache dela, que não separa usuários. O perfil público do mestre já esconde o
+    // bloco de selos do core (_mdc-master-profile.scss) e mostra o do programa no cabeçalho.
     private function showOnlyTheProgramSeal(): void
     {
         $app = App::i();
         $programSeal = $this->programSeal();
-        $applies = fn (): bool => Plugin::appliesToCurrentUser() && $programSeal->configuredId();
+        $fixedOpportunity = $this->fixedOpportunity();
 
-        $keepProgramSeal = function (array &$agents) use ($programSeal): void {
+        // Os ids que a pessoa vê; null, sem filtro (fora do subsite, ou sem o selo do programa configurado).
+        $visible = function () use ($app, $programSeal, $fixedOpportunity): ?array {
+            if (!Plugin::isTheme()) {
+                return null;
+            }
+
+            if (!$app->user->is('admin')) {
+                return $programSeal->configuredId() ? [$programSeal->configuredId()] : null;
+            }
+
+            $subsite = $fixedOpportunity->subsiteId();
+            $sql = $subsite === null ? 'SELECT id FROM seal WHERE subsite_id IS NULL' : 'SELECT id FROM seal WHERE subsite_id = :subsite';
+
+            return array_map('intval', $app->conn->fetchFirstColumn($sql, ['subsite' => $subsite]));
+        };
+
+        $keepVisibleSeals = function (array &$agents, array $ids): void {
             foreach ($agents as &$agent) {
                 foreach (['seals', 'verifiedSeals'] as $key) {
                     if (is_array($agent[$key] ?? null)) {
-                        $agent[$key] = array_values(array_filter($agent[$key], fn ($seal) => (int) ($seal['sealId'] ?? 0) === $programSeal->configuredId()));
+                        $agent[$key] = array_values(array_filter($agent[$key], fn ($seal) => in_array((int) ($seal['sealId'] ?? 0), $ids, true)));
                     }
                 }
             }
         };
 
-        $app->hook('ApiQuery(Seal).params', function (&$params) use ($programSeal, $applies) {
+        $app->hook('ApiQuery(Seal).params', function (&$params) use ($visible) {
             /** @var ApiQuery $this */
-            if ($this->parentQuery || !$applies()) {
+            if ($this->parentQuery || ($ids = $visible()) === null) {
                 return;
             }
 
-            $only = API::EQ($programSeal->configuredId());
+            $only = API::IN($ids ?: [0]);
             $params['id'] = isset($params['id']) ? API::AND($params['id'], $only) : $only;
         });
 
-        $app->hook('API.<<find|findOne>>(agent).result', function ($params, &$result) use ($applies, $keepProgramSeal) {
-            if (!$applies() || !is_array($result)) {
+        $app->hook('API.<<find|findOne>>(agent).result', function ($params, &$result) use ($visible, $keepVisibleSeals) {
+            if (!is_array($result) || ($ids = $visible()) === null) {
                 return;
             }
 
             if (isset($result['id'])) {
                 $one = [&$result];
-                $keepProgramSeal($one);
+                $keepVisibleSeals($one, $ids);
             } else {
-                $keepProgramSeal($result);
+                $keepVisibleSeals($result, $ids);
             }
         });
 
         // A página do perfil leva o agente num JSON para a tela, montado sem passar pela API.
-        $app->hook('view.requestedEntity(Agent).result', function (&$entity) use ($applies, $keepProgramSeal) {
-            if ($applies()) {
+        $app->hook('view.requestedEntity(Agent).result', function (&$entity) use ($visible, $keepVisibleSeals) {
+            if (($ids = $visible()) !== null) {
                 $one = [&$entity];
-                $keepProgramSeal($one);
+                $keepVisibleSeals($one, $ids);
             }
         });
 
-        $app->hook('GET(seal.<<single|sealRelation|printsealrelation>>):before', function () use ($app, $programSeal, $applies) {
-            if (!$applies()) {
+        $app->hook('GET(seal.<<single|sealRelation|printsealrelation>>):before', function () use ($app, $visible) {
+            if (($ids = $visible()) === null) {
                 return;
             }
 
             $id = (int) ($this->data['id'] ?? 0);
             $seal = $this->action === 'single' ? $app->repo('Seal')->find($id) : $app->repo('SealRelation')->find($id)?->seal;
 
-            if (!$seal || !$programSeal->isTheProgramSeal($seal)) {
+            if (!$seal || !in_array($seal->id, $ids, true)) {
                 $app->pass();
             }
         });
     }
 
     // Ver Services\NotificationScope. No parâmetro da consulta, e não no resultado, para o sino (que conta à parte)
-    // bater com a lista.
+    // bater com a lista. Para todos no subsite dos Mestres, inclusive o gestor e o saasSuperAdmin.
     private function leaveOutOtherProgramsNotifications(): void
     {
         $app = App::i();
@@ -1352,7 +1397,7 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->hook('ApiQuery(Notification).params', function (&$params) use ($app, $fixedOpportunity, $scope) {
             /** @var ApiQuery $this */
-            if ($this->parentQuery || !Plugin::appliesToCurrentUser() || $app->user->is('guest') || !$fixedOpportunity->isConfigured()) {
+            if ($this->parentQuery || !Plugin::isTheme() || $app->user->is('guest') || !$fixedOpportunity->isConfigured()) {
                 return;
             }
 
@@ -1363,11 +1408,17 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
+    // Desligadas no tema (config.php): agentes seguem com os admins; projetos, só com o saasSuperAdmin, que configura a
+    // oportunidade do programa (ela pertence a um projeto); espaços não são usados no subsite, por ninguém.
     private function blockDisabledEntities(): void
     {
         $app = \MapasCulturais\App::i();
 
-        $isAllowed = fn (string $entity): bool => $app->isEnabled($entity) || $app->user->is('admin');
+        $isAllowed = fn (string $entity): bool => $app->isEnabled($entity) || match ($entity) {
+            'agents' => $app->user->is('admin'),
+            'projects' => $app->user->is('saasSuperAdmin'),
+            default => false,
+        };
 
         $isOwnProfile = function (mixed $id) use ($app): bool {
             $profile = $app->user->profile ?? null;
