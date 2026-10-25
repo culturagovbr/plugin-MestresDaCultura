@@ -74,17 +74,34 @@ class EvaluationsTableTest extends TestCase
         return json_decode((string) $this->app->response->getBody(), true) ?: [];
     }
 
-    function testTheColumnComesAfterTheModeratorResult()
+    // Os textos falam de moderação, saem as colunas que o programa não usa e a data de envio vem depois do resultado.
+    function testTheProgramColumnsAndTexts()
     {
-        $headers = [
+        $headers = fn () => [
             ['text' => 'inscrição', 'value' => 'number', 'slug' => 'number'],
+            ['text' => 'Agente coletivo', 'value' => 'coletivo', 'slug' => 'coletivo'],
+            ['text' => 'Status das metas', 'value' => 'goalStatuses', 'slug' => 'goalStatuses'],
+            ['text' => 'Faixa', 'value' => 'range', 'slug' => 'range'],
+            ['text' => 'Nº avaliador', 'value' => 'valuer?.committeeSequentialNumber', 'slug' => 'committeeSequentialNumber'],
+            ['text' => 'ID usuário avaliador', 'value' => 'valuer?.user', 'slug' => 'valuerUserId'],
+            ['text' => 'ID agente avaliador', 'value' => 'valuer?.id', 'slug' => 'valuerAgentId'],
+            ['text' => 'avaliador', 'value' => 'valuer?.name', 'slug' => 'evaluator'],
             ['text' => 'Resultado do avaliador', 'value' => 'evaluation?.resultString', 'slug' => 'result'],
             ['text' => 'Ações', 'value' => '', 'slug' => 'delete'],
         ];
 
-        EvaluationsTable::addColumn($headers);
+        $all = $headers();
+        EvaluationsTable::adjust($all, false);
+        $this->assertSame(
+            ['inscrição', 'Nº moderador', 'ID usuário do moderador', 'ID agente do moderador', 'Moderador', 'Resultado da moderação', 'Data de envio', 'Ações'],
+            array_column($all, 'text'),
+            'A lista de todas as avaliações, do gestor'
+        );
 
-        $this->assertSame(['inscrição', 'Resultado do avaliador', 'Data de envio', 'Ações'], array_column($headers, 'text'));
+        // Na lista do próprio moderador, saem as colunas sobre o moderador.
+        $own = $headers();
+        EvaluationsTable::adjust($own, true);
+        $this->assertSame(['inscrição', 'Resultado da sua moderação', 'Data de envio', 'Ações'], array_column($own, 'text'), 'A lista do próprio moderador');
     }
 
     function testTheListShowsWhenEachEvaluationWasSent()

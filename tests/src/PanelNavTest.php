@@ -159,6 +159,23 @@ class PanelNavTest extends TestCase
         $this->assertContains('Minhas oportunidades', $crumbs(), 'O saasSuperAdmin segue como no core');
     }
 
+    // Na trilha do moderador, "Moderação de cadastros" no lugar de "Minhas avaliações".
+    function testTheModeratorBreadcrumbSaysModeration()
+    {
+        $opportunity = $this->createProgramOpportunity();
+        $committee = current(array_filter(array_map(fn ($phase) => $phase->evaluationMethodConfiguration, $opportunity->allPhases)));
+        $moderator = $this->userDirector->createUser();
+        $committee->createAgentRelation($this->app->repo('Agent')->find($moderator->profile->id), 'Moderação', true);
+
+        $this->login($moderator);
+        $this->app->view->breadcrumb = [];
+        $this->app->view->addOpportunityBreadcramb('Lista de avaliações', $this->app->repo('EvaluationMethodConfiguration')->find($committee->id));
+
+        $labels = array_column($this->app->view->breadcrumb, 'label');
+        $this->assertContains('Moderação de cadastros', $labels);
+        $this->assertNotContains('Minhas avaliações', $labels);
+    }
+
     function testOnlyAdminsSeeTheTreeCuration()
     {
         $this->login($this->userDirector->createUser('admin'));
