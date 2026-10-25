@@ -141,6 +141,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->passOnTheDisabledModeratorsWork();
         $this->adjustTheRegistrationsList();
         $this->showEvaluationSentDate();
+        $this->showRoleBlocksInThePanel();
         $this->keepOnePlacePerModerator();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
@@ -248,6 +249,27 @@ class Plugin extends \MapasCulturais\Plugin
                 $this->enqueueScript('components', 'mdc-registrations-table', 'js/registrations-table.js', ['opportunity-registrations-table']);
             }
         }, 1000);
+    }
+
+    // Ver Services\PanelSummary. No ponto de gancho da view do painel do tema, antes de "Meus cadastros", como o aviso
+    // da moderação entra no acompanhamento do cadastro.
+    private function showRoleBlocksInThePanel(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+
+        $app->hook('template(panel.index.mdc-role-blocks):before', function () use ($app, $plugin) {
+            $summary = (new Services\PanelSummary($plugin->fixedOpportunity()))->for($app->user);
+
+            if (!$summary['moderation'] && !$summary['management']) {
+                return;
+            }
+
+            $this->import('mdc-panel-summary');
+            $json = htmlspecialchars(json_encode($summary), ENT_QUOTES);
+
+            echo "<mdc-panel-summary :summary=\"{$json}\"></mdc-panel-summary>";
+        });
     }
 
     // Ver Services\EvaluationsTable. Como no Cultura Viva: a data entra na consulta e sai formatada só na lista de
@@ -883,15 +905,7 @@ class Plugin extends \MapasCulturais\Plugin
                 return;
             }
 
-            $fixed = $fixedOpportunity->get();
-            $items = [['route' => 'opportunity/registrations', 'params' => [$fixed->id], 'icon' => 'registration', 'label' => i::__('Cadastros')]];
-
-            if ($fixed->evaluationMethodConfiguration) {
-                $items[] = ['route' => 'opportunity/allEvaluations', 'params' => [$fixed->id], 'icon' => 'check', 'label' => i::__('Avaliações')];
-                $items[] = ['route' => 'panel/mdc-committee', 'icon' => 'agents', 'label' => i::__('Comissão')];
-            }
-
-            $group = ['mdc-gestao' => ['label' => i::__('Gestão do cadastro'), 'column' => 'left', 'items' => $items]];
+            $group = ['mdc-gestao' => ['label' => i::__('Gestão do cadastro'), 'column' => 'left', 'items' => Services\PanelSummary::shortcuts($fixedOpportunity->get())]];
             $position = array_search('mdc-criar', array_keys($nav), true);
             $nav = $position === false ? $group + $nav : array_slice($nav, 0, $position + 1, true) + $group + $nav;
         }, 1001);
