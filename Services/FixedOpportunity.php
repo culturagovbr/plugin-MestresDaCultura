@@ -15,20 +15,24 @@ class FixedOpportunity
     /** Quantos níveis de pai a conferência sobe: raiz, fase e recurso, com folga. */
     private const MAX_DEPTH = 5;
 
-    private bool $resolved = false;
+    /** O id configurado quando o cache foi montado: o plugin vive o processo inteiro (nos testes, vários). */
+    private ?int $resolvedFor = null;
 
     private ?Opportunity $opportunity = null;
 
     function get(): ?Opportunity
     {
-        if ($this->resolved) {
+        $app = App::i();
+        $id = $app->config[self::CONFIG_KEY] ?? null;
+
+        // O guardado vale para o mesmo id e enquanto o Doctrine o gerencia: depois de um `em->clear` (jobs, testes) ele
+        // fica desligado, com dados velhos.
+        if ($this->resolvedFor === (int) $id && (!$this->opportunity || $app->em->contains($this->opportunity))) {
             return $this->opportunity;
         }
 
-        $this->resolved = true;
-
-        $app = App::i();
-        $id = $app->config[self::CONFIG_KEY] ?? null;
+        $this->resolvedFor = (int) $id;
+        $this->opportunity = null;
 
         if (!$id) {
             $app->log->error('MDC: a oportunidade fixa não está configurada. Defina MDC_OPPORTUNITY_ID no ambiente.');

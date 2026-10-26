@@ -333,7 +333,10 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('GET(opportunity.single):before', function () use ($app, $fixedOpportunity) {
             $opportunity = $this->requestedEntity;
 
-            if (Plugin::isTheme() && $fixedOpportunity->isConfigured() && $fixedOpportunity->matches($opportunity) && !$fixedOpportunity->get()->canUser('@control')) {
+            // Aberta em outro subsite, o redirecionamento para o subsite dos Mestres vem antes (ver Services\SubsiteRedirect).
+            // A oportunidade desta requisição, e não a guardada no serviço: é ela que diz o subsite e a permissão de agora.
+            if (Plugin::isTheme() && $fixedOpportunity->isConfigured() && $fixedOpportunity->matches($opportunity)
+                && Services\SubsiteRedirect::isCurrent($opportunity->subsite) && !$opportunity->canUser('@control')) {
                 $app->redirect($app->createUrl('panel', 'index'));
             }
         });
