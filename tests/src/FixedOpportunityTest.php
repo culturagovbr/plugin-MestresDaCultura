@@ -4,7 +4,6 @@ namespace Tests\MDC;
 
 use MapasCulturais\Entities\Opportunity;
 use MDC\Services\FixedOpportunity;
-use Monolog\Handler\TestHandler;
 use Tests\Abstract\TestCase;
 use Tests\Builders\PhasePeriods\Open;
 use Tests\Traits\OpportunityBuilder;
@@ -13,6 +12,7 @@ use Tests\Traits\UserDirector;
 
 class FixedOpportunityTest extends TestCase
 {
+    use CapturesLog;
     use OpportunityBuilder;
     use RegistrationDirector;
     use UserDirector;
@@ -50,17 +50,9 @@ class FixedOpportunityTest extends TestCase
         );
     }
 
-    private function capturedLog(): TestHandler
-    {
-        $handler = new TestHandler();
-        $this->app->log->pushHandler($handler);
-
-        return $handler;
-    }
-
     function testReturnsNullWhenTheKeyIsAbsent()
     {
-        $log = $this->capturedLog();
+        $log = $this->captureLog();
 
         $this->assertNull(
             $this->withConfiguredId(null)->get(),
@@ -75,7 +67,7 @@ class FixedOpportunityTest extends TestCase
 
     function testReturnsNullWhenTheIdDoesNotExist()
     {
-        $log = $this->capturedLog();
+        $log = $this->captureLog();
 
         $this->assertNull(
             $this->withConfiguredId(999999999)->get(),

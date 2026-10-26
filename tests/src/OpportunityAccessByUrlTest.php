@@ -12,6 +12,7 @@ use Tests\Traits\UserDirector;
 
 class OpportunityAccessByUrlTest extends TestCase
 {
+    use CapturesLog;
     use OpportunityBuilder;
     use ProgramSubsite;
     use RequestFactory;
@@ -113,6 +114,7 @@ class OpportunityAccessByUrlTest extends TestCase
 
     function testEverythingIsBlockedWhenTheOpportunityIsNotConfigured()
     {
+        $this->captureLog();
         $other = $this->createOpportunity();
         $this->configure(null);
         $this->login($this->userDirector->createUser());
