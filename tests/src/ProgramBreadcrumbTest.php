@@ -11,7 +11,7 @@ class ProgramBreadcrumbTest extends TestCase
     function testTheRegistrationPathGoesThroughThePanel()
     {
         $single = ProgramBreadcrumb::registration('http://x/inscricao/7/', false);
-        $this->assertSame(['Início', 'Painel', 'Cadastro'], array_column($single, 'label'));
+        $this->assertSame(['Início', 'Painel de controle', 'Cadastro'], array_column($single, 'label'));
         $this->assertSame([$this->app->createUrl('site', 'index'), $this->app->createUrl('panel', 'index')], array_column(array_slice($single, 0, 2), 'url'));
         $this->assertArrayNotHasKey('url', $single[2], 'Na ficha, o cadastro é a página atual');
 

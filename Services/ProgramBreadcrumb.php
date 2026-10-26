@@ -11,7 +11,7 @@ use MapasCulturais\i;
  */
 class ProgramBreadcrumb
 {
-    /** Ficha ou formulário do cadastro: Início › Painel › Cadastro (no formulário, o cadastro leva à ficha). */
+    /** Ficha ou formulário do cadastro: Início › Painel de controle › Cadastro (no formulário, o cadastro leva à ficha). */
     static function registration(string $singleUrl, bool $isForm): array
     {
         $app = App::i();
@@ -23,7 +23,7 @@ class ProgramBreadcrumb
 
         return [
             ['label' => i::__('Início'), 'url' => $app->createUrl('site', 'index')],
-            ['label' => i::__('Painel'), 'url' => $app->createUrl('panel', 'index')],
+            ['label' => i::__('Painel de controle'), 'url' => $app->createUrl('panel', 'index')],
             $registration,
         ];
     }
