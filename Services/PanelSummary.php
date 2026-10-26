@@ -38,7 +38,7 @@ class PanelSummary
         $items = [['route' => 'opportunity/registrations', 'params' => [$fixed->id], 'icon' => 'registration', 'label' => i::__('Cadastros')]];
 
         if ($fixed->evaluationMethodConfiguration) {
-            $items[] = ['route' => 'opportunity/allEvaluations', 'params' => [$fixed->id], 'icon' => 'check', 'label' => i::__('Avaliações')];
+            $items[] = ['route' => 'opportunity/allEvaluations', 'params' => [$fixed->id], 'icon' => 'check', 'label' => i::__('Moderações')];
             $items[] = ['route' => 'panel/mdc-committee', 'icon' => 'agents', 'label' => i::__('Comissão')];
         }
 

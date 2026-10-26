@@ -54,7 +54,7 @@ class ManagementShortcutsTest extends TestCase
         $this->assertSame(
             [['opportunity/registrations', [$this->fixed->id]], ['opportunity/allEvaluations', [$this->fixed->id]], ['panel/mdc-committee', []]],
             array_map(fn ($item) => [$item['route'], $item['params'] ?? []], $group['items'] ?? []),
-            'Cadastros, Avaliações e Comissão, nesta ordem'
+            'Cadastros, Moderações e Comissão, nesta ordem'
         );
     }
 

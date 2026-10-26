@@ -91,7 +91,7 @@ class PanelSummaryTest extends TestCase
 
         $management = $this->summaryFor($this->userDirector->createUser('admin'))['management'];
 
-        $this->assertSame(['Cadastros', 'Avaliações', 'Comissão'], array_column($management['shortcuts'], 'label'));
+        $this->assertSame(['Cadastros', 'Moderações', 'Comissão'], array_column($management['shortcuts'], 'label'));
         $this->assertSame(2, $management['counts']['waiting'], 'Os dois enviados aguardam moderação');
     }
 
