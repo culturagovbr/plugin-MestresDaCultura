@@ -2,6 +2,7 @@
 
 namespace Tests\MDC;
 
+use MapasCulturais\Entities\Registration;
 use MDC\Services\Moderation;
 use Tests\Abstract\TestCase;
 
@@ -32,5 +33,16 @@ class ModerationTest extends TestCase
         $titles = ['field_7' => 'Descrição do reconhecimento', 'rfc_7' => 'Declaração da comunidade'];
 
         $this->assertSame(['rfc_7'], array_column(Moderation::refusedFields($data, $visible, $titles), 'name'));
+    }
+
+    // Em análise: o primeiro envio ou a correção reenviada; devolvido, rascunho e aprovado não.
+    function testUnderReviewIsSentAndWaitingForTheModeration()
+    {
+        $this->assertTrue(Moderation::underReview(Registration::STATUS_SENT, null, null), 'Enviado, sem campos reabertos');
+        $this->assertTrue(Moderation::underReview(Registration::STATUS_SENT, ['rfc_41'], '2026-10-26 10:00:00'), 'Correção reenviada');
+
+        $this->assertFalse(Moderation::underReview(Registration::STATUS_SENT, ['rfc_41'], null), 'Devolvido, à espera da correção');
+        $this->assertFalse(Moderation::underReview(Registration::STATUS_DRAFT, null, null));
+        $this->assertFalse(Moderation::underReview(Registration::STATUS_APPROVED, null, null));
     }
 }
