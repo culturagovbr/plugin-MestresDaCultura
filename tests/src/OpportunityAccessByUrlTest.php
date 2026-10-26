@@ -124,6 +124,22 @@ class OpportunityAccessByUrlTest extends TestCase
         );
     }
 
+    // Quem não controla o programa vai da página da oportunidade do programa para o painel, "Meus cadastros".
+    function testWhoDoesNotControlTheProgramGoesToThePanel()
+    {
+        $fixed = $this->createOpportunity();
+        $this->configure($fixed);
+
+        $this->login($this->userDirector->createUser());
+        $this->assertSame(302, $this->statusOf('single', $fixed->id), 'A mestra é levada ao painel');
+        $this->assertSame($this->app->createUrl('panel', 'index'), $this->app->response->getHeaderLine('Location'));
+
+        foreach (['admin', 'saasSuperAdmin'] as $role) {
+            $this->login($this->userDirector->createUser($role));
+            $this->assertSame(200, $this->statusOf('single', $fixed->id), "Quem controla o programa ({$role}) segue vendo a página");
+        }
+    }
+
     private function statusOf(string $action, int $id): int
     {
         $this->app->reset();
