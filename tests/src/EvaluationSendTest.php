@@ -11,13 +11,15 @@ use Tests\Builders\PhasePeriods\ConcurrentEndingAfter;
 use Tests\Builders\PhasePeriods\Open;
 use Tests\Enums\EvaluationMethods;
 use Tests\Traits\OpportunityBuilder;
+use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
-// Dois envios da mesma avaliação do programa (clique duplo, duas abas) fazem um envio só: o segundo é recusado antes
-// de a devolução, o e-mail e a notificação saírem de novo.
+// Dois envios da mesma avaliação do programa fazem um envio só, e nem um rascunho atrasado nem o formulário de uma aba
+// antiga mudam o parecer enviado.
 class EvaluationSendTest extends TestCase
 {
     use OpportunityBuilder;
+    use RequestFactory;
     use UserDirector;
 
     private int $evaluationId;
@@ -123,5 +125,108 @@ class EvaluationSendTest extends TestCase
 
         $this->assertRefusedAsAlreadySent($evaluation, 'O envio que chegou depois é recusado');
         $this->assertSame(0, $this->sends);
+    }
+
+    // Um rascunho salvo depois do envio não tira o parecer de enviado.
+    function testALateDraftSaveDoesNotUndoTheSend()
+    {
+        $stale = $this->evaluation();
+        $this->app->conn->executeStatement('UPDATE registration_evaluation SET status = :sent, sent_timestamp = now() WHERE id = :id', ['sent' => RegistrationEvaluation::STATUS_SENT, 'id' => $this->evaluationId]);
+
+        $stale->status = RegistrationEvaluation::STATUS_DRAFT;
+        try {
+            $this->app->disableAccessControl();
+            $stale->save(true);
+            $this->fail('O rascunho atrasado é recusado');
+        } catch (PermissionDenied $e) {
+            $this->assertStringContainsString('já foi enviada', $e->getMessage());
+        } finally {
+            $this->app->enableAccessControl();
+        }
+
+        $this->assertSame(RegistrationEvaluation::STATUS_SENT, $this->storedStatus(), 'O parecer segue enviado');
+    }
+
+    // Reabrir o parecer enviado (pelo gestor ou no reenvio da correção) segue permitido.
+    function testReopeningASentEvaluationStillWorks()
+    {
+        $this->send($this->evaluation());
+
+        $evaluation = $this->evaluation();
+        $evaluation->status = RegistrationEvaluation::STATUS_DRAFT;
+        $this->app->disableAccessControl();
+        $evaluation->save(true);
+        $this->app->enableAccessControl();
+
+        $this->assertSame(RegistrationEvaluation::STATUS_DRAFT, $this->storedStatus());
+    }
+
+    // No envio em lote, o parecer já enviado por outra aba é pulado e o lote não para no meio.
+    function testTheBatchSendSkipsOneAlreadySentInAnotherTab()
+    {
+        $registration = (int) $this->app->conn->fetchOne('SELECT registration_id FROM registration_evaluation WHERE id = :id', ['id' => $this->evaluationId]);
+        $second = (int) $this->app->conn->fetchOne("INSERT INTO registration (id, opportunity_id, agent_id, status, create_timestamp, number) SELECT nextval('registration_id_seq'), opportunity_id, agent_id, status, now(), 'x' || nextval('registration_id_seq') FROM registration WHERE id = :id RETURNING id", ['id' => $registration]);
+        $other = (int) $this->app->conn->fetchOne("INSERT INTO registration_evaluation (id, registration_id, user_id, result, evaluation_data, status, committee) SELECT nextval('registration_evaluation_id_seq'), :second, user_id, result, evaluation_data, status, committee FROM registration_evaluation WHERE id = :id RETURNING id", ['second' => $second, 'id' => $this->evaluationId]);
+
+        // Os dois carregados como concluídos; um deles é enviado antes de o lote começar.
+        $opportunity = $this->evaluation()->registration->opportunity;
+        $this->app->repo('RegistrationEvaluation')->find($other);
+        $this->app->conn->executeStatement('UPDATE registration_evaluation SET status = :sent, sent_timestamp = now() WHERE id = :id', ['sent' => RegistrationEvaluation::STATUS_SENT, 'id' => $other]);
+
+        $this->app->disableAccessControl();
+        try {
+            $opportunity->sendUserEvaluations($this->app->user);
+        } finally {
+            $this->app->enableAccessControl();
+        }
+
+        $this->assertSame(1, $this->sends, 'Só o que ainda não tinha sido enviado sai, sem parar o lote');
+        $this->assertSame(RegistrationEvaluation::STATUS_SENT, $this->storedStatus());
+    }
+
+    // Uma falha no meio da gravação não deixa transação aberta.
+    function testAFailureInTheMiddleLeavesNoTransactionOpen()
+    {
+        $level = $this->transactionLevel();
+        $this->app->hook('entity(RegistrationEvaluation).save:after', function () {
+            throw new \RuntimeException('falha simulada');
+        });
+
+        try {
+            $this->send($this->evaluation());
+        } catch (\RuntimeException $e) {
+        }
+
+        $this->assertSame($level, $this->transactionLevel());
+    }
+
+    // A gravação pelo formulário de um parecer já enviado é recusada, mesmo com a permissão de avaliar em cache.
+    function testTheFormDoesNotChangeASentEvaluation()
+    {
+        $this->send($this->evaluation());
+        $registration = $this->evaluation()->registration;
+
+        // Mantém a permissão de avaliar de antes do envio, como no cache.
+        $moderator = $this->moderator->id;
+        $this->app->hook('can(Registration.evaluate)', function ($user, &$result) use ($moderator) {
+            if ($user->id === $moderator) {
+                $result = true;
+            }
+        });
+
+        $stored = fn () => $this->app->conn->fetchAssociative('SELECT status, evaluation_data FROM registration_evaluation WHERE id = :id', ['id' => $this->evaluationId]);
+        $before = $stored();
+        $data = ['data' => ['1' => ['label' => 'Campo', 'obsItems' => '', 'obs' => 'Mudado depois do envio.', 'evaluation' => 'valid']]];
+
+        // Salvar, Concluir e um pedido com um `uid` que não existe.
+        foreach ([[[$registration->id], $data], [[$registration->id, 'status' => 'evaluated'], $data], [[$registration->id], $data + ['uid' => 999999]]] as [$params, $payload]) {
+            $this->login($this->app->repo('User')->find($this->moderator->id));
+            $this->app->reset();
+            $this->app->run($this->requestFactory->POST('registration', 'saveEvaluation', $params, $payload), false);
+
+            $this->assertSame(403, $this->app->response->getStatusCode(), 'A gravação é recusada');
+            $this->assertStringContainsString('j\u00e1 foi enviada', (string) $this->app->response->getBody());
+            $this->assertSame($before, $stored(), 'O parecer segue enviado, com os mesmos dados');
+        }
     }
 }
