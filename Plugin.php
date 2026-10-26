@@ -143,6 +143,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->showEvaluationSentDate();
         $this->showRoleBlocksInThePanel();
         $this->sendTheMasterToThePanel();
+        $this->fixTheProgramBreadcrumbs();
         $this->keepOnePlacePerModerator();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
@@ -250,6 +251,39 @@ class Plugin extends \MapasCulturais\Plugin
                 $this->enqueueScript('components', 'mdc-registrations-table', 'js/registrations-table.js', ['opportunity-registrations-table']);
             }
         }, 1000);
+    }
+
+    // Ver Services\ProgramBreadcrumb. As views do core montam o caminho no corpo; aqui, antes de ele ir para a tela,
+    // como o Cultura Viva faz no dele (mapas.printJsObject:before). O componente já pode ter copiado o caminho.
+    private function fixTheProgramBreadcrumbs(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+
+        $app->hook('mapas.printJsObject:before', function () use ($fixedOpportunity) {
+            $controller = $this->controller;
+            $registration = $controller->requestedEntity ?? null;
+            // Propriedade mágica do tema: o `empty()` direto nela não a enxerga.
+            $current = array_values((array) $this->breadcrumb);
+
+            if (!Plugin::isTheme() || $controller->id !== 'registration' || !$registration instanceof Registration || !$current
+                || !$fixedOpportunity->isConfigured() || !$fixedOpportunity->includes($registration)) {
+                return;
+            }
+
+            if ($controller->action === 'evaluation') {
+                $breadcrumb = Services\ProgramBreadcrumb::evaluation($current);
+            } else {
+                $isForm = $controller->action === 'registrationEdit' || (end($current)['label'] ?? null) === i::__('Formulário');
+                $breadcrumb = Services\ProgramBreadcrumb::registration($registration->singleUrl, $isForm);
+            }
+
+            $this->breadcrumb = $breadcrumb;
+
+            if (isset($this->jsObject['breadcrumb'])) {
+                $this->jsObject['breadcrumb'] = $breadcrumb;
+            }
+        });
     }
 
     // A página da oportunidade do programa é do edital, e não da mestra: o core manda para ela quem sai do formulário
