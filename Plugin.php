@@ -146,6 +146,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->fixTheProgramBreadcrumbs();
         $this->skipProfileFieldsTheProgramDoesNotAsk();
         $this->speakOfCadastro();
+        $this->sendTheNetworkMails();
         $this->keepOnePlacePerModerator();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
@@ -253,6 +254,28 @@ class Plugin extends \MapasCulturais\Plugin
                 $this->enqueueScript('components', 'mdc-registrations-table', 'js/registrations-table.js', ['opportunity-registrations-table']);
             }
         }, 1000);
+    }
+
+    // Troca o template de e-mail do core pelo da Rede nos cadastros do programa (ver Services\ProgramMails).
+    private function sendTheNetworkMails(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+
+        $app->config['mailer.templates'][Services\ProgramMails::STARTED] = [
+            'title' => i::__('[Rede de Mestras e Mestres] Seu cadastro foi iniciado'),
+            'template' => Services\ProgramMails::STARTED . '.html',
+        ];
+        $app->config['mailer.templates'][Services\ProgramMails::SENT] = [
+            'title' => i::__('[Rede de Mestras e Mestres] Recebemos o seu cadastro'),
+            'template' => Services\ProgramMails::SENT . '.html',
+        ];
+
+        $app->hook('sendMailNotification.<<registrationStart:beforeEnqueue|registrationSend>>', function ($registration, &$template) use ($fixedOpportunity) {
+            if (isset(Services\ProgramMails::REPLACES[$template]) && $fixedOpportunity->isConfigured() && $fixedOpportunity->includes($registration)) {
+                $template = Services\ProgramMails::REPLACES[$template];
+            }
+        });
     }
 
     // Aplica o vocabulário do programa no subsite dos Mestres, em app.init:after (ver Services\ProgramVocabulary).
