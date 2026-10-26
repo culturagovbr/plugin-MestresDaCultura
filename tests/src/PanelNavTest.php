@@ -41,20 +41,20 @@ class PanelNavTest extends TestCase
                     ['route' => 'panel/spaces', 'label' => 'Meus Espaços', 'condition' => fn() => $app->isEnabled('spaces')],
                 ],
             ],
+            'more' => [
+                'label' => 'Outras opções',
+                'column' => 'right',
+                'items' => [['route' => 'panel/my-account', 'label' => 'Conta e Privacidade'], ['route' => 'panel/apps', 'label' => 'Meus aplicativos']],
+            ],
             'admin' => [
                 'label' => 'Administração',
                 'column' => 'right',
                 'items' => [['route' => 'panel/seals', 'label' => 'Gestão de Selos']],
             ],
-            'more' => [
-                'label' => 'Mais',
-                'column' => 'right',
-                'items' => [['route' => 'panel/apps', 'label' => 'Meus aplicativos']],
-            ],
             'user' => [
                 'label' => 'Usuário Logado',
                 'column' => 'user',
-                'items' => [['route' => 'auth/logout', 'label' => 'Sair']],
+                'items' => [['route' => 'agent/single', 'label' => 'Meu Perfil'], ['route' => 'auth/logout', 'label' => 'Sair']],
             ],
         ];
     }
@@ -120,9 +120,16 @@ class PanelNavTest extends TestCase
         $nav = $this->applyNav();
         $labels = $this->labels($nav);
 
-        foreach (['Painel de Controle', 'Minhas oportunidades', 'Meus Agentes', 'Meus Espaços', 'Minhas inscrições'] as $removed) {
+        foreach (['Minhas oportunidades', 'Meus Agentes', 'Meus Espaços', 'Minhas inscrições'] as $removed) {
             $this->assertNotContains($removed, $labels, "\"{$removed}\" não deve aparecer para usuário comum");
         }
+
+        // Os grupos do core como eles são, menos o que o subsite não usa: "Menu do Painel de Controle" (o caminho de
+        // volta a "Meus cadastros"), "Outras opções" e o do usuário logado (Meu Perfil, Sair).
+        $this->assertSame([['route' => 'panel/index', 'label' => 'Painel de Controle']], $nav['panel-menu']['items'] ?? null, 'Menu do Painel de Controle');
+        $this->assertSame('Outras opções', $nav['more']['label'] ?? null);
+        $this->assertSame(['Conta e Privacidade'], array_column($nav['more']['items'] ?? [], 'label'), 'Sem "Meus aplicativos", que o subsite não usa');
+        $this->assertSame(['Meu Perfil', 'Sair'], array_column($nav['user']['items'] ?? [], 'label'), 'O grupo do usuário logado, como no core');
 
         $this->assertContains('Criar Cadastro de Festejo Popular', $labels);
         $this->assertContains('Conta e Privacidade', $labels);
