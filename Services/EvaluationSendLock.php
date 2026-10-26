@@ -42,7 +42,7 @@ class EvaluationSendLock
         if ($status === RegistrationEvaluation::STATUS_SENT) {
             $conn->rollBack();
 
-            throw new PermissionDenied($app->user, $evaluation, 'send', i::__('Esta avaliação já foi enviada.'));
+            throw new PermissionDenied($app->user, $evaluation, 'send', i::__('Esta moderação já foi enviada.'));
         }
 
         $this->locked[] = $evaluation->id;
