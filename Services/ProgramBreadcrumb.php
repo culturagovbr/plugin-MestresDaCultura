@@ -44,4 +44,25 @@ class ProgramBreadcrumb
             end($core) ?: ['label' => i::__('Formulário de avaliação')],
         ];
     }
+
+    /**
+     * O próprio perfil da mestra e do moderador: Início › Painel de controle › Meu perfil; na edição, o perfil leva à
+     * página dele e vem "Editar perfil".
+     */
+    static function profile(string $singleUrl, bool $isEdit): array
+    {
+        $app = App::i();
+        $path = [
+            ['label' => i::__('Início'), 'url' => $app->createUrl('site', 'index')],
+            ['label' => i::__('Painel de controle'), 'url' => $app->createUrl('panel', 'index')],
+            ['label' => i::__('Meu perfil')],
+        ];
+
+        if ($isEdit) {
+            $path[2]['url'] = $singleUrl;
+            $path[] = ['label' => i::__('Editar perfil')];
+        }
+
+        return $path;
+    }
 }

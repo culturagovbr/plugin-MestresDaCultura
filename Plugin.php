@@ -144,6 +144,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->showRoleBlocksInThePanel();
         $this->sendTheMasterToThePanel();
         $this->fixTheProgramBreadcrumbs();
+        $this->nameTheOwnProfile();
         $this->skipProfileFieldsTheProgramDoesNotAsk();
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
@@ -353,6 +354,46 @@ class Plugin extends \MapasCulturais\Plugin
     }
 
     // A página da oportunidade do programa é do edital, e não da mestra: o core manda para ela quem sai do formulário
+    // O agente da mestra e do moderador é o perfil deles (Meu perfil, no menu). O core o trata como um agente
+    // qualquer: o caminho passa por "Meus agentes", lista fechada no painel (404), o botão diz "Editar agente" e a
+    // edição, "Edição do agente individual". Para quem segue o vocabulário do programa (D5); o gestor fica com o core.
+    private function nameTheOwnProfile(): void
+    {
+        $app = App::i();
+
+        $isOwnProfile = function ($view) use ($app): bool {
+            $agent = $view->controller->requestedEntity ?? null;
+
+            return Plugin::isTheme() && $view->controller->id === 'agent' && $agent instanceof Agent
+                && !$app->user->is('guest') && Services\ProgramVocabulary::appliesTo($app->user) && $agent->id === $app->user->profile?->id;
+        };
+
+        $app->hook('mapas.printJsObject:before', function () use ($isOwnProfile) {
+            if (!$isOwnProfile($this) || !in_array($this->controller->action, ['single', 'edit'], true)) {
+                return;
+            }
+
+            $breadcrumb = Services\ProgramBreadcrumb::profile($this->controller->requestedEntity->singleUrl, $this->controller->action === 'edit');
+            $this->breadcrumb = $breadcrumb;
+
+            if (isset($this->jsObject['breadcrumb'])) {
+                $this->jsObject['breadcrumb'] = $breadcrumb;
+            }
+        });
+
+        $app->hook('component(agent.single.entity-actions).texts', function (array &$texts) use ($isOwnProfile) {
+            if ($isOwnProfile($this)) {
+                $texts['Agente'] = i::__('perfil');
+            }
+        });
+
+        $app->hook('component(agent.edit.entity-header).texts', function (array &$texts) use ($isOwnProfile) {
+            if ($isOwnProfile($this)) {
+                $texts['title agent-1'] = i::__('Edição do perfil');
+            }
+        });
+    }
+
     // ("Sair", "Salvar e sair"). Quem não controla o programa vai para o painel, "Meus cadastros"; o gestor e o
     // saasSuperAdmin seguem vendo a página. Como o RCV leva as páginas do programa para o subsite dele.
     private function sendTheMasterToThePanel(): void
