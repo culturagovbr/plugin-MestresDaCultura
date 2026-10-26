@@ -101,7 +101,8 @@ class EvaluationsTableTest extends TestCase
         // Na lista do próprio moderador, saem as colunas sobre o moderador.
         $own = $headers();
         EvaluationsTable::adjust($own, true);
-        $this->assertSame(['inscrição', 'Resultado da sua moderação', 'Data de envio', 'Ações'], array_column($own, 'text'), 'A lista do próprio moderador');
+        $this->assertSame(['Número do cadastro', 'Resultado da sua moderação', 'Data de envio', 'Ações'], array_column($own, 'text'), 'A lista do próprio moderador, com o vocabulário da moderação (D5)');
+        $this->assertSame('inscrição', $all[0]['text'], 'O gestor segue com o termo do core (D5)');
     }
 
     function testTheListShowsWhenEachEvaluationWasSent()
