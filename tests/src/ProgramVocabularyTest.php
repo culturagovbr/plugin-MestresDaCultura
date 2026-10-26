@@ -17,7 +17,8 @@ class ProgramVocabularyTest extends TestCase
     private function withVocabulary(callable $check): void
     {
         global $i18n;
-        $before = $i18n['default'] ?? null;
+        // Guarda uma cópia das traduções de antes.
+        $before = isset($i18n['default']) ? clone $i18n['default'] : null;
 
         try {
             ProgramVocabulary::apply();
