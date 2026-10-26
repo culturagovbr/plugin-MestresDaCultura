@@ -350,23 +350,38 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // Ver Services\EvaluationSendLock. Só no programa: no servidor, a trava segura a linha da avaliação durante a
-    // gravação; na tela, os botões esperam a ação anterior terminar.
+    // Ver Services\EvaluationSendGuard. Só no programa: no servidor, o status é lido no banco antes de cada gravação do
+    // parecer, do formulário e do envio em lote; na tela, os botões esperam a ação anterior terminar.
     private function sendEachEvaluationOnce(): void
     {
         $app = App::i();
         $plugin = $this;
-        $lock = new Services\EvaluationSendLock;
+        $guard = new Services\EvaluationSendGuard;
 
-        $app->hook('entity(RegistrationEvaluation).save:before', function () use ($plugin, $lock) {
+        $app->hook('entity(RegistrationEvaluation).save:before', function () use ($plugin, $guard) {
             /** @var \MapasCulturais\Entities\RegistrationEvaluation $this */
-            if (Services\EvaluationSendLock::isSending($this) && $plugin->fixedOpportunity()->includes($this->registration)) {
-                $lock->claim($this);
+            if ($this->id && $plugin->fixedOpportunity()->isConfigured() && $plugin->fixedOpportunity()->includes($this->registration)) {
+                $guard->check($this);
             }
         });
 
-        $app->hook('entity(RegistrationEvaluation).save:finish', function () use ($lock) {
-            $lock->release($this);
+        // Pelo formulário (Salvar, Concluir), o parecer já enviado não muda: ver EvaluationSendGuard::isSentBy. Um `uid`
+        // que não existe vale como o usuário logado, como no core.
+        $app->hook('POST(registration.<<saveEvaluation|saveEvaluationAndChangeStatus>>):before', function () use ($app, $plugin) {
+            /** @var \MapasCulturais\Controllers\Registration $this */
+            $registration = $this->requestedEntity;
+            $user = (isset($this->postData['uid']) ? $app->repo('User')->find($this->postData['uid']) : null) ?? $app->user;
+
+            if ($registration && !$user->is('guest') && $plugin->fixedOpportunity()->isConfigured() && $plugin->fixedOpportunity()->includes($registration) && Services\EvaluationSendGuard::isSentBy($registration->id, $user->id)) {
+                $this->errorJson(Services\EvaluationSendGuard::message(), 403);
+            }
+        });
+
+        $app->hook('entity(Opportunity).sendUserEvaluations:before', function ($user) use ($plugin, $guard) {
+            /** @var \MapasCulturais\Entities\Opportunity $this */
+            if ($plugin->fixedOpportunity()->isConfigured() && $plugin->fixedOpportunity()->matches($this)) {
+                $guard->refreshBatch($this, $user);
+            }
         });
 
         // Na tela, uma ação por vez nos botões da avaliação (evaluation-submit-guard.js), como no Cultura Viva: junto do

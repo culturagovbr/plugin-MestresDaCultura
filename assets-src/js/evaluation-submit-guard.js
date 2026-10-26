@@ -1,6 +1,5 @@
-// Como no Cultura Viva (themes/CulturaViva/assets/js/evaluation-submit-guard.js): uma ação de concluir, enviar ou
-// reabrir por vez na avaliação, enquanto a anterior não termina; o servidor também recusa o segundo envio (ver
-// Services\EvaluationSendLock). A classe esmaece e bloqueia os botões (tema, _evaluation-actions.scss).
+// Uma ação de concluir, enviar ou reabrir a avaliação por vez; até a anterior terminar, a classe esmaece e bloqueia os
+// botões (tema, _evaluation-actions.scss).
 (function () {
     const component = app.component('evaluation-actions');
 
