@@ -35,4 +35,18 @@ class ProgramBreadcrumbTest extends TestCase
         $this->assertSame([$this->app->createUrl('site', 'index'), $this->app->createUrl('panel', 'index'), 'http://x/avaliacoes/9/'], array_column(array_slice($path, 0, 3), 'url'));
         $this->assertNotContains($this->app->createUrl('panel', 'opportunities'), array_column($path, 'url'), 'Nada leva a "Minhas oportunidades"');
     }
+
+    // A trilha do próprio perfil passa pelo painel, e não por "Meus agentes".
+    function testTheProfilePathGoesThroughThePanel()
+    {
+        $single = ProgramBreadcrumb::profile('http://x/agente/5/', false);
+        $this->assertSame(['Início', 'Painel de controle', 'Meu perfil'], array_column($single, 'label'));
+        $this->assertSame([$this->app->createUrl('site', 'index'), $this->app->createUrl('panel', 'index')], array_column(array_slice($single, 0, 2), 'url'));
+        $this->assertArrayNotHasKey('url', $single[2], 'Na página do perfil, ele é a página atual');
+
+        $edit = ProgramBreadcrumb::profile('http://x/agente/5/', true);
+        $this->assertSame(['Início', 'Painel de controle', 'Meu perfil', 'Editar perfil'], array_column($edit, 'label'));
+        $this->assertSame('http://x/agente/5/', $edit[2]['url'] ?? null, 'Na edição, o perfil leva à página dele');
+        $this->assertNotContains($this->app->createUrl('panel', 'agents'), array_column($edit, 'url'), 'Nada leva a "Meus agentes"');
+    }
 }
