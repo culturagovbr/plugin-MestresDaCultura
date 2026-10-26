@@ -553,7 +553,8 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // O mestre reenviou a correção dos campos devolvidos: a avaliação volta a quem avaliou (ver Services\Moderation).
+    // O mestre reenviou a correção dos campos devolvidos: a avaliação volta a quem avaliou, e ele recebe a confirmação
+    // (ver Services\Moderation).
     private function reopenEvaluationOnResend(): void
     {
         $app = App::i();
@@ -563,11 +564,17 @@ class Plugin extends \MapasCulturais\Plugin
             'title' => i::__('[Rede de Mestras e Mestres] Cadastro corrigido para nova análise'),
             'template' => Services\Moderation::MAIL_RESENT . '.html',
         ];
+        $app->config['mailer.templates'][Services\Moderation::MAIL_CORRECTION_RECEIVED] = [
+            'title' => i::__('[Rede de Mestras e Mestres] Recebemos a sua correção'),
+            'template' => Services\Moderation::MAIL_CORRECTION_RECEIVED . '.html',
+        ];
 
         $app->hook('entity(Registration).sendEditableFields:after', function () use ($plugin) {
             /** @var Registration $this */
             if ($plugin->fixedOpportunity()->includes($this)) {
-                (new Services\Moderation)->sendBackToValuers($this);
+                $moderation = new Services\Moderation;
+                $moderation->sendBackToValuers($this);
+                $moderation->confirmResend($this);
             }
         });
     }

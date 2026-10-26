@@ -11,10 +11,8 @@ use MapasCulturais\Entities\User;
 use MapasCulturais\i;
 
 /**
- * Moderação do cadastro: uma pessoa da equipe marca cada campo moderado como ok ou não ok. Com algum "não ok", o
- * cadastro não é recusado: fica pendente, com os campos recusados reabertos para o mestre comprovar e reenviar.
- * Sem prazo: fica pendente até que ele atenda o campo, como combinado com a área. No reenvio, a avaliação volta a
- * quem avaliou, para uma nova análise. Na aprovação, o mestre é avisado.
+ * Moderação do cadastro: cada campo moderado é marcado ok ou não ok. Com algum "não ok", o cadastro fica pendente, sem
+ * prazo, com os campos recusados reabertos; no reenvio, a avaliação volta a quem avaliou.
  */
 class Moderation
 {
@@ -24,6 +22,8 @@ class Moderation
     const MAIL_RETURNED = 'mdc_cadastro_pendente';
 
     const MAIL_RESENT = 'mdc_cadastro_reenviado';
+
+    const MAIL_CORRECTION_RECEIVED = 'mdc_correcao_recebida';
 
     const MAIL_APPROVED = 'mdc_cadastro_aprovado';
 
@@ -296,6 +296,26 @@ class Moderation
             i::__('O cadastro %s foi corrigido e reenviado pelo mestre. <a href="%s">Avalie de novo</a>.'),
             $registration->number,
             $link
+        );
+        $notification->save(true);
+    }
+
+    /** Confirma ao mestre o reenvio da correção, por e-mail e no sino, uma vez por reenvio. */
+    function confirmResend(Registration $registration): void
+    {
+        $app = App::i();
+
+        $app->enqueueJob(SendMailNotification::SLUG, [
+            'template' => self::MAIL_CORRECTION_RECEIVED,
+            'registrationId' => $registration->id,
+            'params' => ['registrationLink' => $registration->singleUrl],
+        ]);
+
+        $notification = new Notification;
+        $notification->user = $registration->owner->user;
+        $notification->message = sprintf(
+            i::__('Recebemos a correção do seu cadastro, que volta para a moderação. <a href="%s">Acompanhe o seu cadastro</a>.'),
+            $registration->singleUrl
         );
         $notification->save(true);
     }
