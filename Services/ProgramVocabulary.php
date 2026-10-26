@@ -31,6 +31,7 @@ class ProgramVocabulary
         // Envio e saída (registration-actions)
         'Ops! Encontramos erros no preenchimento da inscrição' => 'Ops! Encontramos erros no preenchimento do cadastro',
         'Só é possível enviar a inscrição após o preenchimento de todos os campos obrigatórios' => 'Só é possível enviar o cadastro após o preenchimento de todos os campos obrigatórios',
+        'Quer enviar sua inscrição?' => 'Quer enviar seu cadastro?',
         'Ao enviar sua inscrição você já estará participando da oportunidade.' => 'Ao enviar, seu cadastro segue para a moderação da Rede.',
         "Sua inscrição foi salva em rascunho. Para retornar, vá ao <b><u>Painel de Controle</u></b>, acesse \n                        <b><u>Minhas Inscrições</u></b> e encontre a inscrição na aba \n                        <b>Não enviadas</b>." => 'Seu cadastro foi salvo em rascunho. Para retornar, vá ao <b><u>Painel de Controle</u></b> e abra o cadastro em <b>Meus cadastros</b>.',
         // Moderação (caminho da lista, tabela de avaliações, tela de avaliação)
