@@ -290,26 +290,33 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // O core leva para a edição do agente quem tem o perfil com erro de validação (app.redirect_profile_validate). No
-    // subsite dos Mestres, faltar a descrição curta e a área de atuação, que o formulário do programa não pede, não é
-    // erro; o resto segue (perfil em rascunho, nome, o limite de tamanho da descrição). Como a Pnab ajusta os erros do
-    // agente no contexto dela (themes/Pnab/Theme.php, entity(Agent).validationErrors).
+    // No subsite dos Mestres, a mini bio (descrição curta) e a área de atuação não são obrigatórias no agente, como na
+    // Pnab: o programa não as usa (a mini-biografia do formulário vai para a descrição longa, e a atuação é a árvore do
+    // programa). Na regra (validação e taxonomia), e não só na tela: valem para a criação de conta, para a edição do
+    // perfil e para o desvio do core para a edição do perfil (app.redirect_profile_validate). O limite de tamanho da
+    // descrição curta, o nome e o perfil em rascunho seguem como no core.
     private function skipProfileFieldsTheProgramDoesNotAsk(): void
     {
-        App::i()->hook('entity(Agent).validationErrors', function (array &$errors) {
-            /** @var \MapasCulturais\Entities\Agent $this */
-            if (!Plugin::isTheme()) {
-                return;
-            }
+        $app = App::i();
 
-            if (trim((string) $this->shortDescription) === '') {
-                unset($errors['shortDescription']);
-            }
-
-            if (empty($this->terms['area'])) {
-                unset($errors['term-area']);
+        $app->hook('entity(Agent)::validations', function (array &$validations) {
+            if (Plugin::isTheme()) {
+                unset($validations['shortDescription']['required']);
             }
         });
+
+        $app->hook('app.register:after', function () use ($app) {
+            if (Plugin::isTheme() && ($area = $app->getRegisteredTaxonomies(\MapasCulturais\Entities\Agent::class)['area'] ?? null)) {
+                $area->required = false;
+            }
+        });
+
+        // A tela de criar conta exige as duas no próprio componente (create-account-optional.js).
+        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
+            if ($component === 'create-account' && Plugin::isTheme()) {
+                $this->enqueueScript('components', 'mdc-create-account-optional', 'js/create-account-optional.js', ['create-account']);
+            }
+        }, 1000);
     }
 
     // Ver Services\ProgramBreadcrumb. As views do core montam o caminho no corpo; aqui, antes de ele ir para a tela,
