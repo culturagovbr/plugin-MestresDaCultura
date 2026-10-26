@@ -88,19 +88,37 @@ class FixedOpportunityTest extends TestCase
         );
     }
 
-    function testResolvesOnlyOncePerRequest()
+    function testResolvesOnlyOncePerConfiguredId()
+    {
+        $opportunity = $this->createOpportunity();
+        $service = $this->withConfiguredId($opportunity->id);
+
+        $this->assertSame($service->get(), $service->get(), 'A segunda chamada vem do cache');
+    }
+
+    // Depois de o gerenciador do Doctrine ser limpo, a oportunidade é buscada de novo.
+    function testAfterTheEntityManagerIsClearedItIsResolvedAgain()
     {
         $opportunity = $this->createOpportunity();
         $service = $this->withConfiguredId($opportunity->id);
 
         $service->get();
-        $this->app->config[FixedOpportunity::CONFIG_KEY] = 999999999;
+        $this->app->em->clear();
 
-        $this->assertEquals(
-            $opportunity->id,
-            $service->get()?->id,
-            'A segunda chamada vem do cache de requisição, sem consultar de novo'
-        );
+        $this->assertTrue($this->app->em->contains($service->get()), 'A oportunidade volta a ser a do gerenciador');
+    }
+
+    // Com outro id configurado, a oportunidade é buscada de novo.
+    function testAnotherConfiguredIdIsResolvedAgain()
+    {
+        $first = $this->createOpportunity();
+        $second = $this->createOpportunity();
+        $service = $this->withConfiguredId($first->id);
+
+        $service->get();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $second->id;
+
+        $this->assertSame($second->id, $service->get()?->id);
     }
 
     function testIncludesOnlyTheRegistrationsOfTheFixedOpportunity()
