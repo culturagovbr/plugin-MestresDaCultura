@@ -2,7 +2,7 @@ app.component('mdc-moderation-notice', {
     template: $TEMPLATES['mdc-moderation-notice'],
 
     props: {
-        // o resultado da moderação que o plugin monta: devolvido (MDC\Services\Moderation::pendingView) ou aprovado
+        // o resultado da moderação que o plugin monta: em análise, devolvido (MDC\Services\Moderation::pendingView) ou aprovado
         moderation: {
             type: Object,
             required: true,
@@ -18,6 +18,10 @@ app.component('mdc-moderation-notice', {
     computed: {
         approved() {
             return this.moderation.status === 'approved';
+        },
+
+        review() {
+            return this.moderation.status === 'review';
         },
 
         // Os recusados primeiro.

@@ -30,6 +30,23 @@ $this->import('
     </mc-card>
 </div>
 
+<div v-else-if="review" class="mdc-moderation-notice">
+    <mc-card class="mdc-moderation-notice__card">
+        <template #title>
+            <h3>{{ text('seu cadastro') }}</h3>
+            <mc-status :status-name="text('status em análise')"></mc-status>
+        </template>
+
+        <template #content>
+            <p class="mdc-moderation-notice__review">{{ text('em análise texto') }}</p>
+
+            <footer class="mdc-moderation-notice__footer">
+                <p class="mdc-moderation-notice__note">{{ text('enquanto em análise') }}</p>
+            </footer>
+        </template>
+    </mc-card>
+</div>
+
 <div v-else class="mdc-moderation-notice mdc-moderation-notice--pending">
     <div class="mdc-moderation-notice__alert" role="status">
         <mc-icon name="exclamation"></mc-icon>

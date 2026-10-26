@@ -14,5 +14,8 @@ return [
     'aprovado texto' => i::__('Seu cadastro foi aprovado pela equipe da Rede. Você integra a Rede Nacional de Mestras e Mestres das Culturas Tradicionais e Populares.'),
     'certificado nota' => i::__('O certificado pode ser impresso ou salvo em PDF.'),
     'ver certificado' => i::__('Ver certificado'),
+    'status em análise' => i::__('Em análise'),
+    'em análise texto' => i::__('Seu cadastro foi enviado e está com a equipe da Rede, que confere as informações e os documentos. Você recebe um aviso por e-mail quando houver um resultado: a aprovação ou um pedido de correção.'),
+    'enquanto em análise' => i::__('Enquanto em análise, seu perfil público não fica visível para outras pessoas.'),
     'enquanto pendente' => i::__('Enquanto pendente, seu perfil público não fica visível para outras pessoas.'),
 ];

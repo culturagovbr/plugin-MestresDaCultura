@@ -579,8 +579,9 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // Resultado da moderação para o mestre, acima das abas da inscrição: devolvido (tela 8 do protótipo), com o
-    // resultado de cada campo, o motivo dos recusados e o caminho para corrigir; ou aprovado, com o certificado. O
+    // Resultado da moderação para o mestre, acima das abas da inscrição: em análise, com o que acontece depois;
+    // devolvido (tela 8 do protótipo), com o resultado de cada campo, o motivo dos recusados e o caminho para
+    // corrigir; ou aprovado, com o certificado. O
     // `tabs-alert` é o espaço de aviso do `mc-tabs`; decidido aqui, no servidor, porque a `Entity` do front só guarda
     // as propriedades que conhece.
     private function showModerationToOwner(): void
@@ -601,6 +602,13 @@ class Plugin extends \MapasCulturais\Plugin
             }
 
             $moderation = (new Services\Moderation)->pendingView($registration);
+
+            // Em análise: o aviso do que acontece depois e, no selo do topo da ficha (registration/single.php), que diz
+            // "Enviada" para qualquer status enviado, "Em análise". O gancho vem antes do selo.
+            if (!$moderation && Services\Moderation::underReview($registration->status, $registration->editableFields, $registration->editSentTimestamp)) {
+                Services\ProgramVocabulary::apply(['Enviada' => i::__('Em análise')]);
+                $moderation = ['status' => 'review'];
+            }
 
             if (!$moderation && $registration->status === Registration::STATUS_APPROVED && ($seal = $plugin->programSeal()->relationOf($registration))) {
                 $moderation = ['status' => 'approved', 'certificateUrl' => $seal->singleUrl];

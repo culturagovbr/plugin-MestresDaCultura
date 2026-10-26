@@ -111,6 +111,12 @@ class Moderation
         };
     }
 
+    /** Enviado e aguardando a moderação: o primeiro envio ou a correção reenviada. */
+    static function underReview(int $status, mixed $editableFields, mixed $editSentTimestamp): bool
+    {
+        return in_array(self::situation($status, $editableFields, $editSentTimestamp), ['waiting', 'resent'], true);
+    }
+
     /** Devolvido e ainda não reenviado: há campos reabertos e a correção não foi enviada. */
     static function isPending(Registration $registration): bool
     {

@@ -45,7 +45,8 @@ class ProgramVocabulary
         return !$user->is('admin');
     }
 
-    static function apply(): void
+    /** @param array<string,string> $phrases por padrão, as do programa; a ficha em análise troca também o selo. */
+    static function apply(array $phrases = self::PHRASES): void
     {
         global $i18n;
 
@@ -55,7 +56,7 @@ class ProgramVocabulary
             $translations = $i18n['default'] = new Translations();
         }
 
-        foreach (self::PHRASES as $phrase => $replacement) {
+        foreach ($phrases as $phrase => $replacement) {
             $translations->add_entry(new EntryTranslations(['singular' => $phrase, 'translations' => [$replacement]]));
         }
     }
