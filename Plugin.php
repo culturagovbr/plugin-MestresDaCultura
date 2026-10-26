@@ -151,6 +151,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->keepOnePlacePerModerator();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
+        $this->validateOnlyTheReopenedFields();
         $this->showModerationToOwner();
         $this->applyProgramSeal();
         $this->showMasterProfile();
@@ -353,7 +354,6 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // A página da oportunidade do programa é do edital, e não da mestra: o core manda para ela quem sai do formulário
     // O agente da mestra e do moderador é o perfil deles (Meu perfil, no menu). O core o trata como um agente
     // qualquer: o caminho passa por "Meus agentes", lista fechada no painel (404), o botão diz "Editar agente" e a
     // edição, "Edição do agente individual". Para quem segue o vocabulário do programa (D5); o gestor fica com o core.
@@ -394,6 +394,7 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
+    // A página da oportunidade do programa é do edital, e não da mestra: o core manda para ela quem sai do formulário
     // ("Sair", "Salvar e sair"). Quem não controla o programa vai para o painel, "Meus cadastros"; o gestor e o
     // saasSuperAdmin seguem vendo a página. Como o RCV leva as páginas do programa para o subsite dele.
     private function sendTheMasterToThePanel(): void
@@ -618,6 +619,33 @@ class Plugin extends \MapasCulturais\Plugin
                 $moderation->confirmResend($this);
             }
         });
+    }
+
+    // Na correção do cadastro devolvido, o core cobra todos os obrigatórios, mas a mestra só edita os campos reabertos:
+    // um obrigatório criado depois do envio ficaria vazio e travado, e ela nunca reenviaria. Dos erros de campo do
+    // formulário (`field_N`; o anexo, `file_N`, está reaberto como `rfc_N`), ficam só os dos reabertos; os demais
+    // erros seguem. Nos dois grupos do core: o dos metadados (validationErrors) e o do envio (sendValidationErrors).
+    // Para cobrar o campo novo, a moderação o recusa na avaliação e ele é reaberto na devolução. No primeiro envio,
+    // vale a regra do core.
+    private function validateOnlyTheReopenedFields(): void
+    {
+        $plugin = $this;
+
+        $onlyReopened = function (array &$errors) use ($plugin) {
+            /** @var Registration $this */
+            if (!$plugin->fixedOpportunity()->isConfigured() || !$plugin->fixedOpportunity()->includes($this) || !Services\Moderation::isPending($this)) {
+                return;
+            }
+
+            $reopened = (array) $this->editableFields;
+            $errors = array_filter($errors, function ($key) use ($reopened) {
+                $name = preg_replace('/^file_/', 'rfc_', (string) $key);
+
+                return !preg_match('/^(field|rfc)_\d+$/', $name) || in_array($name, $reopened, true);
+            }, ARRAY_FILTER_USE_KEY);
+        };
+
+        App::i()->hook('entity(Registration).<<validationErrors|sendValidationErrors>>', $onlyReopened);
     }
 
     // Resultado da moderação para o mestre, acima das abas da inscrição: em análise, com o que acontece depois;
