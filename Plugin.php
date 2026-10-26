@@ -145,6 +145,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->sendTheMasterToThePanel();
         $this->fixTheProgramBreadcrumbs();
         $this->skipProfileFieldsTheProgramDoesNotAsk();
+        $this->speakOfCadastro();
         $this->keepOnePlacePerModerator();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
@@ -252,6 +253,18 @@ class Plugin extends \MapasCulturais\Plugin
                 $this->enqueueScript('components', 'mdc-registrations-table', 'js/registrations-table.js', ['opportunity-registrations-table']);
             }
         }, 1000);
+    }
+
+    // Aplica o vocabulário do programa no subsite dos Mestres, em app.init:after (ver Services\ProgramVocabulary).
+    private function speakOfCadastro(): void
+    {
+        $app = App::i();
+
+        $app->hook('app.init:after', function () use ($app) {
+            if (Plugin::isTheme() && Services\ProgramVocabulary::appliesTo($app->user)) {
+                Services\ProgramVocabulary::apply();
+            }
+        });
     }
 
     // O core leva para a edição do agente quem tem o perfil com erro de validação (app.redirect_profile_validate). No

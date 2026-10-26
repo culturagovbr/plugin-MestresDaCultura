@@ -36,7 +36,8 @@ class EvaluationsTable
     {
         $unused = $own ? [...self::UNUSED, ...array_keys(self::TEXTS)] : self::UNUSED;
         $headers = array_values(array_filter($headers, fn ($header) => !in_array($header['slug'] ?? null, $unused, true) && !in_array($header['value'] ?? null, $unused, true)));
-        $texts = [...self::TEXTS, 'result' => $own ? 'Resultado da sua moderação' : 'Resultado da moderação'];
+        // Na lista do próprio moderador, o número também leva o vocabulário da moderação.
+        $texts = [...self::TEXTS, 'result' => $own ? 'Resultado da sua moderação' : 'Resultado da moderação'] + ($own ? ['number' => 'Número do cadastro'] : []);
 
         foreach ($headers as &$header) {
             if (isset($texts[$header['slug'] ?? ''])) {
