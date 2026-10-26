@@ -990,9 +990,10 @@ class Plugin extends \MapasCulturais\Plugin
         return App::i()->view instanceof \MestresDaCultura\Theme;
     }
 
-    // Os filtros de visibilidade do programa (oportunidades, inscrições, painel, selos, notificações) valem para quem
-    // não é admin; o admin vê a instalação como no core. As travas de estrutura seguem outra regra: só o
-    // saasSuperAdmin passa (ver Services\FixedOpportunityGuard).
+    // Quem não é admin no subsite dos Mestres: só as telas do painel do programa abrem (closeOtherPanelScreens) e só o
+    // selo do programa aparece. O que é de outro subsite (inscrições, oportunidades, selos, notificações) fica de fora
+    // para todos, com Plugin::isTheme; as travas de estrutura seguem outra regra: só o saasSuperAdmin passa (ver
+    // Services\FixedOpportunityGuard).
     static function appliesToCurrentUser(): bool
     {
         return self::isTheme() && !App::i()->user->is('admin');

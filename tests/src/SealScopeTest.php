@@ -17,7 +17,8 @@ use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
-// No subsite dos Mestres, quem não é admin só vê o selo do programa: na API, no perfil e nas páginas de selo.
+// No subsite dos Mestres, quem não é admin só vê o selo do programa, e o gestor e o saasSuperAdmin, os selos do subsite:
+// na API, no perfil e nas páginas de selo.
 class SealScopeTest extends TestCase
 {
     use OpportunityBuilder;
