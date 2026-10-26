@@ -39,4 +39,12 @@ class ProfileValidationTest extends TestCase
         $this->assertArrayHasKey('name', $this->profileWithout(['shortDescription' => '', 'name' => ''])->validationErrors, 'Sem nome, segue o erro');
         $this->assertArrayHasKey('shortDescription', $this->profileWithout(['shortDescription' => str_repeat('a', 401)])->validationErrors, 'A descrição curta segue com o limite de tamanho');
     }
+
+    // As telas (criação de conta, edição do perfil) também não marcam os dois como obrigatórios.
+    function testTheScreensDoNotMarkThemAsRequired()
+    {
+        $this->assertFalse(Agent::getPropertiesMetadata()['shortDescription']['required'], 'Mini bio sem "obrigatório"');
+        $this->assertNotEmpty(Agent::getValidations()['shortDescription'] ?? [], 'O limite de tamanho da mini bio segue');
+        $this->assertFalse((bool) $this->app->getRegisteredTaxonomies(Agent::class)['area']->required, 'Área de atuação sem "obrigatório"');
+    }
 }
