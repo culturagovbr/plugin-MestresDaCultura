@@ -142,6 +142,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->adjustTheRegistrationsList();
         $this->showEvaluationSentDate();
         $this->showRoleBlocksInThePanel();
+        $this->sendTheMasterToThePanel();
         $this->keepOnePlacePerModerator();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
@@ -249,6 +250,23 @@ class Plugin extends \MapasCulturais\Plugin
                 $this->enqueueScript('components', 'mdc-registrations-table', 'js/registrations-table.js', ['opportunity-registrations-table']);
             }
         }, 1000);
+    }
+
+    // A página da oportunidade do programa é do edital, e não da mestra: o core manda para ela quem sai do formulário
+    // ("Sair", "Salvar e sair"). Quem não controla o programa vai para o painel, "Meus cadastros"; o gestor e o
+    // saasSuperAdmin seguem vendo a página. Como o RCV leva as páginas do programa para o subsite dele.
+    private function sendTheMasterToThePanel(): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
+
+        $app->hook('GET(opportunity.single):before', function () use ($app, $fixedOpportunity) {
+            $opportunity = $this->requestedEntity;
+
+            if (Plugin::isTheme() && $fixedOpportunity->isConfigured() && $fixedOpportunity->matches($opportunity) && !$fixedOpportunity->get()->canUser('@control')) {
+                $app->redirect($app->createUrl('panel', 'index'));
+            }
+        });
     }
 
     // Ver Services\PanelSummary. No ponto de gancho da view do painel do tema, antes de "Meus cadastros", como o aviso
