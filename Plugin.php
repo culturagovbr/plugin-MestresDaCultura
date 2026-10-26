@@ -144,6 +144,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->showRoleBlocksInThePanel();
         $this->sendTheMasterToThePanel();
         $this->fixTheProgramBreadcrumbs();
+        $this->skipProfileFieldsTheProgramDoesNotAsk();
         $this->keepOnePlacePerModerator();
         $this->returnRefusedRegistrations();
         $this->reopenEvaluationOnResend();
@@ -251,6 +252,28 @@ class Plugin extends \MapasCulturais\Plugin
                 $this->enqueueScript('components', 'mdc-registrations-table', 'js/registrations-table.js', ['opportunity-registrations-table']);
             }
         }, 1000);
+    }
+
+    // O core leva para a edição do agente quem tem o perfil com erro de validação (app.redirect_profile_validate). No
+    // subsite dos Mestres, faltar a descrição curta e a área de atuação, que o formulário do programa não pede, não é
+    // erro; o resto segue (perfil em rascunho, nome, o limite de tamanho da descrição). Como a Pnab ajusta os erros do
+    // agente no contexto dela (themes/Pnab/Theme.php, entity(Agent).validationErrors).
+    private function skipProfileFieldsTheProgramDoesNotAsk(): void
+    {
+        App::i()->hook('entity(Agent).validationErrors', function (array &$errors) {
+            /** @var \MapasCulturais\Entities\Agent $this */
+            if (!Plugin::isTheme()) {
+                return;
+            }
+
+            if (trim((string) $this->shortDescription) === '') {
+                unset($errors['shortDescription']);
+            }
+
+            if (empty($this->terms['area'])) {
+                unset($errors['term-area']);
+            }
+        });
     }
 
     // Ver Services\ProgramBreadcrumb. As views do core montam o caminho no corpo; aqui, antes de ele ir para a tela,
