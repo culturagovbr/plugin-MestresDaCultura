@@ -6,7 +6,6 @@ use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\User;
 use MDC\Services\FixedOpportunity;
-use Monolog\Handler\TestHandler;
 use Tests\Abstract\TestCase;
 use Tests\Builders\PhasePeriods\Open;
 use Tests\Builders\PhasePeriods\Past;
@@ -18,6 +17,7 @@ use Tests\Traits\UserDirector;
 class RegistrationRouteTest extends TestCase
 {
     use AgentBuilder;
+    use CapturesLog;
     use OpportunityBuilder;
     use RequestFactory;
     use UserDirector;
@@ -51,28 +51,6 @@ class RegistrationRouteTest extends TestCase
             $this->app->response->getStatusCode(),
             $this->app->response->getHeaderLine('Location'),
         ];
-    }
-
-    private ?array $logHandlers = null;
-
-    // O log só no TestHandler: impresso na saída de erro, ele derruba o teste antes das asserções. O log é do processo
-    // inteiro: os destinos voltam no tearDown.
-    private function captureLog(): TestHandler
-    {
-        $log = new TestHandler();
-        $this->logHandlers = $this->app->log->getHandlers();
-        $this->app->log->setHandlers([$log]);
-
-        return $log;
-    }
-
-    protected function tearDown(): void
-    {
-        if ($this->logHandlers !== null) {
-            $this->app->log->setHandlers($this->logHandlers);
-        }
-
-        parent::tearDown();
     }
 
     // A tela de cadastro indisponível, com o contato do suporte, e nenhum cadastro criado.
