@@ -29,14 +29,18 @@ class Controller extends \MapasCulturais\Controller
 
         $opportunity = (new FixedOpportunity)->get();
 
+        // Fora do ar, a tela de aviso (views/mdc/unavailable.php); o motivo vai para o log.
         if (!$opportunity) {
-            $app->pass();
+            $this->render('unavailable');
+
+            return;
         }
 
         if ($opportunity->status !== Opportunity::STATUS_ENABLED) {
             $app->log->error("MDC: a oportunidade {$opportunity->id} não está publicada; o cadastro não seria acessível a quem o criasse.");
+            $this->render('unavailable');
 
-            $app->pass();
+            return;
         }
 
         if ($url = $this->existingUrl($opportunity)) {
@@ -45,8 +49,9 @@ class Controller extends \MapasCulturais\Controller
 
         if (!$opportunity->canUser('register')) {
             $app->log->error("MDC: inscrição recusada na oportunidade {$opportunity->id}; o período está fechado.");
+            $this->render('unavailable');
 
-            $app->pass();
+            return;
         }
 
         $app->redirect($this->create($opportunity)->editUrl);
