@@ -53,6 +53,38 @@ class RegistrationRouteTest extends TestCase
         ];
     }
 
+    private ?array $logHandlers = null;
+
+    // O log só no TestHandler: impresso na saída de erro, ele derruba o teste antes das asserções. O log é do processo
+    // inteiro: os destinos voltam no tearDown.
+    private function captureLog(): TestHandler
+    {
+        $log = new TestHandler();
+        $this->logHandlers = $this->app->log->getHandlers();
+        $this->app->log->setHandlers([$log]);
+
+        return $log;
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->logHandlers !== null) {
+            $this->app->log->setHandlers($this->logHandlers);
+        }
+
+        parent::tearDown();
+    }
+
+    // A tela de cadastro indisponível, com o contato do suporte, e nenhum cadastro criado.
+    private function assertUnavailablePage(int $status, string $message): void
+    {
+        $body = (string) $this->app->response->getBody();
+
+        $this->assertEquals(200, $status, $message);
+        $this->assertStringContainsString('Cadastro indisponível', $body, $message);
+        $this->assertStringContainsString('suporte.mapa@cultura.gov.br', $body, 'O aviso precisa trazer o contato do suporte');
+    }
+
     private function registrationsOf(User $user, Opportunity $opportunity): array
     {
         return $this->app->repo('Registration')->findBy([
@@ -73,26 +105,26 @@ class RegistrationRouteTest extends TestCase
 
     function testRefusesWhenTheOpportunityIsNotConfigured()
     {
+        $this->captureLog();
         $this->login($this->userDirector->createUser());
         $this->configure(null);
 
         [$status] = $this->visit();
 
-        $this->assertEquals(404, $status, 'Sem oportunidade configurada a rota não tem destino');
+        $this->assertUnavailablePage($status, 'Sem oportunidade configurada, a mestra vê o aviso');
     }
 
     function testRefusesWhenTheRegistrationPeriodIsClosed()
     {
+        $log = $this->captureLog();
         $opportunity = $this->createOpportunity(new Past);
         $this->configure($opportunity);
         $this->login($this->userDirector->createUser());
 
-        $log = new TestHandler();
-        $this->app->log->pushHandler($log);
-
         [$status] = $this->visit();
 
-        $this->assertEquals(404, $status, 'Período fechado não permite criar inscrição');
+        $this->assertUnavailablePage($status, 'Com o período fechado, a mestra vê o aviso');
+        $this->assertEmpty($this->registrationsOf($this->app->user, $opportunity), 'Período fechado não permite criar inscrição');
         $this->assertTrue(
             $log->hasErrorThatContains('período está fechado'),
             'O motivo da recusa precisa ficar evidente no log'
@@ -101,6 +133,7 @@ class RegistrationRouteTest extends TestCase
 
     function testRefusesWhenTheOpportunityIsNotPublished()
     {
+        $log = $this->captureLog();
         $opportunity = $this->createOpportunity();
         $opportunity->status = Opportunity::STATUS_DRAFT;
         $opportunity->save(true);
@@ -108,12 +141,10 @@ class RegistrationRouteTest extends TestCase
         $this->configure($opportunity);
         $this->login($this->userDirector->createUser());
 
-        $log = new TestHandler();
-        $this->app->log->pushHandler($log);
-
         [$status] = $this->visit();
 
-        $this->assertEquals(404, $status, 'Oportunidade em rascunho não pode receber cadastro');
+        $this->assertUnavailablePage($status, 'Com a oportunidade em rascunho, a mestra vê o aviso');
+        $this->assertEmpty($this->registrationsOf($this->app->user, $opportunity), 'Oportunidade em rascunho não pode receber cadastro');
         $this->assertTrue(
             $log->hasErrorThatContains('não está publicada'),
             'O motivo da recusa precisa ficar evidente no log'
