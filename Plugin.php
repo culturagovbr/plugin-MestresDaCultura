@@ -1029,15 +1029,18 @@ class Plugin extends \MapasCulturais\Plugin
             echo "<mdc-master-profile part=\"{$part}\" :profile=\"{$json}\"></mdc-master-profile>";
         };
 
+        // Os festejos da mestra (FJ-10) vêm logo depois da atuação.
         $parts = [
-            'entity-header):end' => 'header',
-            'single1-entity-info-taxonomie-area):before' => 'certificate',
-            'entity-gallery-video):before' => 'acting',
+            'entity-header):end' => ['header'],
+            'single1-entity-info-taxonomie-area):before' => ['certificate'],
+            'entity-gallery-video):before' => ['acting', 'festivities'],
         ];
 
-        foreach ($parts as $hook => $part) {
-            $app->hook("template(agent.single.{$hook}", function () use ($render, $part) {
-                $render->call($this, $part);
+        foreach ($parts as $hook => $hookParts) {
+            $app->hook("template(agent.single.{$hook}", function () use ($render, $hookParts) {
+                foreach ($hookParts as $part) {
+                    $render->call($this, $part);
+                }
             });
         }
     }

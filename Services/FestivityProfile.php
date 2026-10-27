@@ -65,15 +65,17 @@ class FestivityProfile
     }
 
     /**
-     * Só quem ainda tem o selo do programa: a mestra pode sair da Rede depois de ligada ao festejo.
+     * As que o realizador marcou e as que escolheram o festejo no cadastro delas (FestivityField), só quem ainda tem
+     * o selo do programa.
      *
      * @return list<array{id: int, name: string, city: string, avatar: ?string, url: string}>
      */
     private function masters(Event $event): array
     {
         $masters = [];
+        $ids = array_unique([...FestivityFields::masters($event), ...FestivityField::mastersWhoChose($event, $this->programSeal)]);
 
-        foreach (FestivityFields::masters($event) as $id) {
+        foreach ($ids as $id) {
             $agent = $this->programSeal->isGivenTo($id) ? App::i()->repo(Agent::class)->find($id) : null;
 
             if ($agent) {

@@ -9,7 +9,7 @@ Perfil público do mestre aprovado (tela 9 do protótipo) sobre a página de age
 ## Propriedades
 
 - *Object **profile*** - `{name, knownAs, activities, city, since, certificateUrl, actingHtml}`
-- *String **part*** - `'header'`, `'certificate'` ou `'acting'`
+- *String **part*** - `'header'`, `'certificate'`, `'acting'` ou `'festivities'` (o festejo que ela escolheu no cadastro e os que a marcaram)
 
 ### Importando componente
 

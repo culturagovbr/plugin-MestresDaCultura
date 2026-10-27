@@ -7,7 +7,7 @@ app.component('mdc-master-profile', {
             type: Object,
             required: true,
         },
-        // a parte da página de agente: 'header', 'certificate' ou 'acting'
+        // a parte da página de agente: 'header', 'certificate', 'acting' ou 'festivities'
         part: {
             type: String,
             required: true,

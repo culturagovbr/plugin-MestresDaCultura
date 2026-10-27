@@ -28,3 +28,13 @@ $this->import('
     <h3>{{ text('atuação') }}</h3>
     <div v-html="profile.actingHtml"></div>
 </section>
+
+<section v-else-if="part === 'festivities' && profile.festivities?.length" class="mdc-master-profile mdc-master-profile--festivities col-12">
+    <h3>{{ text('festejos') }}</h3>
+    <ul class="mdc-master-profile__festivities">
+        <li v-for="festivity in profile.festivities" :key="festivity.id">
+            <a :href="festivity.url">{{ festivity.name }}</a>
+            <small v-if="festivity.place">{{ festivity.place }}</small>
+        </li>
+    </ul>
+</section>

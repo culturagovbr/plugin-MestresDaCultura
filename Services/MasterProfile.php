@@ -49,6 +49,7 @@ class MasterProfile
             $acting = $registration ? self::actingOf($registration) : null;
             $city = $registration ? self::cityOf($registration) : '';
             $knownAs = (string) $agent->nomeSocial;
+            $festivities = FestivityField::festivitiesOf($agent, $registration);
         } finally {
             $app->enableAccessControl();
         }
@@ -62,6 +63,8 @@ class MasterProfile
             'certificateUrl' => $relation->singleUrl,
             // A atuação sem os textos de "Outro".
             'actingHtml' => $acting ? ActingField::toHtml(['nodes' => $acting['nodes'] ?? [], 'others' => []]) : '',
+            // O festejo que ela escolheu no cadastro e os que a marcaram, só os publicados.
+            'festivities' => $festivities,
         ];
     }
 
