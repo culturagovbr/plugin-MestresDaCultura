@@ -149,4 +149,24 @@ class MasterShowcaseTest extends TestCase
 
         $this->assertSame(['CE' => 1, 'PE' => 2], (new MasterShowcase)->byState());
     }
+
+    // Com foto de perfil, o cartão leva a versão reduzida da foto.
+    function testTheCardCarriesTheProfilePhoto()
+    {
+        $master = $this->master('Maria', 'Mestra Maria', 'Olinda, PE', ['Artífice'], 1);
+        $tmp = tempnam(sys_get_temp_dir(), 'foto') . '.jpg';
+        imagejpeg(imagecreatetruecolor(300, 300), $tmp);
+
+        $this->app->disableAccessControl();
+        $photo = new \MapasCulturais\Entities\AgentFile(['error' => UPLOAD_ERR_OK, 'name' => 'foto.jpg', 'type' => 'image/jpeg', 'tmp_name' => $tmp, 'size' => filesize($tmp)]);
+        $photo->group = 'avatar';
+        $photo->owner = $master;
+        $photo->save(true);
+        $this->app->enableAccessControl();
+
+        $avatar = (new MasterShowcase)->highlights()[0]['avatar'];
+
+        $this->assertNotNull($avatar);
+        $this->assertStringContainsString("/files/agent/{$master->id}/", $avatar);
+    }
 }
