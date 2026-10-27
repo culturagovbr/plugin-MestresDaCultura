@@ -4,18 +4,38 @@ namespace Tests\MDC;
 
 use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\EventOccurrence;
+use MapasCulturais\Entities\Seal;
 use MapasCulturais\Entities\Space;
 use MapasCulturais\Entities\User;
 use MDC\Services\FestivityPlace;
+use MDC\Services\FestivitySeal;
+use Tests\Builders\SealBuilder;
 
 /**
- * O festejo nos testes da fase: o rascunho, um local e um período da agenda, como o formulário grava. Quem usa precisa
- * do UserDirector.
+ * O festejo nos testes da fase: o selo dos festejos configurado, o rascunho, um local e um período da agenda, como o
+ * formulário grava. Quem usa precisa do UserDirector.
  */
 trait BuildsFestivities
 {
+    private ?Seal $festivitySeal = null;
+
+    // Cria e configura o selo dos festejos na primeira chamada, dentro da transação do teste.
+    private function festivitySeal(): Seal
+    {
+        if (!$this->festivitySeal) {
+            $admin = $this->userDirector->createUser('admin');
+            $this->login($admin);
+            $this->festivitySeal = (new SealBuilder)->reset($admin->profile)->fillRequiredProperties()->save()->getInstance();
+            $this->app->config[FestivitySeal::CONFIG_KEY] = $this->festivitySeal->id;
+            $this->logout();
+        }
+
+        return $this->festivitySeal;
+    }
+
     private function draft(?User $user = null): Event
     {
+        $this->festivitySeal();
         $user ??= $this->userDirector->createUser();
         $this->login($user);
         $event = new Event;

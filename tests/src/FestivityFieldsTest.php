@@ -13,6 +13,7 @@ use Tests\Traits\UserDirector;
 // descrição curta, da classificação etária e da linguagem.
 class FestivityFieldsTest extends TestCase
 {
+    use BuildsFestivities;
     use UserDirector;
 
     function testTheFestejoFieldsAreEventMetadata()
@@ -80,6 +81,7 @@ class FestivityFieldsTest extends TestCase
 
     function testAVisitorSeesOnlyThePublicFields()
     {
+        $this->festivitySeal();
         $user = $this->userDirector->createUser();
         $this->login($user);
         $event = new Event;
