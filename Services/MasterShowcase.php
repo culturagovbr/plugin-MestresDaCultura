@@ -13,6 +13,9 @@ use MapasCulturais\Entities\Registration;
  */
 class MasterShowcase
 {
+    // A UF no fim da cidade, gravada como "Olinda, PE" (em JSON, entre aspas).
+    private const UF = "substring(city.value from ',\\s*([A-Z]{2})\"?\\s*$')";
+
     // Quantos aprovados mais recentes a vitrine mostra.
     const HIGHLIGHTS = 6;
 
@@ -63,13 +66,26 @@ class MasterShowcase
         }
 
         [$sql, $params] = $query;
-        // A UF no fim da cidade, gravada como "Olinda, PE" (em JSON, entre aspas).
-        $row = App::i()->conn->fetchAssociative(
-            "SELECT count(DISTINCT a.id) AS masters, count(DISTINCT substring(city.value from ',\\s*([A-Z]{2})\"?\\s*$')) AS states {$sql}",
-            $params
-        );
+        $row = App::i()->conn->fetchAssociative('SELECT count(DISTINCT a.id) AS masters, count(DISTINCT ' . self::UF . ") AS states {$sql}", $params);
 
         return ['masters' => (int) $row['masters'], 'states' => (int) $row['states']];
+    }
+
+    /**
+     * Quantos em cada UF, para o mapa da Rede, na mesma base dos contadores e sem a localização de ninguém.
+     *
+     * @return array<string, int> UF => quantidade, só as que têm alguém
+     */
+    function byState(): array
+    {
+        if (!$query = $this->query()) {
+            return [];
+        }
+
+        [$sql, $params] = $query;
+        $rows = App::i()->conn->fetchAllKeyValue('SELECT ' . self::UF . " AS uf, count(DISTINCT a.id) {$sql} AND city.value IS NOT NULL GROUP BY 1 ORDER BY 1", $params);
+
+        return array_map('intval', array_filter($rows, fn ($uf) => (bool) $uf, ARRAY_FILTER_USE_KEY));
     }
 
     /**

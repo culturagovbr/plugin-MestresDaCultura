@@ -362,13 +362,20 @@ class Plugin extends \MapasCulturais\Plugin
     }
 
     // A vitrine da home (Services\MasterShowcase): o tema mostra (home-mestres, home-banner); os dados vão no objeto
-    // da página, como os de "Meus cadastros".
+    // da página, como os de "Meus cadastros". O mapa da Rede (mdc-network-map) recebe o desenho dos estados, da API de
+    // malhas do IBGE (data/br-uf.json), e quantos há em cada um.
     private function feedTheHomeShowcase(): void
     {
         App::i()->hook('view.render(site/index):before', function () {
             if (Plugin::isTheme()) {
                 $showcase = new Services\MasterShowcase;
-                $this->jsObject['config']['mdcShowcase'] = ['highlights' => $showcase->highlights(), 'counts' => $showcase->counts()];
+                $this->jsObject['config']['mdcShowcase'] = [
+                    'highlights' => $showcase->highlights(),
+                    'counts' => $showcase->counts(),
+                    'states' => (object) $showcase->byState(),
+                    'map' => json_decode((string) file_get_contents(__DIR__ . '/data/br-uf.json'), true),
+                    'searchUrl' => App::i()->createUrl('mdc', 'masters'),
+                ];
             }
         });
     }
