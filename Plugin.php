@@ -48,6 +48,7 @@ class Plugin extends \MapasCulturais\Plugin
 
         $app->registerController('mdc', Controller::class);
         $app->registerRegistrationFieldType(new RegistrationFieldType(Services\ActingField::definition()));
+        $app->registerRegistrationFieldType(new RegistrationFieldType(Services\FestivityField::definition()));
         $app->registerJobType(new Jobs\ReleaseStaleDrafts(Jobs\ReleaseStaleDrafts::SLUG));
         $this->registerModerationQueueOptions();
 
@@ -1171,13 +1172,17 @@ class Plugin extends \MapasCulturais\Plugin
     private function renderActingField(): void
     {
         App::i()->hook('template(<<*>>.<<*>>.entity-field-label):after', function () {
-            $this->import('mdc-acting-field');
+            $this->import('mdc-acting-field mdc-festivity-field');
 
             $slug = Services\ActingField::SLUG;
+            $festivity = Services\FestivityField::SLUG;
 
+            // O festejo do Calendário (item 24.4 da V3) entra do mesmo jeito: componente próprio dentro do campo do core.
             echo <<<HTML
                 <mdc-acting-field v-if="is('{$slug}')" :entity="entity" :prop="prop" :disabled="readonly || disabled"
                     @change="change({ target: { value: \$event } }, true)"></mdc-acting-field>
+                <mdc-festivity-field v-if="is('{$festivity}')" :entity="entity" :prop="prop" :disabled="readonly || disabled"
+                    @change="change({ target: { value: \$event } }, true)"></mdc-festivity-field>
             HTML;
         });
     }
@@ -1305,6 +1310,10 @@ class Plugin extends \MapasCulturais\Plugin
             foreach ($this->registrationFieldConfigurations as $field) {
                 if ($field->fieldType === Services\ActingField::SLUG && isset($definitions[$field->fieldName])) {
                     $definitions[$field->fieldName]->unserialize = [Services\ActingField::class, 'unserializeAsText'];
+                }
+                // O festejo pelo nome, e não pelo id.
+                if ($field->fieldType === Services\FestivityField::SLUG && isset($definitions[$field->fieldName])) {
+                    $definitions[$field->fieldName]->unserialize = [Services\FestivityField::class, 'toText'];
                 }
             }
         });

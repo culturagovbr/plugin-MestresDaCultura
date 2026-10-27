@@ -163,6 +163,11 @@ class RegistrationsSpreadsheet
             return $list([ActingField::class, 'toCell']);
         }
 
+        // O festejo do Calendário pelo nome, e não pelo id.
+        if ($field->fieldType === FestivityField::SLUG) {
+            return [FestivityField::class, 'toText'];
+        }
+
         if (!$this->fixedOpportunity->matches($phase)) {
             return null;
         }

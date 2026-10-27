@@ -213,4 +213,9 @@ return [
             (new \MDC\Services\MasterPublicData)->publish($registration);
         }
     },
+
+    // A pergunta "Identifique o festejo no calendário" passa a escolher um festejo publicado.
+    'mdc: o festejo do cadastro dos Mestres passa a ser escolhido no Calendário' => function () {
+        \MDC\Services\FestivityField::convertTheMastersQuestion();
+    },
 ];
