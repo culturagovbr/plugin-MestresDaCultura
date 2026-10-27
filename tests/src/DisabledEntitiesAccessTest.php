@@ -83,21 +83,22 @@ class DisabledEntitiesAccessTest extends TestCase
         }
     }
 
+    // A gravação do próprio espaço abriu para o local do festejo (FestivityPlaceTest); a remoção segue fechada.
     function testWriteOnSpaceAndProjectIsBlockedForRegularUser()
     {
         $this->login($this->userDirector->createUser());
 
+        $this->assertStatus404(
+            $this->requestFactory->POST('project', 'index', [], ['name' => 'Teste']),
+            'A criação de project por requisição direta deve recusar usuário comum'
+        );
+
+        $this->assertStatus404(
+            $this->requestFactory->createServerRequest('PATCH', 'project', 'single', [1], [], [], [], ['name' => 'Teste']),
+            'A alteração de project por requisição direta deve recusar usuário comum'
+        );
+
         foreach (['space', 'project'] as $controller) {
-            $this->assertStatus404(
-                $this->requestFactory->POST($controller, 'index', [], ['name' => 'Teste']),
-                "A criação de {$controller} por requisição direta deve recusar usuário comum"
-            );
-
-            $this->assertStatus404(
-                $this->requestFactory->createServerRequest('PATCH', $controller, 'single', [1], [], [], [], ['name' => 'Teste']),
-                "A alteração de {$controller} por requisição direta deve recusar usuário comum"
-            );
-
             $this->assertStatus404(
                 $this->requestFactory->createServerRequest('DELETE', $controller, 'single', [1]),
                 "A remoção de {$controller} por requisição direta deve recusar usuário comum"
@@ -143,8 +144,7 @@ class DisabledEntitiesAccessTest extends TestCase
         );
     }
 
-    // Espaços não são usados no subsite, nem pelo saasSuperAdmin. Projetos seguem com ele: a oportunidade do programa
-    // pertence a um projeto, configurado em cada ambiente.
+    // As telas de espaços não abrem no subsite, nem para o saasSuperAdmin.
     function testSpacesAreClosedEvenForTheSaasSuperAdmin()
     {
         $this->login($this->userDirector->createUser('saasSuperAdmin'));
@@ -152,7 +152,6 @@ class DisabledEntitiesAccessTest extends TestCase
         $this->assertStatus404($this->requestFactory->GET('search', 'spaces'), 'A busca de espaços recusa o saasSuperAdmin');
         $this->assertStatus404($this->requestFactory->GET('panel', 'spaces'), 'A lista de espaços no painel recusa o saasSuperAdmin');
         $this->assertStatus404($this->requestFactory->GET('space', 'create'), 'A criação de espaço recusa o saasSuperAdmin');
-        $this->assertStatus404($this->requestFactory->POST('space', 'index', [], ['name' => 'Teste']), 'A gravação de espaço recusa o saasSuperAdmin');
     }
 
     function testAgentsAndProjectsRemainOpenForSaasSuperAdmin()
