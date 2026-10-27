@@ -404,9 +404,11 @@ class Plugin extends \MapasCulturais\Plugin
     // O agente da mestra e do moderador é o perfil deles (Meu perfil, no menu). O core o trata como um agente
     // qualquer: o caminho passa por "Meus agentes", lista fechada no painel (404), o botão diz "Editar agente" e a
     // edição, "Edição do agente individual". Para quem segue o vocabulário do programa (D5); o gestor fica com o core.
+    // O perfil público da mestra com o selo, para os demais, passa pela busca de Mestras e Mestres.
     private function nameTheOwnProfile(): void
     {
         $app = App::i();
+        $plugin = $this;
 
         $isOwnProfile = function ($view) use ($app): bool {
             $agent = $view->controller->requestedEntity ?? null;
@@ -415,12 +417,19 @@ class Plugin extends \MapasCulturais\Plugin
                 && !$app->user->is('guest') && Services\ProgramVocabulary::appliesTo($app->user) && $agent->id === $app->user->profile?->id;
         };
 
-        $app->hook('mapas.printJsObject:before', function () use ($isOwnProfile) {
-            if (!$isOwnProfile($this) || !in_array($this->controller->action, ['single', 'edit'], true)) {
+        $app->hook('mapas.printJsObject:before', function () use ($isOwnProfile, $plugin) {
+            $agent = $this->controller->requestedEntity ?? null;
+
+            if ($isOwnProfile($this) && in_array($this->controller->action, ['single', 'edit'], true)) {
+                $breadcrumb = Services\ProgramBreadcrumb::profile($agent->singleUrl, $this->controller->action === 'edit');
+            } elseif (Plugin::isTheme() && $this->controller->id === 'agent' && $this->controller->action === 'single'
+                && $agent instanceof Agent && $agent->id && $plugin->programSeal()->isGivenTo($agent->id)) {
+                // O perfil público da mestra, para quem não é ela (ver ProgramBreadcrumb::master).
+                $breadcrumb = Services\ProgramBreadcrumb::master($agent->{Services\MasterPublicData::KNOWN_AS} ?: $agent->name);
+            } else {
                 return;
             }
 
-            $breadcrumb = Services\ProgramBreadcrumb::profile($this->controller->requestedEntity->singleUrl, $this->controller->action === 'edit');
             $this->breadcrumb = $breadcrumb;
 
             if (isset($this->jsObject['breadcrumb'])) {
