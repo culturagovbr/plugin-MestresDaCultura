@@ -160,6 +160,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->openTheMastersSearch();
         $this->skipProfileFieldsTheProgramDoesNotAsk();
         $this->skipEventFieldsTheFestejoDoesNotAsk();
+        $this->completeTheFestivityPlace();
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
         $this->keepOnePlacePerModerator();
@@ -365,6 +366,25 @@ class Plugin extends \MapasCulturais\Plugin
 
             if ($language = $app->getRegisteredTaxonomies(Event::class)['linguagem'] ?? null) {
                 $language->required = false;
+            }
+        });
+    }
+
+    // O local do festejo só pede o nome e o endereço (ver Services\FestivityPlace): o tipo vem sozinho, e a descrição
+    // curta não é obrigatória. A área de atuação já não é (skipProfileFieldsTheProgramDoesNotAsk: a taxonomia é a mesma).
+    private function completeTheFestivityPlace(): void
+    {
+        $app = App::i();
+
+        $app->hook('POST(space.index):data', function (&$data) {
+            if (Plugin::isTheme() && empty($data['type'])) {
+                $data['type'] = Services\FestivityPlace::type();
+            }
+        });
+
+        $app->hook('entity(Space)::validations', function (array &$validations) {
+            if (Plugin::isTheme()) {
+                unset($validations['shortDescription']['required']);
             }
         });
     }
@@ -1774,10 +1794,14 @@ class Plugin extends \MapasCulturais\Plugin
             $app->pass();
         });
 
+        // O local do festejo: quem tem conta grava o próprio espaço (ver Services\FestivityPlace).
+        $isFestivityPlace = fn (string $controller, string $action): bool => $controller === 'space'
+            && !$app->user->is('guest') && Services\FestivityPlace::isWrite($app->request->getMethod(), $action);
+
         // ALL alcança todo método HTTP e nunca a API, que gera o prefixo API(...).
         foreach (['space' => 'spaces', 'project' => 'projects'] as $controller => $entity) {
-            $app->hook("ALL({$controller}.<<*>>):before", function () use ($app, $entity, $isAllowed) {
-                if (!$isAllowed($entity)) {
+            $app->hook("ALL({$controller}.<<*>>):before", function () use ($app, $controller, $entity, $isAllowed, $isFestivityPlace) {
+                if (!$isAllowed($entity) && !$isFestivityPlace($controller, $this->action)) {
                     $app->pass();
                 }
             });
