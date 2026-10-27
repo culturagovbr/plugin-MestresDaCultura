@@ -13,6 +13,7 @@ use MDC\Exceptions\CurationRefused;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\Curators;
 use MDC\Services\OtherQueue;
+use MDC\Services\ProgramSeal;
 use MDC\Services\TreeCuration;
 use MDC\Services\TreeDuplicates;
 use MDC\Services\TreeEquivalence;
@@ -55,6 +56,19 @@ class Controller extends \MapasCulturais\Controller
         }
 
         $app->redirect($this->create($opportunity)->editUrl);
+    }
+
+    // Busca pública de Mestras e Mestres (views/mdc/masters.php), só no subsite dos Mestres; lista só quem tem o selo.
+    function GET_masters()
+    {
+        $app = App::i();
+
+        if (!Plugin::isTheme()) {
+            $app->pass();
+        }
+
+        $app->view->jsObject['config']['mdcMasters'] = ['sealId' => (new ProgramSeal)->configuredId()];
+        $this->render('masters');
     }
 
     // Árvore pública, a mesma do cadastro.

@@ -151,6 +151,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->fixTheProgramBreadcrumbs();
         $this->nameTheOwnProfile();
         $this->feedTheHomeShowcase();
+        $this->openTheMastersSearch();
         $this->skipProfileFieldsTheProgramDoesNotAsk();
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
@@ -368,6 +369,27 @@ class Plugin extends \MapasCulturais\Plugin
             if (Plugin::isTheme()) {
                 $showcase = new Services\MasterShowcase;
                 $this->jsObject['config']['mdcShowcase'] = ['highlights' => $showcase->highlights(), 'counts' => $showcase->counts()];
+            }
+        });
+    }
+
+    // A busca de Mestras e Mestres (Controller::GET_masters, mdc-masters-search) em `/mestras-e-mestres/`, como o
+    // AldirBlanc registra as rotas dele. A busca por nome procura também o nome artístico, público, pelos ganchos
+    // que o core usa para os metadados do agente (módulo ApiKeywords).
+    private function openTheMastersSearch(): void
+    {
+        $app = App::i();
+        $app->config['routes']['shortcuts']['mestras-e-mestres'] = ['mdc', 'masters'];
+
+        $app->hook('repo(agent).getIdsByKeywordDQL.join', function (&$joins) {
+            if (Plugin::isTheme()) {
+                $joins .= "\n LEFT JOIN e.__metadata mdc_known_as WITH mdc_known_as.key = '" . Services\MasterPublicData::KNOWN_AS . "'";
+            }
+        });
+
+        $app->hook('repo(agent).getIdsByKeywordDQL.where', function (&$where, $keyword, $alias) {
+            if (Plugin::isTheme()) {
+                $where .= " OR unaccent(lower(mdc_known_as.value)) LIKE unaccent(lower(:{$alias}))";
             }
         });
     }
@@ -730,6 +752,7 @@ class Plugin extends \MapasCulturais\Plugin
             /** @var Registration $this */
             if ($isRegistrationPhase($this)) {
                 $plugin->programSeal()->apply($this);
+                (new Services\MasterPublicData)->publish($this);
             }
         });
 
@@ -737,6 +760,7 @@ class Plugin extends \MapasCulturais\Plugin
             /** @var Registration $this */
             if ($isRegistrationPhase($this)) {
                 $plugin->programSeal()->remove($this);
+                (new Services\MasterPublicData)->clear($this->owner);
             }
         });
 
@@ -752,7 +776,6 @@ class Plugin extends \MapasCulturais\Plugin
         // do plugin entra logo depois do cabeçalho do site, só no certificado do selo do programa.
         $app->hook('template(seal.sealRelation.main-header):after', function () use ($app, $plugin) {
             /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
-                (new Services\MasterPublicData)->publish($this);
             $relation = $app->repo('SealRelation')->find((int) ($this->controller->data['id'] ?? 0));
 
             if ($relation && $plugin->programSeal()->isTheProgramSeal($relation->seal)) {
@@ -760,7 +783,6 @@ class Plugin extends \MapasCulturais\Plugin
                 echo '<mdc-certificate-actions></mdc-certificate-actions>';
             }
         });
-                (new Services\MasterPublicData)->clear($this->owner);
     }
 
     // A idade calculada da data de nascimento, abaixo do campo do formulário que grava nela (ver o componente mdc-age).
