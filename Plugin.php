@@ -8,6 +8,7 @@ use MapasCulturais\App;
 use MapasCulturais\Definitions\RegistrationFieldType;
 use MapasCulturais\Entities\Agent;
 use MapasCulturais\Entities\EvaluationMethodConfiguration;
+use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Exceptions\PermissionDenied;
@@ -158,6 +159,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->feedTheHomeShowcase();
         $this->openTheMastersSearch();
         $this->skipProfileFieldsTheProgramDoesNotAsk();
+        $this->skipEventFieldsTheFestejoDoesNotAsk();
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
         $this->keepOnePlacePerModerator();
@@ -331,6 +333,40 @@ class Plugin extends \MapasCulturais\Plugin
                 $this->enqueueScript('components', 'mdc-create-account-optional', 'js/create-account-optional.js', ['create-account']);
             }
         }, 1000);
+    }
+
+    // O festejo é um Evento do core, e a planilha dos Festejos não pede a descrição curta, a classificação etária nem a
+    // linguagem (decisão FJD3). Só no subsite dos Mestres, como os campos do perfil acima.
+    private function skipEventFieldsTheFestejoDoesNotAsk(): void
+    {
+        $app = App::i();
+
+        $app->hook('entity(Event)::validations', function (array &$validations) {
+            if (Plugin::isTheme()) {
+                unset($validations['shortDescription']['required']);
+            }
+        });
+
+        // Sem o "required", o core marca a coluna pelo `nullable`, e a da descrição curta do evento não é.
+        $app->hook('entity(Event).propertiesMetadata', function (&$result) {
+            if (Plugin::isTheme()) {
+                $result['shortDescription']['required'] = false;
+            }
+        });
+
+        $app->hook('app.register:after', function () use ($app) {
+            if (!Plugin::isTheme()) {
+                return;
+            }
+
+            if ($age = $app->getRegisteredMetadataByMetakey('classificacaoEtaria', Event::class)) {
+                $age->is_required = false;
+            }
+
+            if ($language = $app->getRegisteredTaxonomies(Event::class)['linguagem'] ?? null) {
+                $language->required = false;
+            }
+        });
     }
 
     // Ver Services\ProgramBreadcrumb. As views do core montam o caminho no corpo; aqui, antes de ele ir para a tela,
