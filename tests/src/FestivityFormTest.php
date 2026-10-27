@@ -38,6 +38,7 @@ class FestivityFormTest extends TestCase
         $event->{FestivityFields::VENUE} = 'Espaço público';
         $event->{FestivityFields::TERRITORY} = 'Comunidade Quilombola';
         $event->{FestivityFields::PRODUCER} = 'Grupo/Coletivo Cultural';
+        $event->{FestivityFields::INSTITUTION} = 'Samba de Roda Filhas do Recôncavo';
         $event->{FestivityFields::CONSENT} = '2026-10-27 12:00:00';
         $event->save(true);
 
