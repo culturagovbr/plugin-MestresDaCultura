@@ -176,6 +176,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->showModerationToOwner();
         $this->applyProgramSeal();
         $this->showMasterProfile();
+        $this->showFestivityProfile();
         $this->markFormSections();
         $this->showAgeInForm();
         $this->notifyApproval();
@@ -1040,6 +1041,47 @@ class Plugin extends \MapasCulturais\Plugin
         }
     }
 
+
+    // A página do festejo (tela 2 do protótipo): as seções do programa nos ganchos da página de evento do core, como o
+    // perfil da mestra (showMasterProfile), com o que o servidor monta só do que é público (Services\FestivityProfile).
+    private function showFestivityProfile(): void
+    {
+        $app = App::i();
+        $plugin = $this;
+        $profile = false;
+
+        $render = function (string $part) use ($plugin, &$profile) {
+            /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
+            $event = $this->controller->requestedEntity;
+
+            if ($profile === false) {
+                $profile = $event instanceof Event && Plugin::isFestivity($event)
+                    ? (new Services\FestivityProfile($plugin->festivitySeal(), $plugin->programSeal()))->of($event)
+                    : null;
+            }
+
+            if (!$profile) {
+                return;
+            }
+
+            $this->import('mdc-festivity-profile');
+            $json = htmlspecialchars(json_encode($profile), ENT_QUOTES);
+
+            echo "<mdc-festivity-profile part=\"{$part}\" :profile=\"{$json}\"></mdc-festivity-profile>";
+        };
+
+        $parts = [
+            'entity-header):end' => 'header',
+            'entity-gallery-video):before' => 'main',
+            'entity-seals):before' => 'aside',
+        ];
+
+        foreach ($parts as $hook => $part) {
+            $app->hook("template(event.single.{$hook}", function () use ($render, $part) {
+                $render->call($this, $part);
+            });
+        }
+    }
 
     private function notifyApproval(): void
     {
