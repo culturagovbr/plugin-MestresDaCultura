@@ -198,4 +198,19 @@ return [
     'mdc: agenda a devolução diária dos rascunhos de moderação parados' => function () {
         \MDC\Jobs\ReleaseStaleDrafts::schedule();
     },
+
+    // Publica os dados dos mestres já aprovados, como numa aprovação nova.
+    'mdc: publica os dados dos mestres já aprovados' => function () {
+        $app = App::i();
+        $opportunity = (new \MDC\Services\FixedOpportunity)->get();
+
+        if (!$opportunity) {
+            return;
+        }
+
+        $registrations = $app->repo('Registration')->findBy(['opportunity' => $opportunity, 'status' => \MapasCulturais\Entities\Registration::STATUS_APPROVED]);
+        foreach ($registrations as $registration) {
+            (new \MDC\Services\MasterPublicData)->publish($registration);
+        }
+    },
 ];

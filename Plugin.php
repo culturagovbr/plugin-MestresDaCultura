@@ -45,6 +45,11 @@ class Plugin extends \MapasCulturais\Plugin
         $app->registerRegistrationFieldType(new RegistrationFieldType(Services\ActingField::definition()));
         $app->registerJobType(new Jobs\ReleaseStaleDrafts(Jobs\ReleaseStaleDrafts::SLUG));
         $this->registerModerationQueueOptions();
+
+        // Públicos, para a busca de Mestras e Mestres (ver Services\MasterPublicData).
+        foreach (Services\MasterPublicData::metadata() as $key => $definition) {
+            $this->registerAgentMetadata($key, $definition);
+        }
     }
 
     // Opções da devolução dos rascunhos de moderação (ver Services\ModerationQueue), válidas também fora do subsite.
@@ -712,7 +717,8 @@ class Plugin extends \MapasCulturais\Plugin
     }
 
     // Selo do programa (ver Services\ProgramSeal): entra na aprovação, antes do aviso que leva o link do
-    // certificado, e sai se o cadastro deixa de estar aprovado. Só na fase de cadastro, como o aviso.
+    // certificado, e sai se o cadastro deixa de estar aprovado. Só na fase de cadastro, como o aviso. Os dados públicos
+    // da busca (Services\MasterPublicData) entram e saem junto.
     private function applyProgramSeal(): void
     {
         $app = App::i();
@@ -746,6 +752,7 @@ class Plugin extends \MapasCulturais\Plugin
         // do plugin entra logo depois do cabeçalho do site, só no certificado do selo do programa.
         $app->hook('template(seal.sealRelation.main-header):after', function () use ($app, $plugin) {
             /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
+                (new Services\MasterPublicData)->publish($this);
             $relation = $app->repo('SealRelation')->find((int) ($this->controller->data['id'] ?? 0));
 
             if ($relation && $plugin->programSeal()->isTheProgramSeal($relation->seal)) {
@@ -753,6 +760,7 @@ class Plugin extends \MapasCulturais\Plugin
                 echo '<mdc-certificate-actions></mdc-certificate-actions>';
             }
         });
+                (new Services\MasterPublicData)->clear($this->owner);
     }
 
     // A idade calculada da data de nascimento, abaixo do campo do formulário que grava nela (ver o componente mdc-age).

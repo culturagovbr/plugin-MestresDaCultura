@@ -46,8 +46,8 @@ class MasterProfile
         try {
             // Registra os campos do formulário como metadados da inscrição.
             $opportunity->registerRegistrationMetadata();
-            $acting = $registration ? $this->acting($registration) : null;
-            $city = $registration ? $this->city($registration) : '';
+            $acting = $registration ? self::actingOf($registration) : null;
+            $city = $registration ? self::cityOf($registration) : '';
             $knownAs = (string) $agent->nomeSocial;
         } finally {
             $app->enableAccessControl();
@@ -83,7 +83,8 @@ class MasterProfile
         ));
     }
 
-    private function acting(Registration $registration): ?array
+    // A resposta da atuação do cadastro; pede o controle de acesso desligado e os metadados registrados.
+    static function actingOf(Registration $registration): ?array
     {
         foreach (ActingField::fieldsOf($registration) as $field) {
             // Lido pela definição do campo já vem decodificado; cru, vem em JSON.
@@ -99,7 +100,7 @@ class MasterProfile
     }
 
     // A cidade do campo "Qual Cidade você vive?", gravada como "Olinda, PE".
-    private function city(Registration $registration): string
+    static function cityOf(Registration $registration): string
     {
         foreach ($registration->opportunity->registrationFieldConfigurations as $field) {
             if ($field->fieldType === 'municipio' && is_string($registration->{$field->fieldName})) {
