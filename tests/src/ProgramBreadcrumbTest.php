@@ -49,4 +49,14 @@ class ProgramBreadcrumbTest extends TestCase
         $this->assertSame('http://x/agente/5/', $edit[2]['url'] ?? null, 'Na edição, o perfil leva à página dele');
         $this->assertNotContains($this->app->createUrl('panel', 'agents'), array_column($edit, 'url'), 'Nada leva a "Meus agentes"');
     }
+
+    // A trilha do perfil público da mestra com o selo passa pela busca de Mestras e Mestres.
+    function testTheMasterPathGoesThroughTheSearch()
+    {
+        $path = ProgramBreadcrumb::master('Mestra Maria do Maracatu');
+
+        $this->assertSame(['Início', 'Mestras e Mestres', 'Mestra Maria do Maracatu'], array_column($path, 'label'));
+        $this->assertSame([$this->app->createUrl('site', 'index'), $this->app->createUrl('mdc', 'masters')], array_column(array_slice($path, 0, 2), 'url'));
+        $this->assertArrayNotHasKey('url', $path[2], 'O perfil é a página atual');
+    }
 }
