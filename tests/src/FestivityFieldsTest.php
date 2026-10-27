@@ -4,6 +4,7 @@ namespace Tests\MDC;
 
 use MapasCulturais\ApiQuery;
 use MapasCulturais\Entities\Event;
+use MapasCulturais\Entities\EventOccurrence;
 use MDC\Services\FestivityFields;
 use Tests\Abstract\TestCase;
 use Tests\Traits\UserDirector;
@@ -51,6 +52,11 @@ class FestivityFieldsTest extends TestCase
         foreach (['shortDescription', 'classificacaoEtaria', 'term-linguagem'] as $key) {
             $this->assertArrayNotHasKey($key, $errors, "{$key} não é obrigatório no subsite");
         }
+
+        // O período do festejo não cobra valor de entrada.
+        $occurrence = new EventOccurrence;
+        $occurrence->rule = ['startsOn' => '2026-12-03', 'startsAt' => '18:00', 'frequency' => 'once'];
+        $this->assertArrayNotHasKey('price', $occurrence->getValidationErrors(), 'O valor da entrada não é obrigatório no subsite');
     }
 
     // O resto da validação segue, e as telas mostram os campos sem "obrigatório".

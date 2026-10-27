@@ -3,12 +3,8 @@
 namespace Tests\MDC;
 
 use MapasCulturais\Entities\Event;
-use MapasCulturais\Entities\EventOccurrence;
-use MapasCulturais\Entities\Space;
-use MapasCulturais\Entities\User;
 use MDC\Services\FestivityFields;
 use MDC\Services\FestivityForm;
-use MDC\Services\FestivityPlace;
 use Psr\Http\Message\ServerRequestInterface;
 use Tests\Abstract\TestCase;
 use Tests\Traits\RequestFactory;
@@ -18,6 +14,7 @@ use Tests\Traits\UserDirector;
 // publicação confere todas, também pelo Publicar do painel.
 class FestivityFormTest extends TestCase
 {
+    use BuildsFestivities;
     use RequestFactory;
     use UserDirector;
 
@@ -29,19 +26,6 @@ class FestivityFormTest extends TestCase
         $body = (string) $this->app->response->getBody();
 
         return [$this->app->response->getStatusCode(), json_decode($body, true) ?? $body, $this->app->response->getHeaderLine('Location')];
-    }
-
-    private function draft(?User $user = null): Event
-    {
-        $user ??= $this->userDirector->createUser();
-        $this->login($user);
-        $event = new Event;
-        $event->name = 'Samba de Roda de Santa Bárbara';
-        $event->owner = $user->profile;
-        $event->status = Event::STATUS_DRAFT;
-        $event->save(true);
-
-        return $event;
     }
 
     // O que as 6 etapas cobram, como o formulário preencheria.
@@ -60,17 +44,7 @@ class FestivityFormTest extends TestCase
         $event->owner->nomeCompleto = 'Celina Pereira dos Santos';
         $event->owner->save(true);
 
-        $space = new Space;
-        $space->name = 'Praça da Aclamação';
-        $space->owner = $event->owner;
-        $space->type = FestivityPlace::type();
-        $space->save(true);
-
-        $occurrence = new EventOccurrence;
-        $occurrence->event = $event;
-        $occurrence->space = $space;
-        $occurrence->rule = ['startsOn' => '2026-12-03', 'startsAt' => '18:00', 'duration' => 300, 'frequency' => 'once'];
-        $occurrence->save(true);
+        $this->period($event, $this->place($event));
 
         $this->app->em->refresh($event);
     }
