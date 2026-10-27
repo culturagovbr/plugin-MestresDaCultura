@@ -147,8 +147,10 @@ class MasterShowcase
         $avatars = [];
 
         foreach ($agents as $agent) {
+            // A API entrega a foto e as versões dela como objetos, num array de transformações.
             $avatar = $agent['files']['avatar'] ?? null;
-            $url = $avatar['transformations']['avatarMedium']['url'] ?? $avatar['url'] ?? null;
+            $medium = is_object($avatar) ? ($avatar->transformations['avatarMedium'] ?? null) : null;
+            $url = $medium->url ?? $avatar->url ?? null;
             if ($url) {
                 $avatars[(int) $agent['id']] = $url;
             }
