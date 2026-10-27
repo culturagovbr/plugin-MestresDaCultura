@@ -35,6 +35,8 @@ class Plugin extends \MapasCulturais\Plugin
 
     private ?Services\ProgramSeal $programSeal = null;
 
+    private ?Services\FestivitySeal $festivitySeal = null;
+
     function register()
     {
         $app = App::i();
@@ -42,6 +44,7 @@ class Plugin extends \MapasCulturais\Plugin
         // Ids da oportunidade e dos selos, do ambiente e sem padrão; valem também nos jobs da linha de comando.
         $app->config[Services\FixedOpportunity::CONFIG_KEY] ??= env('MDC_OPPORTUNITY_ID');
         $app->config[Services\ProgramSeal::CONFIG_KEY] ??= env('MDC_SEAL_ID');
+        $app->config[Services\FestivitySeal::CONFIG_KEY] ??= env('MDC_FESTIVITY_SEAL_ID');
 
         $app->registerController('mdc', Controller::class);
         $app->registerRegistrationFieldType(new RegistrationFieldType(Services\ActingField::definition()));
@@ -386,6 +389,7 @@ class Plugin extends \MapasCulturais\Plugin
     private function completeTheFestivityPlace(): void
     {
         $app = App::i();
+        $plugin = $this;
 
         $app->hook('POST(space.index):data', function (&$data) use ($app) {
             if (!Plugin::isTheme() || !empty($data['type'])) {
@@ -415,6 +419,14 @@ class Plugin extends \MapasCulturais\Plugin
                 Services\FestivityFields::syncCore($this);
                 Services\FestivityFields::stampConsent($this);
                 Services\FestivityFields::clearInstitution($this);
+                Services\FestivityFields::markFirstPublished($this);
+            }
+        });
+
+        // O selo dos festejos acompanha a publicação (FestivitySeal), depois de gravada.
+        $app->hook('entity(Event).save:finish', function () use ($plugin) {
+            if (Plugin::isFestivity($this)) {
+                $plugin->festivitySeal()->sync($this);
             }
         });
 
@@ -947,12 +959,12 @@ class Plugin extends \MapasCulturais\Plugin
         });
 
         // A página do certificado é a do core, sem botão de impressão e com um "Voltar" que aponta para `#`: a barra
-        // do plugin entra logo depois do cabeçalho do site, só no certificado do selo do programa.
+        // do plugin entra logo depois do cabeçalho do site, só no certificado do selo do programa e no dos festejos.
         $app->hook('template(seal.sealRelation.main-header):after', function () use ($app, $plugin) {
             /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
             $relation = $app->repo('SealRelation')->find((int) ($this->controller->data['id'] ?? 0));
 
-            if ($relation && $plugin->programSeal()->isTheProgramSeal($relation->seal)) {
+            if ($relation && ($plugin->programSeal()->isTheProgramSeal($relation->seal) || $plugin->festivitySeal()->isTheFestivitySeal($relation->seal))) {
                 $this->import('mdc-certificate-actions');
                 echo '<mdc-certificate-actions></mdc-certificate-actions>';
             }
@@ -1452,6 +1464,11 @@ class Plugin extends \MapasCulturais\Plugin
         return $this->programSeal ??= new Services\ProgramSeal();
     }
 
+    function festivitySeal(): Services\FestivitySeal
+    {
+        return $this->festivitySeal ??= new Services\FestivitySeal();
+    }
+
     private function blockOpportunityBrowsing(): void
     {
         $app = \MapasCulturais\App::i();
@@ -1773,16 +1790,18 @@ class Plugin extends \MapasCulturais\Plugin
     {
         $app = App::i();
         $programSeal = $this->programSeal();
+        $festivitySeal = $this->festivitySeal();
         $fixedOpportunity = $this->fixedOpportunity();
 
-        // Os ids que a pessoa vê; null, sem filtro (fora do subsite, ou sem o selo do programa configurado).
-        $visible = function () use ($app, $programSeal, $fixedOpportunity): ?array {
+        // Os ids que a pessoa vê; null, sem filtro (fora do subsite, ou sem o selo do programa configurado). Quem não é
+        // admin vê o selo dos mestres e o dos festejos.
+        $visible = function () use ($app, $programSeal, $festivitySeal, $fixedOpportunity): ?array {
             if (!Plugin::isTheme()) {
                 return null;
             }
 
             if (!$app->user->is('admin')) {
-                return $programSeal->configuredId() ? [$programSeal->configuredId()] : null;
+                return $programSeal->configuredId() ? array_values(array_filter([$programSeal->configuredId(), $festivitySeal->configuredId()])) : null;
             }
 
             $subsite = $fixedOpportunity->subsiteId();

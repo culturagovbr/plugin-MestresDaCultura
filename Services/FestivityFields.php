@@ -87,6 +87,9 @@ class FestivityFields
 
     const CONSENT = 'mdcFestejoAceite';
 
+    // A data da primeira publicação, de onde o certificado conta (FestivitySeal).
+    const FIRST_PUBLISHED = 'mdcFestejoPublicadoEm';
+
     // As listas que têm "Outro": a lista => o campo do texto. Uma das duas basta.
     const OTHERS = [
         self::TYPOLOGIES => self::OTHER_TYPOLOGY,
@@ -151,6 +154,7 @@ class FestivityFields
             self::CNPJ => ['label' => i::__('CNPJ'), 'type' => 'cnpj', 'private' => true, 'validations' => ['v::cnpj()' => i::__('O CNPJ é inválido')]],
             self::INSTITUTION_IS_POINT => ['label' => i::__('A instituição é Ponto de Cultura')] + $yesNo,
             self::CONSENT => ['label' => i::__('Aceite da publicação'), 'type' => 'string', 'private' => true],
+            self::FIRST_PUBLISHED => ['label' => i::__('No Calendário desde'), 'type' => 'string'],
         ];
 
         // Para cada fonte: se o festejo teve recursos dela e, se sim, em que anos.
@@ -187,6 +191,14 @@ class FestivityFields
 
         if ($consent !== '' && $consent !== $stored) {
             $event->{self::CONSENT} = date('Y-m-d H:i:s');
+        }
+    }
+
+    // A primeira publicação guarda a data, uma vez só.
+    static function markFirstPublished(\MapasCulturais\Entities\Event $event): void
+    {
+        if ($event->status === \MapasCulturais\Entities\Event::STATUS_ENABLED && !$event->{self::FIRST_PUBLISHED}) {
+            $event->{self::FIRST_PUBLISHED} = date('Y-m-d H:i:s');
         }
     }
 
