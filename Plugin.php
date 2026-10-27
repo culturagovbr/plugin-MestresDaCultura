@@ -145,6 +145,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->sendTheMasterToThePanel();
         $this->fixTheProgramBreadcrumbs();
         $this->nameTheOwnProfile();
+        $this->feedTheHomeShowcase();
         $this->skipProfileFieldsTheProgramDoesNotAsk();
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
@@ -350,6 +351,18 @@ class Plugin extends \MapasCulturais\Plugin
 
             if (isset($this->jsObject['breadcrumb'])) {
                 $this->jsObject['breadcrumb'] = $breadcrumb;
+            }
+        });
+    }
+
+    // A vitrine da home (Services\MasterShowcase): o tema mostra (home-mestres, home-banner); os dados vão no objeto
+    // da página, como os de "Meus cadastros".
+    private function feedTheHomeShowcase(): void
+    {
+        App::i()->hook('view.render(site/index):before', function () {
+            if (Plugin::isTheme()) {
+                $showcase = new Services\MasterShowcase;
+                $this->jsObject['config']['mdcShowcase'] = ['highlights' => $showcase->highlights(), 'counts' => $showcase->counts()];
             }
         });
     }
