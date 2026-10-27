@@ -139,4 +139,14 @@ class MasterShowcaseTest extends TestCase
         $this->assertSame([], (new MasterShowcase)->highlights());
         $this->assertSame(['masters' => 0, 'states' => 0], (new MasterShowcase)->counts());
     }
+
+    // O mapa da Rede conta por UF, na mesma base dos contadores.
+    function testCountsTheMastersOfEachState()
+    {
+        $this->master('Maria', 'Mestra Maria', 'Olinda, PE', ['Artífice'], 3);
+        $this->master('Ana', 'Mestra Ana', 'Recife, PE', ['Artesanato'], 2);
+        $this->master('João', 'Mestre João', 'Juazeiro do Norte, CE', ['Carnaval'], 1);
+
+        $this->assertSame(['CE' => 1, 'PE' => 2], (new MasterShowcase)->byState());
+    }
 }
