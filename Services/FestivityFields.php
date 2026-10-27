@@ -2,6 +2,7 @@
 
 namespace MDC\Services;
 
+use MapasCulturais\App;
 use MapasCulturais\i;
 
 /**
@@ -72,7 +73,17 @@ class FestivityFields
 
     const PRODUCER = 'mdcFestejoRealizador';
 
+    // A instituição de quem realiza fica no festejo: o nome é público, o CNPJ não.
+    const INSTITUTION = 'mdcFestejoInstituicao';
+
+    const CNPJ = 'mdcFestejoCnpj';
+
     const INSTITUTION_IS_POINT = 'mdcFestejoInstituicaoPonto';
+
+    // Quem realiza com instituição (nome) e, dentre eles, com CNPJ.
+    const WITH_INSTITUTION = ['Pessoa Jurídica com fins lucrativos', 'Pessoa Jurídica sem fins lucrativos', 'Grupo/Coletivo Cultural', 'Órgão Público'];
+
+    const WITH_CNPJ = ['Pessoa Jurídica com fins lucrativos', 'Pessoa Jurídica sem fins lucrativos', 'Órgão Público'];
 
     const CONSENT = 'mdcFestejoAceite';
 
@@ -136,6 +147,8 @@ class FestivityFields
                 'Pessoa Física', 'Pessoa Jurídica com fins lucrativos', 'Pessoa Jurídica sem fins lucrativos',
                 'Grupo/Coletivo Cultural', 'Comunidade (Festeiro)', 'Órgão Público',
             ])],
+            self::INSTITUTION => ['label' => i::__('Nome da instituição ou órgão'), 'type' => 'string'],
+            self::CNPJ => ['label' => i::__('CNPJ'), 'type' => 'cnpj', 'private' => true, 'validations' => ['v::cnpj()' => i::__('O CNPJ é inválido')]],
             self::INSTITUTION_IS_POINT => ['label' => i::__('A instituição é Ponto de Cultura')] + $yesNo,
             self::CONSENT => ['label' => i::__('Aceite da publicação'), 'type' => 'string', 'private' => true],
         ];
@@ -159,6 +172,35 @@ class FestivityFields
 
             if ((string) $event->$key !== $value) {
                 $event->$key = $value;
+            }
+        }
+    }
+
+    // O aceite guarda a data e a hora em que foi dado, pelo relógio do servidor: qualquer valor diferente do gravado
+    // vira a hora de agora.
+    static function stampConsent(\MapasCulturais\Entities\Event $event): void
+    {
+        $consent = trim((string) $event->{self::CONSENT});
+        $stored = $event->id
+            ? App::i()->conn->fetchOne('SELECT value FROM event_meta WHERE object_id = :id AND key = :key', ['id' => $event->id, 'key' => self::CONSENT])
+            : false;
+
+        if ($consent !== '' && $consent !== $stored) {
+            $event->{self::CONSENT} = date('Y-m-d H:i:s');
+        }
+    }
+
+    // A instituição e o CNPJ só valem para quem realiza com eles (itens 25.1 a 27): mudar o tipo apaga o resto.
+    static function clearInstitution(\MapasCulturais\Entities\Event $event): void
+    {
+        $producer = $event->{self::PRODUCER};
+        $keys = in_array($producer, self::WITH_INSTITUTION, true)
+            ? (in_array($producer, self::WITH_CNPJ, true) ? [] : [self::CNPJ])
+            : [self::INSTITUTION, self::CNPJ, self::INSTITUTION_IS_POINT];
+
+        foreach ($keys as $key) {
+            if ((string) $event->$key !== '') {
+                $event->$key = '';
             }
         }
     }

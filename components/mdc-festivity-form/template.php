@@ -7,12 +7,19 @@
 $this->import('
     entity-field
     entity-file
+    entity-files-list
+    entity-gallery
+    entity-gallery-video
+    entity-links
+    entity-profile
+    entity-social-media
     mc-link
     mc-stepper
     mdc-festivity-agenda
     mdc-festivity-checklist
     mdc-festivity-classification
     mdc-festivity-masters
+    mdc-festivity-person
 ');
 ?>
 <div class="mdc-festivity-form">
@@ -68,6 +75,41 @@ $this->import('
                     <entity-field v-if="entity[source.key] === 'Sim'" :entity="entity" :prop="source.key + 'Anos'" :label="text('anos')" :field-description="text('anos dica')" :required="true"></entity-field>
                 </template>
             </fieldset>
+        </template>
+
+        <template v-else-if="step === 3">
+            <entity-field :entity="entity" prop="mdcFestejoRealizador" :label="text('realizador')" :required="isRequired('mdcFestejoRealizador')"></entity-field>
+            <template v-if="producers.institution.includes(entity.mdcFestejoRealizador)">
+                <entity-field :entity="entity" prop="mdcFestejoInstituicao" :label="text('instituicao')" :required="true"></entity-field>
+                <entity-field v-if="producers.cnpj.includes(entity.mdcFestejoRealizador)" :entity="entity" prop="mdcFestejoCnpj" :label="text('cnpj')" :field-description="text('cnpj dica')" :required="true"></entity-field>
+                <entity-field :entity="entity" prop="mdcFestejoInstituicaoPonto" :label="text('instituicao ponto')"></entity-field>
+            </template>
+            <mdc-festivity-person ref="person" part="contact"></mdc-festivity-person>
+        </template>
+
+        <template v-else-if="step === 4">
+            <mdc-festivity-person ref="person" part="markers"></mdc-festivity-person>
+        </template>
+
+        <template v-else-if="step === 5">
+            <div class="field">
+                <span class="field__title">{{text('foto principal')}}</span>
+                <entity-profile :entity="entity"></entity-profile>
+            </div>
+            <entity-gallery :entity="entity" :title="text('fotos')" editable></entity-gallery>
+            <entity-gallery-video :entity="entity" :title="text('videos')" editable></entity-gallery-video>
+            <entity-links :entity="entity" :title="text('links')" editable></entity-links>
+            <entity-social-media :entity="entity" editable></entity-social-media>
+            <entity-files-list :entity="entity" group="downloads" :title="text('portfolio')" editable></entity-files-list>
+
+            <div class="field mdc-festivity-form__consent" :class="{error: entity.__validationErrors?.mdcFestejoAceite}">
+                <span class="field__title">{{text('aceite titulo')}} <span class="required">*{{text('obrigatorio')}}</span></span>
+                <label class="mdc-festivity-form__consent-option">
+                    <input type="checkbox" :checked="!!entity.mdcFestejoAceite" @change="setConsent($event.target.checked)">
+                    {{text('aceite')}}
+                </label>
+                <small v-for="error in entity.__validationErrors?.mdcFestejoAceite || []" class="field__error">{{error}}</small>
+            </div>
         </template>
     </section>
 

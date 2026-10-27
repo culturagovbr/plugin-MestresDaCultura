@@ -407,11 +407,14 @@ class Plugin extends \MapasCulturais\Plugin
 
         // A UF, a cidade e a região do festejo saem do primeiro local da agenda (FestivityPlace::sync): a cada
         // gravação do festejo, que o core repete a cada período, e quando o endereço de um local muda. Na mesma
-        // gravação, libras e audiodescrição marcam os campos do core (FestivityFields::syncCore).
+        // gravação, libras e audiodescrição marcam os campos do core, o aceite ganha a data do servidor e a
+        // instituição sai se o tipo de realizador não a tem.
         $app->hook('entity(Event).save:before', function () {
-            if (Plugin::isTheme()) {
+            if (Plugin::isFestivity($this)) {
                 Services\FestivityPlace::sync($this);
                 Services\FestivityFields::syncCore($this);
+                Services\FestivityFields::stampConsent($this);
+                Services\FestivityFields::clearInstitution($this);
             }
         });
 
@@ -441,7 +444,7 @@ class Plugin extends \MapasCulturais\Plugin
         $app = App::i();
         $app->config['routes']['shortcuts']['cadastrar-festejo'] = ['mdc', 'festivity'];
 
-        $isFestivity = fn (Event $event): bool => Plugin::isTheme() && (!$event->id || Services\SubsiteRedirect::isCurrent($event->subsite));
+        $isFestivity = fn (Event $event): bool => Plugin::isFestivity($event);
 
         $app->hook('GET(event.create):before', function () use ($app) {
             if (Plugin::isTheme()) {
@@ -1428,6 +1431,12 @@ class Plugin extends \MapasCulturais\Plugin
     // selo do programa aparece. O que é de outro subsite (inscrições, oportunidades, selos, notificações) fica de fora
     // para todos, com Plugin::isTheme; as travas de estrutura seguem outra regra: só o saasSuperAdmin passa (ver
     // Services\FixedOpportunityGuard).
+    // No subsite dos Mestres todo evento é festejo (ver openTheFestivityForm); o de outro subsite, aberto daqui, não.
+    static function isFestivity(Event $event): bool
+    {
+        return self::isTheme() && (!$event->id || Services\SubsiteRedirect::isCurrent($event->subsite));
+    }
+
     static function appliesToCurrentUser(): bool
     {
         return self::isTheme() && !App::i()->user->is('admin');

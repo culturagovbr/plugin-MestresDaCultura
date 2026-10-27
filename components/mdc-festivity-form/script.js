@@ -11,6 +11,7 @@ app.component('mdc-festivity-form', {
             entity: this.createEntity(),
             steps: $MAPAS.config.mdcFestivity.steps,
             lists: $MAPAS.config.mdcFestivity.lists,
+            producers: $MAPAS.config.mdcFestivity.producers,
             funding: $MAPAS.config.mdcFestivity.funding,
             step: 0,
             saving: false,
@@ -65,9 +66,11 @@ app.component('mdc-festivity-form', {
             return entity;
         },
 
-        // Salva o rascunho; no primeiro, o endereço passa a ser o de continuar.
+        // Salva o rascunho; no primeiro, o endereço passa a ser o de continuar. Nas etapas 4 e 5, antes, o perfil de
+        // quem cadastra (mdc-festivity-person).
         async save() {
             const isNew = !this.entity.id;
+            await this.$refs.person?.save();
             await this.entity.save();
 
             if (isNew && this.entity.id) {
@@ -80,6 +83,18 @@ app.component('mdc-festivity-form', {
             const response = await fetch(url, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
 
             return response.ok ? response.json() : {};
+        },
+
+        // O formulário só marca; a data do aceite é a do servidor (FestivityFields::stampConsent).
+        setConsent(checked) {
+            this.entity.mdcFestejoAceite = checked ? '1' : '';
+
+            if (checked) {
+                delete this.errors.mdcFestejoAceite;
+                if (this.entity.__validationErrors) {
+                    delete this.entity.__validationErrors.mdcFestejoAceite;
+                }
+            }
         },
 
         show(step) {

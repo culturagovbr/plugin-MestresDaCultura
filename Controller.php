@@ -97,6 +97,8 @@ class Controller extends \MapasCulturais\Controller
             'classificationKeys' => ['segment' => FestivityFields::SEGMENT, 'typologies' => FestivityFields::TYPOLOGIES, 'other' => FestivityFields::OTHER_TYPOLOGY],
             'lists' => FestivityForm::lists(),
             'funding' => FestivityForm::funding(),
+            'producers' => ['institution' => FestivityFields::WITH_INSTITUTION, 'cnpj' => FestivityFields::WITH_CNPJ],
+            'person' => $this->festivity ? FestivityForm::person($this->festivity) : null,
             // Só mestras e mestres da Rede entram no festejo (FestivityForm::invalid).
             'sealId' => (new ProgramSeal)->configuredId(),
             'formUrl' => $app->createUrl('mdc', 'festivity'),
@@ -133,6 +135,11 @@ class Controller extends \MapasCulturais\Controller
         }
 
         $event = $app->repo('Event')->find($id) ?? $app->pass();
+
+        if (!Plugin::isFestivity($event)) {
+            $app->pass();
+        }
+
         $event->checkPermission('modify');
 
         return $event;

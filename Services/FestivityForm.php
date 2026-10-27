@@ -2,6 +2,7 @@
 
 namespace MDC\Services;
 
+use MapasCulturais\App;
 use MapasCulturais\Entities\Event;
 use MapasCulturais\i;
 
@@ -12,6 +13,33 @@ use MapasCulturais\i;
  */
 class FestivityForm
 {
+    // Os campos da pessoa responsável, no perfil dela: os mesmos do formulário dos Mestres.
+    const PERSON_FIELDS = [
+        'nomeCompleto', 'dataDeNascimento', 'emailPrivado', 'emailPublico', 'telefone1', 'telefonePublico',
+        'genero', 'orientacaoSexual', 'raca', 'pessoaDeficiente', 'comunidadesTradicional',
+    ];
+
+    /**
+     * A pessoa responsável para o formulário (mdc-festivity-person): se quem edita pode mudar o perfil do dono, se é
+     * o próprio dono e, só para quem pode editar, os dados. Decidido aqui, e não pela API, que lê as permissões do
+     * cache e pode negar o próprio perfil quando ele está velho.
+     */
+    static function person(Event $event): array
+    {
+        $owner = $event->owner;
+        $canEdit = $owner->canUser('modify');
+        $person = ['id' => $owner->id, 'canEdit' => $canEdit, 'isOwn' => $owner->id === App::i()->user->profile?->id, 'data' => null];
+
+        if ($canEdit) {
+            foreach (self::PERSON_FIELDS as $key) {
+                $value = $owner->$key;
+                $person['data'][$key] = $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : $value;
+            }
+        }
+
+        return $person;
+    }
+
     /** @return list<array{slug: string, label: string}> */
     static function steps(): array
     {
@@ -114,6 +142,8 @@ class FestivityForm
             ),
             3 => [
                 FestivityFields::PRODUCER => i::__('Informe o tipo de realizador'),
+                FestivityFields::INSTITUTION => i::__('Informe o nome da instituição, do grupo ou do órgão'),
+                FestivityFields::CNPJ => i::__('Informe o CNPJ'),
                 'responsible' => i::__('Informe o nome do responsável pelo festejo'),
             ],
             5 => [
@@ -162,18 +192,28 @@ class FestivityForm
         return $invalid;
     }
 
-    // O campo que só vale quando o anterior é "Sim": o nome do Ponto (item 18.1), as listas de acessibilidade e de
-    // acolhimento (19 e 20) e os anos de cada fonte (21.1 a 24.1).
+    /**
+     * O campo que só é cobrado em certa resposta: no "Sim" do anterior, o nome do Ponto (item 18.1), as listas de
+     * acessibilidade e de acolhimento (19 e 20) e os anos de cada fonte (21.1 a 24.1); pelo tipo de realizador, o
+     * nome da instituição e o CNPJ (25.1 e 26).
+     *
+     * @return array<string, callable(Event): bool>
+     */
     private static function conditions(): array
     {
+        $yes = fn (string $parent) => fn (Event $event) => $event->$parent === 'Sim';
+        $producerIn = fn (array $producers) => fn (Event $event) => in_array($event->{FestivityFields::PRODUCER}, $producers, true);
+
         $conditions = [
-            FestivityFields::CULTURE_POINT_NAME => FestivityFields::CULTURE_POINT,
-            FestivityFields::ACCESSIBILITY => FestivityFields::HAS_ACCESSIBILITY,
-            FestivityFields::SHELTER => FestivityFields::HAS_SHELTER,
+            FestivityFields::CULTURE_POINT_NAME => $yes(FestivityFields::CULTURE_POINT),
+            FestivityFields::ACCESSIBILITY => $yes(FestivityFields::HAS_ACCESSIBILITY),
+            FestivityFields::SHELTER => $yes(FestivityFields::HAS_SHELTER),
+            FestivityFields::INSTITUTION => $producerIn(FestivityFields::WITH_INSTITUTION),
+            FestivityFields::CNPJ => $producerIn(FestivityFields::WITH_CNPJ),
         ];
 
         foreach (array_keys(FestivityFields::fundingSources()) as $key) {
-            $conditions["{$key}Anos"] = $key;
+            $conditions["{$key}Anos"] = $yes($key);
         }
 
         return $conditions;
@@ -181,7 +221,7 @@ class FestivityForm
 
     private static function isEmpty(Event $event, string $key): bool
     {
-        if (($parent = self::conditions()[$key] ?? null) && $event->$parent !== 'Sim') {
+        if (($applies = self::conditions()[$key] ?? null) && !$applies($event)) {
             return false;
         }
 
@@ -195,8 +235,8 @@ class FestivityForm
                 => !self::filled($event->$key) && !self::filled($event->{FestivityFields::OTHERS[$key]}),
             // O arquivo só quando há lei própria.
             FestivityFields::LAW_FILE => $event->{FestivityFields::LAW} === 'Sim' && !$event->getFile(FestivityFields::LAW_FILE),
-            // O responsável é quem cadastra: o nome completo vem do perfil.
-            'responsible' => !self::filled($event->owner?->nomeCompleto),
+            // O nome completo do perfil do dono, lido com os privados; daqui só sai se está preenchido.
+            'responsible' => !self::filled($event->owner?->getMetadata('nomeCompleto')),
             default => !self::filled($event->$key),
         };
     }
