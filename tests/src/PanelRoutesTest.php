@@ -17,9 +17,10 @@ class PanelRoutesTest extends TestCase
     use RequestFactory;
     use UserDirector;
 
-    private const OPEN = ['index', 'my-account', 'registrations', 'evaluations'];
+    // "Meus eventos" é a lista dos festejos de quem cadastra.
+    private const OPEN = ['index', 'my-account', 'registrations', 'evaluations', 'events'];
 
-    private const CLOSED = ['events', 'apps', 'my-app', 'validations', 'accountability'];
+    private const CLOSED = ['apps', 'my-app', 'validations', 'accountability'];
 
     // Configura a oportunidade do programa, que o painel do tema procura.
     protected function setUp(): void

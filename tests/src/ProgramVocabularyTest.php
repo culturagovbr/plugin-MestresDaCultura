@@ -30,10 +30,13 @@ class ProgramVocabularyTest extends TestCase
 
     function testEveryPhraseIsTheCoreText()
     {
+        // Lê as fontes dos módulos de oportunidades e do painel.
         $sources = '';
-        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator('/var/www/src/modules/Opportunities')) as $file) {
-            if (str_ends_with($file->getFilename(), '.php')) {
-                $sources .= file_get_contents($file->getPathname());
+        foreach (['Opportunities', 'Panel'] as $module) {
+            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator("/var/www/src/modules/{$module}")) as $file) {
+                if (str_ends_with($file->getFilename(), '.php')) {
+                    $sources .= file_get_contents($file->getPathname());
+                }
             }
         }
 

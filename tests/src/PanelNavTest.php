@@ -125,8 +125,12 @@ class PanelNavTest extends TestCase
         }
 
         // Os grupos do core como eles são, menos o que o subsite não usa: "Menu do Painel de Controle" (o caminho de
-        // volta a "Meus cadastros"), "Outras opções" e o do usuário logado (Meu Perfil, Sair).
-        $this->assertSame([['route' => 'panel/index', 'label' => 'Painel de Controle']], $nav['panel-menu']['items'] ?? null, 'Menu do Painel de Controle');
+        // volta a "Meus cadastros", e a lista dos festejos), "Outras opções" e o do usuário logado (Meu Perfil, Sair).
+        $this->assertSame(
+            [['route' => 'panel/index', 'label' => 'Painel de Controle'], ['route' => 'panel/events', 'icon' => 'celebration', 'label' => 'Meus festejos']],
+            $nav['panel-menu']['items'] ?? null,
+            'Menu do Painel de Controle'
+        );
         $this->assertSame('Outras opções', $nav['more']['label'] ?? null);
         $this->assertSame(['Conta e Privacidade'], array_column($nav['more']['items'] ?? [], 'label'), 'Sem "Meus aplicativos", que o subsite não usa');
         $this->assertSame(['Meu Perfil', 'Sair'], array_column($nav['user']['items'] ?? [], 'label'), 'O grupo do usuário logado, como no core');
