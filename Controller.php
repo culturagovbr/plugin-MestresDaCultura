@@ -95,6 +95,10 @@ class Controller extends \MapasCulturais\Controller
             'required' => FestivityForm::requiredKeys(),
             'classification' => FestivityFields::classification(),
             'classificationKeys' => ['segment' => FestivityFields::SEGMENT, 'typologies' => FestivityFields::TYPOLOGIES, 'other' => FestivityFields::OTHER_TYPOLOGY],
+            'lists' => FestivityForm::lists(),
+            'funding' => FestivityForm::funding(),
+            // Só mestras e mestres da Rede entram no festejo (FestivityForm::invalid).
+            'sealId' => (new ProgramSeal)->configuredId(),
             'formUrl' => $app->createUrl('mdc', 'festivity'),
             'checkUrl' => $app->createUrl('mdc', 'festivityCheck'),
         ];

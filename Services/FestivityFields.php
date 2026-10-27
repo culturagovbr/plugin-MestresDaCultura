@@ -49,13 +49,22 @@ class FestivityFields
 
     const WITH_MASTERS = 'mdcFestejoComMestres';
 
+    // As mestras e os mestres da Rede ligados ao festejo, como "|12|34|"; só quem tem o selo do programa
+    // (FestivityForm::invalid).
+    const MASTERS = 'mdcFestejoMestres';
+
     const CULTURE_POINT = 'mdcFestejoPonto';
 
     const CULTURE_POINT_NAME = 'mdcFestejoPontoNome';
 
+    // Acessibilidade e acolhimento: a pergunta (Sim/Não) e, no "Sim", a lista.
+    const HAS_ACCESSIBILITY = 'mdcFestejoTemAcessibilidade';
+
     const ACCESSIBILITY = 'mdcFestejoAcessibilidade';
 
     const OTHER_ACCESSIBILITY = 'mdcFestejoAcessibilidadeOutra';
+
+    const HAS_SHELTER = 'mdcFestejoTemAcolhimento';
 
     const SHELTER = 'mdcFestejoAcolhimento';
 
@@ -66,6 +75,20 @@ class FestivityFields
     const INSTITUTION_IS_POINT = 'mdcFestejoInstituicaoPonto';
 
     const CONSENT = 'mdcFestejoAceite';
+
+    // As listas que têm "Outro": a lista => o campo do texto. Uma das duas basta.
+    const OTHERS = [
+        self::TYPOLOGIES => self::OTHER_TYPOLOGY,
+        self::ECONOMY => self::OTHER_ECONOMY,
+        self::ACCESSIBILITY => self::OTHER_ACCESSIBILITY,
+        self::SHELTER => self::OTHER_SHELTER,
+    ];
+
+    // Itens da acessibilidade que o evento do core também tem como campo.
+    const CORE_ACCESSIBILITY = [
+        'Intérprete de libras' => 'traducaoLibras',
+        'Audiodescrição' => 'descricaoSonora',
+    ];
 
     /** @return array<string, array> a definição de cada metadado do evento */
     static function definitions(): array
@@ -100,10 +123,13 @@ class FestivityFields
             self::ECONOMY => ['label' => i::__('Atividades da economia criativa'), 'type' => 'multiselect', 'options' => $list(self::economyValues())],
             self::OTHER_ECONOMY => ['label' => i::__('Outra atividade da economia criativa'), 'type' => 'string'],
             self::WITH_MASTERS => ['label' => i::__('Com Mestras e Mestres')] + $yesNo,
+            self::MASTERS => ['label' => i::__('Mestras e Mestres da Rede no festejo'), 'type' => 'string'],
             self::CULTURE_POINT => ['label' => i::__('Com Ponto ou Pontão de Cultura')] + $yesNo,
             self::CULTURE_POINT_NAME => ['label' => i::__('Ponto ou Pontão de Cultura'), 'type' => 'string'],
+            self::HAS_ACCESSIBILITY => ['label' => i::__('Atende a requisitos de acessibilidade')] + $yesNo,
             self::ACCESSIBILITY => ['label' => i::__('Acessibilidade'), 'type' => 'multiselect', 'options' => $list(array_merge(...array_column(self::accessibility(), 'requisitos')))],
             self::OTHER_ACCESSIBILITY => ['label' => i::__('Outro recurso de acessibilidade'), 'type' => 'string'],
+            self::HAS_SHELTER => ['label' => i::__('Tem espaços de acolhimento')] + $yesNo,
             self::SHELTER => ['label' => i::__('Espaços de acolhimento'), 'type' => 'multiselect', 'options' => $list(self::shelter())],
             self::OTHER_SHELTER => ['label' => i::__('Outro espaço de acolhimento'), 'type' => 'string'],
             self::PRODUCER => ['label' => i::__('Tipo de realizador'), 'type' => 'select', 'options' => $list([
@@ -121,6 +147,26 @@ class FestivityFields
         }
 
         return $definitions;
+    }
+
+    // Marcar "Intérprete de libras" ou "Audiodescrição" marca o campo do core; desmarcar volta a não informado.
+    static function syncCore(\MapasCulturais\Entities\Event $event): void
+    {
+        $checked = (array) $event->{self::ACCESSIBILITY};
+
+        foreach (self::CORE_ACCESSIBILITY as $item => $key) {
+            $value = in_array($item, $checked, true) ? 'Sim' : '';
+
+            if ((string) $event->$key !== $value) {
+                $event->$key = $value;
+            }
+        }
+    }
+
+    /** @return list<int> os ids das mestras e dos mestres ligados ao festejo */
+    static function masters(\MapasCulturais\Entities\Event $event): array
+    {
+        return array_values(array_filter(array_map('intval', explode('|', (string) $event->{self::MASTERS}))));
     }
 
     // A região sai da UF.

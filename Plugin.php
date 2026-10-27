@@ -406,10 +406,12 @@ class Plugin extends \MapasCulturais\Plugin
         });
 
         // A UF, a cidade e a região do festejo saem do primeiro local da agenda (FestivityPlace::sync): a cada
-        // gravação do festejo, que o core repete a cada período, e quando o endereço de um local muda.
+        // gravação do festejo, que o core repete a cada período, e quando o endereço de um local muda. Na mesma
+        // gravação, libras e audiodescrição marcam os campos do core (FestivityFields::syncCore).
         $app->hook('entity(Event).save:before', function () {
             if (Plugin::isTheme()) {
                 Services\FestivityPlace::sync($this);
+                Services\FestivityFields::syncCore($this);
             }
         });
 

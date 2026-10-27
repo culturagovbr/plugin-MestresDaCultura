@@ -10,6 +10,8 @@ app.component('mdc-festivity-form', {
         return {
             entity: this.createEntity(),
             steps: $MAPAS.config.mdcFestivity.steps,
+            lists: $MAPAS.config.mdcFestivity.lists,
+            funding: $MAPAS.config.mdcFestivity.funding,
             step: 0,
             saving: false,
             // o que a etapa (ou, ao publicar, o festejo) ainda cobra: campo => mensagens

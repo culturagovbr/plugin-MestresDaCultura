@@ -25,6 +25,39 @@ class FestivityForm
         ];
     }
 
+    /**
+     * As listas da etapa 3 no formato do formulário (mdc-festivity-checklist): grupos com os itens. Na economia, o
+     * valor leva o segmento ("Música: DJ").
+     *
+     * @return array<string, list<array{label: string, items: list<array{value: string, label: string}>}>>
+     */
+    static function lists(): array
+    {
+        $group = fn (string $label, array $items, ?string $prefix = null) => [
+            'label' => $label,
+            'items' => array_map(fn ($item) => ['value' => $prefix ? "{$prefix}: {$item}" : $item, 'label' => $item], $items),
+        ];
+
+        return [
+            'economy' => array_map(fn ($segment) => $group($segment['segmento'], $segment['ocupacoes'], $segment['segmento']), FestivityFields::economy()),
+            'accessibility' => array_map(fn ($type) => $group($type['tipo'], $type['requisitos']), FestivityFields::accessibility()),
+            'shelter' => [$group('', FestivityFields::shelter())],
+        ];
+    }
+
+    /** @return list<array{key: string, question: string}> as fontes de recursos públicos, com a pergunta da planilha */
+    static function funding(): array
+    {
+        $questions = [
+            'mdcFestejoRouanet' => i::__('O festejo já foi realizado com recursos captados pela Lei Rouanet?'),
+            'mdcFestejoPnab' => i::__('O festejo já foi realizado com recursos da Política Nacional Aldir Blanc de Fomento à Cultura (PNAB)?'),
+            'mdcFestejoIncentivoLocal' => i::__('O festejo já foi realizado com recursos das Leis de Incentivo à Cultura dos Estados, do DF ou dos Municípios?'),
+            'mdcFestejoOutrasFontes' => i::__('O festejo já foi realizado com outras fontes de recursos públicos, inclusive emenda parlamentar?'),
+        ];
+
+        return array_map(fn ($key) => ['key' => $key, 'question' => $questions[$key]], array_keys(FestivityFields::fundingSources()));
+    }
+
     /** @return array<int, list<string>> etapa => campos que ela cobra, para o formulário marcar "obrigatório" */
     static function requiredKeys(): array
     {
@@ -71,6 +104,14 @@ class FestivityForm
                 FestivityFields::TERRITORY => i::__('Informe o território'),
                 FestivityFields::LAW_FILE => i::__('Envie o arquivo da lei que reconhece o festejo'),
             ],
+            2 => [
+                FestivityFields::CULTURE_POINT_NAME => i::__('Informe o nome do Ponto ou Pontão de Cultura'),
+                FestivityFields::ACCESSIBILITY => i::__('Marque os recursos de acessibilidade'),
+                FestivityFields::SHELTER => i::__('Marque os espaços de acolhimento'),
+            ] + array_combine(
+                array_map(fn ($key) => "{$key}Anos", array_keys(FestivityFields::fundingSources())),
+                array_map(fn ($label) => sprintf(i::__('Informe os anos com recursos de: %s'), $label), FestivityFields::fundingSources())
+            ),
             3 => [
                 FestivityFields::PRODUCER => i::__('Informe o tipo de realizador'),
                 'responsible' => i::__('Informe o nome do responsável pelo festejo'),
@@ -94,21 +135,64 @@ class FestivityForm
         $ofSegment = array_column(FestivityFields::classification(), 'tipologias', 'segmento')[$segment] ?? [];
         $count = count($typologies) + (self::filled($event->{FestivityFields::OTHER_TYPOLOGY}) ? 1 : 0);
 
+        $invalid = [];
+
         if ($count > 2 || array_diff($typologies, $ofSegment)) {
-            return [FestivityFields::TYPOLOGIES => [i::__('Escolha até duas tipologias do segmento')]];
+            $invalid[FestivityFields::TYPOLOGIES] = [i::__('Escolha até duas tipologias do segmento')];
         }
 
-        return [];
+        // Os anos de cada fonte de recursos (itens 21 a 24): quatro dígitos, separados por vírgula ou "e".
+        foreach (array_keys(FestivityFields::fundingSources()) as $key) {
+            $years = trim((string) $event->{"{$key}Anos"});
+
+            if ($years !== '' && !preg_match('/^\d{4}(\s*(,|;|e)\s*\d{4})*$/u', $years)) {
+                $invalid["{$key}Anos"] = [i::__('Informe os anos com quatro dígitos, separados por vírgula. Ex.: 2023, 2024')];
+            }
+        }
+
+        // Só mestras e mestres da Rede, com o selo do programa (item 17).
+        $seal = new ProgramSeal;
+        foreach (FestivityFields::masters($event) as $id) {
+            if (!$seal->isGivenTo($id)) {
+                $invalid[FestivityFields::MASTERS] = [i::__('Escolha só mestras e mestres da Rede')];
+                break;
+            }
+        }
+
+        return $invalid;
+    }
+
+    // O campo que só vale quando o anterior é "Sim": o nome do Ponto (item 18.1), as listas de acessibilidade e de
+    // acolhimento (19 e 20) e os anos de cada fonte (21.1 a 24.1).
+    private static function conditions(): array
+    {
+        $conditions = [
+            FestivityFields::CULTURE_POINT_NAME => FestivityFields::CULTURE_POINT,
+            FestivityFields::ACCESSIBILITY => FestivityFields::HAS_ACCESSIBILITY,
+            FestivityFields::SHELTER => FestivityFields::HAS_SHELTER,
+        ];
+
+        foreach (array_keys(FestivityFields::fundingSources()) as $key) {
+            $conditions["{$key}Anos"] = $key;
+        }
+
+        return $conditions;
     }
 
     private static function isEmpty(Event $event, string $key): bool
     {
+        if (($parent = self::conditions()[$key] ?? null) && $event->$parent !== 'Sim') {
+            return false;
+        }
+
         return match ($key) {
             'occurrences' => count($event->occurrences ?? []) === 0,
             // Vêm do primeiro local da agenda (FestivityPlace::sync); sem período, só a falta dele aparece.
             'place' => count($event->occurrences ?? []) > 0
                 && (!self::filled($event->{FestivityFields::UF}) || !self::filled($event->{FestivityFields::CITY})),
-            FestivityFields::TYPOLOGIES => !self::filled($event->{FestivityFields::TYPOLOGIES}) && !self::filled($event->{FestivityFields::OTHER_TYPOLOGY}),
+            // A lista ou o "Outro" dela.
+            FestivityFields::TYPOLOGIES, FestivityFields::ACCESSIBILITY, FestivityFields::SHELTER
+                => !self::filled($event->$key) && !self::filled($event->{FestivityFields::OTHERS[$key]}),
             // O arquivo só quando há lei própria.
             FestivityFields::LAW_FILE => $event->{FestivityFields::LAW} === 'Sim' && !$event->getFile(FestivityFields::LAW_FILE),
             // O responsável é quem cadastra: o nome completo vem do perfil.

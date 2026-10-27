@@ -10,7 +10,9 @@ $this->import('
     mc-link
     mc-stepper
     mdc-festivity-agenda
+    mdc-festivity-checklist
     mdc-festivity-classification
+    mdc-festivity-masters
 ');
 ?>
 <div class="mdc-festivity-form">
@@ -42,6 +44,30 @@ $this->import('
             <entity-field :entity="entity" prop="mdcFestejoTerritorio" :label="text('territorio')" :required="isRequired('mdcFestejoTerritorio')"></entity-field>
             <entity-field :entity="entity" prop="mdcFestejoLei" :label="text('lei')"></entity-field>
             <entity-file v-if="entity.mdcFestejoLei === 'Sim'" :entity="entity" group-name="mdcLegislacao" :title="text('arquivo da lei')" editable required></entity-file>
+        </template>
+
+        <template v-else-if="step === 2">
+            <mdc-festivity-checklist :entity="entity" prop="mdcFestejoEconomia" other-prop="mdcFestejoEconomiaOutra" :groups="lists.economy" collapsible :title="text('economia')" :description="text('economia dica')"></mdc-festivity-checklist>
+
+            <entity-field :entity="entity" prop="mdcFestejoComMestres" :label="text('com mestres')"></entity-field>
+            <mdc-festivity-masters v-if="entity.mdcFestejoComMestres === 'Sim'" :entity="entity"></mdc-festivity-masters>
+
+            <entity-field :entity="entity" prop="mdcFestejoPonto" :label="text('ponto')"></entity-field>
+            <entity-field v-if="entity.mdcFestejoPonto === 'Sim'" :entity="entity" prop="mdcFestejoPontoNome" :label="text('ponto nome')" :required="true"></entity-field>
+
+            <entity-field :entity="entity" prop="mdcFestejoTemAcessibilidade" :label="text('tem acessibilidade')"></entity-field>
+            <mdc-festivity-checklist v-if="entity.mdcFestejoTemAcessibilidade === 'Sim'" :entity="entity" prop="mdcFestejoAcessibilidade" other-prop="mdcFestejoAcessibilidadeOutra" :groups="lists.accessibility" :title="text('acessibilidade')" required></mdc-festivity-checklist>
+
+            <entity-field :entity="entity" prop="mdcFestejoTemAcolhimento" :label="text('tem acolhimento')"></entity-field>
+            <mdc-festivity-checklist v-if="entity.mdcFestejoTemAcolhimento === 'Sim'" :entity="entity" prop="mdcFestejoAcolhimento" other-prop="mdcFestejoAcolhimentoOutro" :groups="lists.shelter" :title="text('acolhimento')" required></mdc-festivity-checklist>
+
+            <fieldset class="mdc-festivity-form__funding">
+                <legend class="field__title">{{text('recursos')}}</legend>
+                <template v-for="source in funding" :key="source.key">
+                    <entity-field :entity="entity" :prop="source.key" :label="source.question"></entity-field>
+                    <entity-field v-if="entity[source.key] === 'Sim'" :entity="entity" :prop="source.key + 'Anos'" :label="text('anos')" :field-description="text('anos dica')" :required="true"></entity-field>
+                </template>
+            </fieldset>
         </template>
     </section>
 
