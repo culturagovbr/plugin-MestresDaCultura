@@ -1685,7 +1685,8 @@ class Plugin extends \MapasCulturais\Plugin
     private function closeOtherPanelScreens(): void
     {
         $app = App::i();
-        $open = ['index', 'my-account', 'deleteaccount', 'terms', 'requireauth', 'registrations', 'evaluations', 'mdc-tree-curation', 'mdc-committee'];
+        // "Meus eventos" é a lista dos festejos de quem cadastra (ver openTheFestivityForm).
+        $open = ['index', 'my-account', 'deleteaccount', 'terms', 'requireauth', 'registrations', 'evaluations', 'events', 'mdc-tree-curation', 'mdc-committee'];
 
         $app->hook('GET(panel.<<*>>):before', function () use ($app, $open) {
             $action = strtolower($this->action);
