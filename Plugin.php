@@ -50,6 +50,11 @@ class Plugin extends \MapasCulturais\Plugin
         foreach (Services\MasterPublicData::metadata() as $key => $definition) {
             $this->registerAgentMetadata($key, $definition);
         }
+
+        // O festejo é um Evento do core (ver Services\FestivityFields).
+        foreach (Services\FestivityFields::definitions() as $key => $definition) {
+            $this->registerEventMetadata($key, $definition);
+        }
     }
 
     // Opções da devolução dos rascunhos de moderação (ver Services\ModerationQueue), válidas também fora do subsite.

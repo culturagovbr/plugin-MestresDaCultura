@@ -1,0 +1,299 @@
+{
+ "fonte": "Planilha \"Info Sistema de Cadastro dos Festejos Populares do Brasil.V2.xlsx\", aba 16",
+ "itens": [
+  {
+   "segmento": "Áreas Técnicas",
+   "ocupacoes": [
+    "Cenotécnico",
+    "Diretor técnico",
+    "Eletricista de eventos",
+    "Iluminador",
+    "Montador de estruturas",
+    "Operador de áudio",
+    "Operador de luz",
+    "Operador de vídeo",
+    "Produtor técnico",
+    "Roadie",
+    "Técnico de iluminação",
+    "Técnico de palco",
+    "Técnico de som",
+    "Técnico de audiovisual",
+    "Técnico de efeitos especiais"
+   ]
+  },
+  {
+   "segmento": "Artesanato",
+   "ocupacoes": [
+    "Artesão",
+    "Artesão tradicional",
+    "Bordeiro/bordadeira",
+    "Ceramista",
+    "Cesteiro",
+    "Costureiro artesanal",
+    "Entalhador",
+    "Escultor",
+    "Luthier",
+    "Oleiro",
+    "Ourives",
+    "Rendeiro/rendeira",
+    "Tecelão",
+    "Trançador"
+   ]
+  },
+  {
+   "segmento": "Artes Visuais",
+   "ocupacoes": [
+    "Artista visual",
+    "Artista urbano",
+    "Caricaturista",
+    "Curador",
+    "Desenhista",
+    "Escultor",
+    "Fotógrafo",
+    "Gravurista",
+    "Ilustrador",
+    "Muralista",
+    "Pintor",
+    "Produtor de artes visuais",
+    "Restaurador"
+   ]
+  },
+  {
+   "segmento": "Audiovisual & Animação",
+   "ocupacoes": [
+    "Animador",
+    "Colorista",
+    "Diretor de fotografia",
+    "Diretor audiovisual",
+    "Editor de vídeo",
+    "Fotógrafo",
+    "Motion designer",
+    "Operador de câmera",
+    "Produtor audiovisual",
+    "Produtor executivo",
+    "Roteirista",
+    "Sonoplasta",
+    "Técnico de áudio",
+    "Videomaker"
+   ]
+  },
+  {
+   "segmento": "Circo",
+   "ocupacoes": [
+    "Acrobata",
+    "Artista circense",
+    "Artista aéreo",
+    "Contorcionista",
+    "Equilibrista",
+    "Mágico",
+    "Malabarista",
+    "Palhaço",
+    "Trapezista",
+    "Diretor circense",
+    "Produtor circense"
+   ]
+  },
+  {
+   "segmento": "Cultura Alimentar / Gastronomia",
+   "ocupacoes": [
+    "Artesão de alimentos",
+    "Barista",
+    "Chef",
+    "Confeiteiro",
+    "Cozinheiro/cozinheira tradicional",
+    "Doceiro",
+    "Padeiro",
+    "Produtor de alimentos tradicionais",
+    "Produtor de bebidas tradicionais",
+    "Profissional de gastronomia",
+    "Quitandeiro",
+    "Sommelier"
+   ]
+  },
+  {
+   "segmento": "Dança",
+   "ocupacoes": [
+    "Bailarino",
+    "Coreógrafo",
+    "Dançarino",
+    "Diretor artístico",
+    "Ensaísta/ensaiador",
+    "Mestre de dança",
+    "Professor de dança",
+    "Preparador corporal",
+    "Produtor de dança"
+   ]
+  },
+  {
+   "segmento": "Design",
+   "ocupacoes": [
+    "Designer de comunicação visual",
+    "Designer de interiores",
+    "Designer de produto",
+    "Designer de serviços",
+    "Designer gráfico",
+    "Diretor de arte",
+    "Ilustrador",
+    "Web designer"
+   ]
+  },
+  {
+   "segmento": "Editorial",
+   "ocupacoes": [
+    "Autor",
+    "Capista",
+    "Cordelista",
+    "Diagramador",
+    "Editor",
+    "Escritor",
+    "Ilustrador",
+    "Jornalista",
+    "Poeta",
+    "Preparador de texto",
+    "Produtor editorial",
+    "Revisor",
+    "Roteirista",
+    "Tradutor"
+   ]
+  },
+  {
+   "segmento": "Hip Hop",
+   "ocupacoes": [
+    "B-boy/B-girl",
+    "Beatmaker",
+    "Compositor",
+    "Dançarino",
+    "DJ",
+    "Grafiteiro",
+    "MC",
+    "Produtor cultural",
+    "Produtor musical",
+    "Rapper",
+    "Videomaker"
+   ]
+  },
+  {
+   "segmento": "Jogos Eletrônicos",
+   "ocupacoes": [
+    "Animador",
+    "Artista 2D",
+    "Artista 3D",
+    "Concept artist",
+    "Desenvolvedor de jogos",
+    "Designer de personagens",
+    "Game designer",
+    "Modelador 3D",
+    "Programador",
+    "Produtor de jogos",
+    "Roteirista",
+    "Sound designer"
+   ]
+  },
+  {
+   "segmento": "Moda",
+   "ocupacoes": [
+    "Alfaiate",
+    "Artesão têxtil",
+    "Bordadeiro/bordadeira",
+    "Cabeleireiro",
+    "Costureiro",
+    "Designer de moda",
+    "Estilista",
+    "Figurinista",
+    "Joalheiro",
+    "Maquiador",
+    "Modelista",
+    "Modelo",
+    "Produtor de moda"
+   ]
+  },
+  {
+   "segmento": "Museus & Patrimônio",
+   "ocupacoes": [
+    "Arqueólogo",
+    "Arquivista",
+    "Conservador",
+    "Documentalista",
+    "Educador museal",
+    "Historiador",
+    "Mediador cultural",
+    "Museólogo",
+    "Pesquisador",
+    "Produtor cultural",
+    "Restaurador",
+    "Técnico de patrimônio"
+   ]
+  },
+  {
+   "segmento": "Música",
+   "ocupacoes": [
+    "Arranjador",
+    "Cantor",
+    "Compositor",
+    "DJ",
+    "Diretor musical",
+    "Instrumentista",
+    "Luthier",
+    "Maestro",
+    "Músico",
+    "Professor de música",
+    "Produtor fonográfico",
+    "Produtor musical",
+    "Regente",
+    "Roadie",
+    "Sonoplasta",
+    "Técnico de som"
+   ]
+  },
+  {
+   "segmento": "Teatro",
+   "ocupacoes": [
+    "Aderecista",
+    "Ator/atriz",
+    "Bonequeiro",
+    "Cenógrafo",
+    "Contrarregra",
+    "Diretor",
+    "Dramaturgo",
+    "Figurinista",
+    "Iluminador",
+    "Maquiador",
+    "Preparador corporal",
+    "Preparador vocal",
+    "Produtor",
+    "Roteirista",
+    "Sonoplasta",
+    "Técnico de palco"
+   ]
+  },
+  {
+   "segmento": "Serviços",
+   "ocupacoes": [
+    "Sonorização",
+    "Iluminação",
+    "Palco",
+    "Tendas",
+    "Banheiros",
+    "Material e impressões gráficas",
+    "Comunicação e divulgação",
+    "Segurança",
+    "Saúde, ambulância e emergência",
+    "Limpeza",
+    "Seguros",
+    "Equipamentos",
+    "Utensílios",
+    "Ventilação",
+    "Pisos, tablados, arquibancadas",
+    "Cadeiras",
+    "Mesas",
+    "Climatização",
+    "Ornamentação",
+    "Transporte",
+    "Alimentação",
+    "Expositores",
+    "Sinalização",
+    "Recursos de acessibilidade"
+   ]
+  }
+ ]
+}

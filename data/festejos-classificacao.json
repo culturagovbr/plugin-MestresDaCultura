@@ -1,0 +1,44 @@
+{
+ "fonte": "Planilha \"Info Sistema de Cadastro dos Festejos Populares do Brasil.V2.xlsx\", aba 3",
+ "itens": [
+  {
+   "segmento": "Celebrações e Rituais",
+   "tipologias": [
+    "Carnaval",
+    "Festas do Ciclo Junino",
+    "Festas do Ciclo Natalino",
+    "Festas de Santos/Devocional",
+    "Festas de Matrizes Afro-Brasileiras",
+    "Festas de Terreiros de Matriz Africana",
+    "Festas do Divino Espírito Santo",
+    "Festas da Cultura Indígena",
+    "Congadas",
+    "Festas de Tradições Rurais e Sertanejas"
+   ]
+  },
+  {
+   "segmento": "Expressões, Manifestações e Brincadeiras",
+   "tipologias": [
+    "Festas do Ciclo do Boi",
+    "Festas de Músicas e Danças Populares",
+    "Festas do Ciclo do Marabaixo",
+    "Festas Populares",
+    "Marujada",
+    "Festas de Folguedos Populares"
+   ]
+  },
+  {
+   "segmento": "Identidades, Territórios e Comunidades",
+   "tipologias": [
+    "Festas Multiculturais",
+    "Festas Regionais",
+    "Festas Étnico-Culturais",
+    "Festas de Alimentos e Produção Rural",
+    "Festas Gastronômicas",
+    "Festas Comunitárias",
+    "Festas das Comunidades do Campo, das Águas e das Florestas",
+    "Festas dos Povos Indígenas"
+   ]
+  }
+ ]
+}

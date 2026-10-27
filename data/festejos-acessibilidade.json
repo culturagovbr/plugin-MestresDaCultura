@@ -1,0 +1,36 @@
+{
+ "fonte": "Planilha \"Info Sistema de Cadastro dos Festejos Populares do Brasil.V2.xlsx\", aba 19",
+ "itens": [
+  {
+   "tipo": "Mobilidade",
+   "requisitos": [
+    "Mapa do evento acessível",
+    "Rampas",
+    "Piso tátil",
+    "Balcões com altura reduzida",
+    "Espaço ou área reservada",
+    "Rotas e espaços livres e adaptados",
+    "Banheiros adaptados"
+   ]
+  },
+  {
+   "tipo": "Comunicacional e Informações",
+   "requisitos": [
+    "Intérprete de libras",
+    "Audiodescrição",
+    "Atendimento com profissionais especializados",
+    "Material impresso em braile ou fonte ampliada",
+    "Divulgação com descrição de imagens",
+    "Cardápios em braile ou digital compatível com leitor de tela",
+    "Sinalização acessível"
+   ]
+  },
+  {
+   "tipo": "Conforto Sensorial",
+   "requisitos": [
+    "Espaço de descompressão (menor volume e luzes baixas)",
+    "Abafador de ruído/fone de ouvido abafador"
+   ]
+  }
+ ]
+}
