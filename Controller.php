@@ -4,12 +4,14 @@ namespace MDC;
 
 use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
+use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Exceptions\PermissionDenied;
 use MapasCulturais\i;
 use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
+use MDC\Services\FestivityForm;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\Curators;
 use MDC\Services\OtherQueue;
@@ -69,6 +71,64 @@ class Controller extends \MapasCulturais\Controller
 
         $app->view->jsObject['config']['mdcMasters'] = ['sealId' => (new ProgramSeal)->configuredId()];
         $this->render('masters');
+    }
+
+    // O cadastro do festejo em 6 etapas (views/mdc/festivity.php): `/cadastrar-festejo/` começa um e
+    // `/cadastrar-festejo/{id}/` continua. Quem tem conta cadastra; continua quem edita o evento.
+    function GET_festivity()
+    {
+        $app = App::i();
+
+        if (!Plugin::isTheme()) {
+            $app->pass();
+        }
+
+        $this->requireAuthentication();
+
+        if ($this->festivity = $this->requestedFestivity()) {
+            $app->view->addRequestedEntityToJs(Event::class, $this->festivity->id, $this->festivity);
+        }
+
+        $app->view->jsObject['config']['mdcFestivity'] = [
+            'steps' => FestivityForm::steps(),
+            'required' => FestivityForm::requiredKeys(),
+            'formUrl' => $app->createUrl('mdc', 'festivity'),
+            'checkUrl' => $app->createUrl('mdc', 'festivityCheck'),
+        ];
+        $this->render('festivity');
+    }
+
+    // Confere uma etapa do festejo, depois de salvar: os campos que faltam, campo => mensagens.
+    function GET_festivityCheck()
+    {
+        $this->requireAuthentication();
+
+        $event = $this->requestedFestivity() ?? App::i()->pass();
+        $step = isset($this->data['step']) ? (int) $this->data['step'] : null;
+
+        $this->json((object) FestivityForm::missing($event, $step));
+    }
+
+    // Festejo do cadastro, entregue ao tema como a entidade da página (Theme::addRequestedEntityToJs).
+    private ?Event $festivity = null;
+
+    function getRequestedEntity(): ?Event
+    {
+        return $this->festivity;
+    }
+
+    private function requestedFestivity(): ?Event
+    {
+        $app = App::i();
+
+        if (!($id = $this->data['id'] ?? null)) {
+            return null;
+        }
+
+        $event = $app->repo('Event')->find($id) ?? $app->pass();
+        $event->checkPermission('modify');
+
+        return $event;
     }
 
     // Árvore pública, a mesma do cadastro.

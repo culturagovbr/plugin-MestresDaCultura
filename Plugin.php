@@ -161,6 +161,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->skipProfileFieldsTheProgramDoesNotAsk();
         $this->skipEventFieldsTheFestejoDoesNotAsk();
         $this->completeTheFestivityPlace();
+        $this->openTheFestivityForm();
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
         $this->keepOnePlacePerModerator();
@@ -385,6 +386,51 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('entity(Space)::validations', function (array &$validations) {
             if (Plugin::isTheme()) {
                 unset($validations['shortDescription']['required']);
+            }
+        });
+    }
+
+    // O cadastro do festejo em 6 etapas (Controller::GET_festivity, Services\FestivityForm) em `/cadastrar-festejo/`.
+    // No subsite dos Mestres todo evento é festejo: a criação e a edição do core levam ao formulário, e publicar, pelo
+    // formulário ou pelo painel ("Meus eventos"), cobra as 6 etapas; o festejo publicado também não perde o que elas
+    // cobram. O rascunho salva sem cobrar.
+    private function openTheFestivityForm(): void
+    {
+        $app = App::i();
+        $app->config['routes']['shortcuts']['cadastrar-festejo'] = ['mdc', 'festivity'];
+
+        $isFestivity = fn (Event $event): bool => Plugin::isTheme() && (!$event->id || Services\SubsiteRedirect::isCurrent($event->subsite));
+
+        $app->hook('GET(event.create):before', function () use ($app) {
+            if (Plugin::isTheme()) {
+                $app->redirect($app->createUrl('mdc', 'festivity'));
+            }
+        });
+
+        // O "Criar Evento" de "Meus eventos" abre o modal do core (create-event-festivity.js).
+        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
+            if ($component === 'create-event' && Plugin::isTheme()) {
+                $this->enqueueScript('components', 'mdc-create-event-festivity', 'js/create-event-festivity.js', ['create-event']);
+            }
+        }, 1000);
+
+        $app->hook('GET(event.edit):before', function () use ($app, $isFestivity) {
+            $event = $this->requestedEntity;
+
+            if ($event instanceof Event && $isFestivity($event)) {
+                $app->redirect($app->createUrl('mdc', 'festivity', [$event->id]));
+            }
+        });
+
+        // A publicação do core valida o evento ainda em rascunho, antes de mudar o status.
+        $publishing = false;
+        $app->hook('ALL(event.publish):before', function () use (&$publishing) {
+            $publishing = true;
+        });
+
+        $app->hook('entity(Event).validationErrors', function (array &$errors) use (&$publishing, $isFestivity) {
+            if ($isFestivity($this) && ($publishing || $this->status > Event::STATUS_DRAFT)) {
+                $errors += Services\FestivityForm::missing($this);
             }
         });
     }
