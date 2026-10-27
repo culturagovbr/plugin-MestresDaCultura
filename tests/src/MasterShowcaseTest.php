@@ -1,0 +1,142 @@
+<?php
+
+namespace Tests\MDC;
+
+use MapasCulturais\Entities\Agent;
+use MapasCulturais\Entities\Opportunity;
+use MapasCulturais\Entities\Seal;
+use MDC\Services\ActingField;
+use MDC\Services\FixedOpportunity;
+use MDC\Services\MasterShowcase;
+use MDC\Services\ProgramSeal;
+use Tests\Abstract\TestCase;
+use Tests\Builders\PhasePeriods\Open;
+use Tests\Builders\SealBuilder;
+use Tests\Traits\OpportunityBuilder;
+use Tests\Traits\RegistrationDirector;
+use Tests\Traits\UserDirector;
+
+// A vitrine da home mostra as mestras e os mestres com o selo do programa, os aprovados mais recentes primeiro,
+// só com dados públicos, e conta quantos são e de quantas unidades da federação.
+class MasterShowcaseTest extends TestCase
+{
+    use CapturesLog;
+    use OpportunityBuilder;
+    use RegistrationDirector;
+    use UserDirector;
+
+    private Opportunity $opportunity;
+    private Seal $seal;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->captureLog();
+
+        $admin = $this->userDirector->createUser('saasSuperAdmin');
+        $this->login($admin);
+
+        $this->opportunity = $this->opportunityBuilder
+            ->reset(owner: $admin->profile, owner_entity: $admin->profile)
+            ->fillRequiredProperties()
+            ->save()
+            ->firstPhase()
+                ->setRegistrationPeriod(new Open)
+                ->createStep('etapa')
+                ->createField('atuacao', ActingField::SLUG, title: 'Atuação Cultural')
+                ->createField('cidade', 'municipio', title: 'Qual Cidade você vive?')
+                ->done()
+            ->save()
+            ->refresh()
+            ->getInstance();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $this->opportunity->id;
+
+        $this->seal = (new SealBuilder)->reset($admin->profile)->fillRequiredProperties()->save()->getInstance();
+        $this->app->config[ProgramSeal::CONFIG_KEY] = $this->seal->id;
+    }
+
+    /** Mestra aprovada, com o selo dado há `$daysAgo` dias. */
+    private function master(string $name, string $knownAs, string $city, array $activities, int $daysAgo, ?Seal $seal = null): Agent
+    {
+        $registration = $this->registrationDirector->createDraftRegistrations($this->opportunity, 1)[0];
+        $agent = $registration->owner;
+        $registration->opportunity->registerRegistrationMetadata();
+        $registration->registerFieldsMetadata();
+
+        $nodes = $this->nodes($activities);
+        $this->app->disableAccessControl();
+        $agent->name = $name;
+        $agent->nomeSocial = $knownAs;
+        $agent->emailPrivado = 'privado@example.com';
+        $agent->longDescription = "Aprendeu com a avó.\n\n" . str_repeat('Ensina na comunidade. ', 20);
+        $agent->save(true);
+        $registration->{$this->opportunityBuilder->getFieldName('atuacao')} = ['nodes' => $nodes, 'others' => []];
+        $registration->{$this->opportunityBuilder->getFieldName('cidade')} = $city;
+        $registration->save(true);
+        $agent->createSealRelation($seal ?? $this->seal, true, true);
+        $this->app->enableAccessControl();
+
+        // Aprovada e com o selo de `$daysAgo` dias, sem passar pelos ganchos da aprovação.
+        $this->app->conn->executeStatement('UPDATE registration SET status = 10 WHERE id = :id', ['id' => $registration->id]);
+        $this->app->conn->executeStatement("UPDATE seal_relation SET create_timestamp = now() - make_interval(days => :days) WHERE object_id = :agent AND seal_id = :seal",
+            ['days' => $daysAgo, 'agent' => $agent->id, 'seal' => ($seal ?? $this->seal)->id]);
+
+        return $agent;
+    }
+
+    /** Os itens da árvore pelo nome, cada um depois do pai, como a resposta do campo de atuação. */
+    private function nodes(array $names): array
+    {
+        $nodes = [];
+        foreach ($names as $name) {
+            $node = $this->app->conn->fetchAssociative('SELECT id, parent_id, name FROM mdc_tree_node WHERE name = :name ORDER BY level LIMIT 1', ['name' => $name]);
+            if ($node['parent_id'] && !isset($nodes[$node['parent_id']])) {
+                $parent = $this->app->conn->fetchAssociative('SELECT id, parent_id, name FROM mdc_tree_node WHERE id = :id', ['id' => $node['parent_id']]);
+                $nodes[$parent['id']] = ['id' => (int) $parent['id'], 'parent' => null, 'name' => $parent['name']];
+            }
+            $nodes[$node['id']] = ['id' => (int) $node['id'], 'parent' => $node['parent_id'] ? (int) $node['parent_id'] : null, 'name' => $node['name']];
+        }
+
+        return array_values($nodes);
+    }
+
+    function testShowsTheMostRecentlyApprovedMastersWithPublicDataOnly()
+    {
+        $older = $this->master('Maria da Silva', 'Mestra Maria', 'Olinda, PE', ['Artífice'], 10);
+        $newer = $this->master('João Santos', 'Mestre João', 'Juazeiro do Norte, CE', ['Carnaval', 'Folia de Reis'], 2);
+
+        $highlights = (new MasterShowcase)->highlights();
+
+        $this->assertSame([$newer->id, $older->id], array_column($highlights, 'id'), 'Os aprovados mais recentes primeiro');
+        $this->assertSame('Mestre João', $highlights[0]['knownAs']);
+        $this->assertSame(['Carnaval', 'Folia de Reis'], $highlights[0]['activities'], 'As atividades marcadas, sem o segmento acima delas');
+        $this->assertSame('Juazeiro do Norte, CE', $highlights[0]['city']);
+        $this->assertSame($newer->singleUrl, $highlights[0]['url']);
+        $this->assertStringStartsWith('Aprendeu com a avó. Ensina', $highlights[0]['summary'], 'Sem mini bio, o começo da descrição longa');
+        $this->assertLessThanOrEqual(160, mb_strlen($highlights[0]['summary']));
+        $this->assertSame(['id', 'name', 'knownAs', 'activities', 'city', 'summary', 'avatar', 'url'], array_keys($highlights[0]), 'Só dados públicos');
+        $this->assertStringNotContainsString('privado@example.com', json_encode($highlights));
+
+        $this->assertCount(1, (new MasterShowcase)->highlights(1), 'No máximo o pedido');
+    }
+
+    function testCountsTheMastersAndTheirStates()
+    {
+        $this->master('Maria', 'Mestra Maria', 'Olinda, PE', ['Artífice'], 3);
+        $this->master('Ana', 'Mestra Ana', 'Recife, PE', ['Artesanato'], 2);
+        $this->master('João', 'Mestre João', 'Juazeiro do Norte, CE', ['Carnaval'], 1);
+
+        $this->assertSame(['masters' => 3, 'states' => 2], (new MasterShowcase)->counts());
+    }
+
+    function testLeavesOutWhoDoesNotHaveTheProgramSeal()
+    {
+        $admin = $this->userDirector->createUser('saasSuperAdmin');
+        $this->login($admin);
+        $other = (new SealBuilder)->reset($admin->profile)->fillRequiredProperties()->save()->getInstance();
+        $this->master('Fora', 'Fora da Rede', 'Natal, RN', ['Artífice'], 1, $other);
+
+        $this->assertSame([], (new MasterShowcase)->highlights());
+        $this->assertSame(['masters' => 0, 'states' => 0], (new MasterShowcase)->counts());
+    }
+}
