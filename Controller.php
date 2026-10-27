@@ -11,6 +11,7 @@ use MapasCulturais\Exceptions\PermissionDenied;
 use MapasCulturais\i;
 use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
+use MDC\Services\FestivityFields;
 use MDC\Services\FestivityForm;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\Curators;
@@ -92,6 +93,8 @@ class Controller extends \MapasCulturais\Controller
         $app->view->jsObject['config']['mdcFestivity'] = [
             'steps' => FestivityForm::steps(),
             'required' => FestivityForm::requiredKeys(),
+            'classification' => FestivityFields::classification(),
+            'classificationKeys' => ['segment' => FestivityFields::SEGMENT, 'typologies' => FestivityFields::TYPOLOGIES, 'other' => FestivityFields::OTHER_TYPOLOGY],
             'formUrl' => $app->createUrl('mdc', 'festivity'),
             'checkUrl' => $app->createUrl('mdc', 'festivityCheck'),
         ];

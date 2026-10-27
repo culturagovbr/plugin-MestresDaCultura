@@ -67,7 +67,9 @@ class FestivityForm
             ],
             1 => [
                 'occurrences' => i::__('Informe ao menos um período, com o local'),
+                'place' => i::__('Informe o estado e o município do local'),
                 FestivityFields::TERRITORY => i::__('Informe o território'),
+                FestivityFields::LAW_FILE => i::__('Envie o arquivo da lei que reconhece o festejo'),
             ],
             3 => [
                 FestivityFields::PRODUCER => i::__('Informe o tipo de realizador'),
@@ -79,13 +81,44 @@ class FestivityForm
         ];
     }
 
+    /**
+     * O que está errado mesmo no rascunho: a classificação é um segmento e até duas tipologias dele, e o "Outro" conta
+     * como uma.
+     *
+     * @return array<string, list<string>>
+     */
+    static function invalid(Event $event): array
+    {
+        $segment = $event->{FestivityFields::SEGMENT};
+        $typologies = (array) $event->{FestivityFields::TYPOLOGIES};
+        $ofSegment = array_column(FestivityFields::classification(), 'tipologias', 'segmento')[$segment] ?? [];
+        $count = count($typologies) + (self::filled($event->{FestivityFields::OTHER_TYPOLOGY}) ? 1 : 0);
+
+        if ($count > 2 || array_diff($typologies, $ofSegment)) {
+            return [FestivityFields::TYPOLOGIES => [i::__('Escolha até duas tipologias do segmento')]];
+        }
+
+        return [];
+    }
+
     private static function isEmpty(Event $event, string $key): bool
     {
         return match ($key) {
             'occurrences' => count($event->occurrences ?? []) === 0,
+            // Vêm do primeiro local da agenda (FestivityPlace::sync); sem período, só a falta dele aparece.
+            'place' => count($event->occurrences ?? []) > 0
+                && (!self::filled($event->{FestivityFields::UF}) || !self::filled($event->{FestivityFields::CITY})),
+            FestivityFields::TYPOLOGIES => !self::filled($event->{FestivityFields::TYPOLOGIES}) && !self::filled($event->{FestivityFields::OTHER_TYPOLOGY}),
+            // O arquivo só quando há lei própria.
+            FestivityFields::LAW_FILE => $event->{FestivityFields::LAW} === 'Sim' && !$event->getFile(FestivityFields::LAW_FILE),
             // O responsável é quem cadastra: o nome completo vem do perfil.
-            'responsible' => trim((string) $event->owner?->nomeCompleto) === '',
-            default => in_array($event->$key, [null, '', []], true),
+            'responsible' => !self::filled($event->owner?->nomeCompleto),
+            default => !self::filled($event->$key),
         };
+    }
+
+    private static function filled(mixed $value): bool
+    {
+        return !in_array(is_string($value) ? trim($value) : $value, [null, '', []], true);
     }
 }

@@ -1,0 +1,33 @@
+<?php
+
+use MapasCulturais\i;
+
+return [
+    'titulo' => i::__('Agenda do festejo'),
+    'obrigatorio' => i::__('obrigatório'),
+    'dica' => i::__('Os períodos em que o festejo acontece neste ano, cada um com o seu local. Atualize a cada ano. No festejo itinerante, o primeiro local é o que vale para o estado e a cidade.'),
+    'vazia' => i::__('Nenhum período na agenda ainda.'),
+    'novo periodo' => i::__('Adicionar período'),
+    'inicio' => i::__('Data de início'),
+    'fim' => i::__('Data de fim (se durar mais de um dia)'),
+    'horario inicio' => i::__('Horário de início'),
+    'horario fim' => i::__('Horário de término'),
+    'local' => i::__('Local'),
+    'escolha o local' => i::__('Escolha o local'),
+    'novo local' => i::__('Cadastrar um novo local'),
+    'nome do local' => i::__('Nome do local'),
+    'nome do local dica' => i::__('Ex.: Praça da Matriz, Terreiro de São Jorge, Rua do Rosário'),
+    'sem endereco' => i::__('sem endereço'),
+    'cancelar' => i::__('Cancelar'),
+    'adicionar' => i::__('Adicionar à agenda'),
+    'remover' => i::__('Remover'),
+    'remover pergunta' => i::__('Remover este período da agenda?'),
+    'de a' => i::__('{inicio} a {fim}'),
+    'das as' => i::__('das {inicio} às {fim}'),
+    'a partir das' => i::__('a partir das {inicio}'),
+    'falta data' => i::__('Informe a data e o horário de início.'),
+    'fim antes' => i::__('A data de fim é antes da de início.'),
+    'falta local' => i::__('Escolha o local ou cadastre um novo.'),
+    'falta endereco' => i::__('Informe o nome do local, o estado e o município.'),
+    'falha' => i::__('Não foi possível adicionar o período. Tente de novo.'),
+];

@@ -5,6 +5,7 @@ namespace MDC;
 use MapasCulturais\API;
 use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
+use MapasCulturais\Definitions\FileGroup;
 use MapasCulturais\Definitions\RegistrationFieldType;
 use MapasCulturais\Entities\Agent;
 use MapasCulturais\Entities\EvaluationMethodConfiguration;
@@ -56,6 +57,7 @@ class Plugin extends \MapasCulturais\Plugin
         foreach (Services\FestivityFields::definitions() as $key => $definition) {
             $this->registerEventMetadata($key, $definition);
         }
+        $app->registerFileGroup('event', new FileGroup(Services\FestivityFields::LAW_FILE, ['^application/pdf$', '^image/(jpeg|png)$'], i::__('Envie a lei em PDF ou em imagem (JPG ou PNG).'), true));
     }
 
     // Opções da devolução dos rascunhos de moderação (ver Services\ModerationQueue), válidas também fora do subsite.
@@ -337,8 +339,8 @@ class Plugin extends \MapasCulturais\Plugin
         }, 1000);
     }
 
-    // O festejo é um Evento do core, e a planilha dos Festejos não pede a descrição curta, a classificação etária nem a
-    // linguagem (decisão FJD3). Só no subsite dos Mestres, como os campos do perfil acima.
+    // O festejo é um Evento do core, e a planilha dos Festejos não pede a descrição curta, a classificação etária, a
+    // linguagem nem o valor de entrada da agenda (decisão FJD3). Só no subsite dos Mestres, como os campos do perfil acima.
     private function skipEventFieldsTheFestejoDoesNotAsk(): void
     {
         $app = App::i();
@@ -346,6 +348,13 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('entity(Event)::validations', function (array &$validations) {
             if (Plugin::isTheme()) {
                 unset($validations['shortDescription']['required']);
+            }
+        });
+
+        // O período da agenda (FJ-04) também não tem valor de entrada na planilha.
+        $app->hook('entity(EventOccurrence)::validations', function (array &$validations) {
+            if (Plugin::isTheme()) {
+                unset($validations['price']['required']);
             }
         });
 
@@ -371,21 +380,52 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // O local do festejo só pede o nome e o endereço (ver Services\FestivityPlace): o tipo vem sozinho, e a descrição
+    // O local do festejo só pede o nome e o endereço (ver Services\FestivityPlace): o tipo vem sozinho (com o nome do
+    // tipo que o SNIIC pede no "Outros"), e a descrição
     // curta não é obrigatória. A área de atuação já não é (skipProfileFieldsTheProgramDoesNotAsk: a taxonomia é a mesma).
     private function completeTheFestivityPlace(): void
     {
         $app = App::i();
 
-        $app->hook('POST(space.index):data', function (&$data) {
-            if (Plugin::isTheme() && empty($data['type'])) {
-                $data['type'] = Services\FestivityPlace::type();
+        $app->hook('POST(space.index):data', function (&$data) use ($app) {
+            if (!Plugin::isTheme() || !empty($data['type'])) {
+                return;
+            }
+
+            $data['type'] = Services\FestivityPlace::type();
+
+            if ($app->getRegisteredMetadataByMetakey(Services\FestivityPlace::OTHER_TYPE_FIELD, \MapasCulturais\Entities\Space::class)) {
+                $data[Services\FestivityPlace::OTHER_TYPE_FIELD] ??= i::__('Local de festejo popular');
             }
         });
 
         $app->hook('entity(Space)::validations', function (array &$validations) {
             if (Plugin::isTheme()) {
                 unset($validations['shortDescription']['required']);
+            }
+        });
+
+        // A UF, a cidade e a região do festejo saem do primeiro local da agenda (FestivityPlace::sync): a cada
+        // gravação do festejo, que o core repete a cada período, e quando o endereço de um local muda.
+        $app->hook('entity(Event).save:before', function () {
+            if (Plugin::isTheme()) {
+                Services\FestivityPlace::sync($this);
+            }
+        });
+
+        $app->hook('entity(Space).save:finish', function () use ($app) {
+            if (!Plugin::isTheme() || !$this->id) {
+                return;
+            }
+
+            $app->disableAccessControl();
+
+            try {
+                foreach (Services\FestivityPlace::eventsAt($this->id) as $event) {
+                    $event->save(true);
+                }
+            } finally {
+                $app->enableAccessControl();
             }
         });
     }
@@ -429,7 +469,13 @@ class Plugin extends \MapasCulturais\Plugin
         });
 
         $app->hook('entity(Event).validationErrors', function (array &$errors) use (&$publishing, $isFestivity) {
-            if ($isFestivity($this) && ($publishing || $this->status > Event::STATUS_DRAFT)) {
+            if (!$isFestivity($this)) {
+                return;
+            }
+
+            $errors += Services\FestivityForm::invalid($this);
+
+            if ($publishing || $this->status > Event::STATUS_DRAFT) {
                 $errors += Services\FestivityForm::missing($this);
             }
         });

@@ -28,14 +28,19 @@ class FestivityFields
 
     const VENUE = 'mdcFestejoTipoLocal';
 
-    // Copiadas do local da agenda (o primeiro, se itinerante), para a busca e o mapa; a região sai da UF.
+    // Copiadas do primeiro local da agenda (Services\FestivityPlace::sync), para a busca e o mapa.
     const UF = 'mdcFestejoUf';
 
     const CITY = 'mdcFestejoCidade';
 
+    const REGION = 'mdcFestejoRegiao';
+
     const TERRITORY = 'mdcFestejoTerritorio';
 
     const LAW = 'mdcFestejoLei';
+
+    // O grupo de arquivo da lei própria, público como o resto do festejo.
+    const LAW_FILE = 'mdcLegislacao';
 
     // Cada item como "Segmento: Ocupação".
     const ECONOMY = 'mdcFestejoEconomia';
@@ -86,6 +91,7 @@ class FestivityFields
             self::VENUE => ['label' => i::__('Onde é realizado'), 'type' => 'select', 'options' => $list(['Espaço público', 'Espaço próprio', 'Espaço alugado', 'Itinerante'])],
             self::UF => ['label' => i::__('UF do festejo'), 'type' => 'string'],
             self::CITY => ['label' => i::__('Cidade do festejo'), 'type' => 'string'],
+            self::REGION => ['label' => i::__('Região do festejo'), 'type' => 'string'],
             self::TERRITORY => ['label' => i::__('Território'), 'type' => 'select', 'options' => $list([
                 'Urbano', 'Rural', 'Comunidade Quilombola', 'Território Indígena', 'Território Tradicional de Matriz Africana',
                 'Periferia Urbana', 'Outro',
@@ -115,6 +121,26 @@ class FestivityFields
         }
 
         return $definitions;
+    }
+
+    // A região sai da UF.
+    static function region(string $uf): string
+    {
+        $regions = [
+            'Norte' => ['AC', 'AM', 'AP', 'PA', 'RO', 'RR', 'TO'],
+            'Nordeste' => ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
+            'Centro-Oeste' => ['DF', 'GO', 'MS', 'MT'],
+            'Sudeste' => ['ES', 'MG', 'RJ', 'SP'],
+            'Sul' => ['PR', 'RS', 'SC'],
+        ];
+
+        foreach ($regions as $region => $ufs) {
+            if (in_array(strtoupper($uf), $ufs, true)) {
+                return $region;
+            }
+        }
+
+        return '';
     }
 
     /** @return array<string, string> a chave de cada fonte de recursos públicos e o nome dela */

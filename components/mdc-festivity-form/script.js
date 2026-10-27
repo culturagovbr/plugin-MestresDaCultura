@@ -34,6 +34,10 @@ app.component('mdc-festivity-form', {
         messages() {
             return Object.values(this.errors).flat();
         },
+
+        currentYear() {
+            return new Date().getFullYear();
+        },
     },
 
     methods: {
