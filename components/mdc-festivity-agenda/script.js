@@ -97,12 +97,20 @@ app.component('mdc-festivity-agenda', {
             this.startsOn = this.until = this.startsAt = this.endsAt = '';
         },
 
-        // O texto do período, como o core mostra na agenda (rule.description).
+        // O texto do período, sem repetir o mês e o ano iguais: "3 a 5 de dezembro de 2026".
         describe() {
-            const date = (value) => new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
-            const days = this.until && this.until !== this.startsOn
-                ? this.text('de a').replace('{inicio}', date(this.startsOn)).replace('{fim}', date(this.until))
-                : date(this.startsOn);
+            const start = new Date(`${this.startsOn}T12:00:00`);
+            const end = this.until && this.until !== this.startsOn ? new Date(`${this.until}T12:00:00`) : null;
+            const full = (date) => date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+            let first = full(start);
+
+            if (end && end.getFullYear() === start.getFullYear()) {
+                first = end.getMonth() === start.getMonth()
+                    ? String(start.getDate())
+                    : start.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+            }
+
+            const days = end ? this.text('de a').replace('{inicio}', first).replace('{fim}', full(end)) : first;
             const hours = this.endsAt
                 ? this.text('das as').replace('{inicio}', this.startsAt).replace('{fim}', this.endsAt)
                 : this.text('a partir das').replace('{inicio}', this.startsAt);

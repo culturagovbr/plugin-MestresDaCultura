@@ -66,10 +66,18 @@ class ProgramBreadcrumb
         return $path;
     }
 
-    /**
-     * O perfil público da mestra com o selo do programa: o core leva a "Agentes" (404 no subsite) e, no "Início", ao
-     * painel (login para o visitante). Como no protótipo: Início › Mestras e Mestres (a busca) › nome artístico.
-     */
+    // Página do festejo e perfil público da mestra: Início › a busca (Festejos Populares ou Mestras e Mestres) › nome.
+    static function festivity(string $name): array
+    {
+        $app = App::i();
+
+        return [
+            ['label' => i::__('Início'), 'url' => $app->createUrl('site', 'index')],
+            ['label' => i::__('Festejos Populares'), 'url' => $app->createUrl('mdc', 'festivities')],
+            ['label' => $name],
+        ];
+    }
+
     static function master(string $name): array
     {
         $app = App::i();

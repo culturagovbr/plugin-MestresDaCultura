@@ -36,6 +36,9 @@ class FestivityFields
 
     const REGION = 'mdcFestejoRegiao';
 
+    // O texto do primeiro período da agenda ("3 a 5 de dezembro de 2026, das 18:00 às 23:00"), para os cartões da busca.
+    const AGENDA_SUMMARY = 'mdcFestejoAgenda';
+
     const TERRITORY = 'mdcFestejoTerritorio';
 
     const LAW = 'mdcFestejoLei';
@@ -108,11 +111,13 @@ class FestivityFields
     static function definitions(): array
     {
         $list = fn (array $values) => array_combine($values, $values);
+        // Grava as listas no JSON sem escapar acento nem barra.
+        $multiselect = ['type' => 'multiselect', 'serialize' => fn ($value) => json_encode(array_values(array_filter((array) $value)), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
         $yesNo = ['type' => 'select', 'options' => ['Sim' => i::__('Sim'), 'Não' => i::__('Não')]];
 
         $definitions = [
             self::SEGMENT => ['label' => i::__('Segmento'), 'type' => 'select', 'options' => $list(array_column(self::classification(), 'segmento'))],
-            self::TYPOLOGIES => ['label' => i::__('Tipologias'), 'type' => 'multiselect', 'options' => $list(array_merge(...array_column(self::classification(), 'tipologias')))],
+            self::TYPOLOGIES => ['label' => i::__('Tipologias'), 'options' => $list(array_merge(...array_column(self::classification(), 'tipologias')))] + $multiselect,
             self::OTHER_TYPOLOGY => ['label' => i::__('Outra tipologia'), 'type' => 'string'],
             self::FIRST_YEAR => ['label' => i::__('Ano da primeira realização'), 'type' => 'integer'],
             self::EDITIONS => ['label' => i::__('Edições realizadas'), 'type' => 'integer'],
@@ -129,22 +134,23 @@ class FestivityFields
             self::UF => ['label' => i::__('UF do festejo'), 'type' => 'string'],
             self::CITY => ['label' => i::__('Cidade do festejo'), 'type' => 'string'],
             self::REGION => ['label' => i::__('Região do festejo'), 'type' => 'string'],
+            self::AGENDA_SUMMARY => ['label' => i::__('Primeiro período da agenda'), 'type' => 'string'],
             self::TERRITORY => ['label' => i::__('Território'), 'type' => 'select', 'options' => $list([
                 'Urbano', 'Rural', 'Comunidade Quilombola', 'Território Indígena', 'Território Tradicional de Matriz Africana',
                 'Periferia Urbana', 'Outro',
             ])],
             self::LAW => ['label' => i::__('Reconhecido por legislação própria')] + $yesNo,
-            self::ECONOMY => ['label' => i::__('Atividades da economia criativa'), 'type' => 'multiselect', 'options' => $list(self::economyValues())],
+            self::ECONOMY => ['label' => i::__('Atividades da economia criativa'), 'options' => $list(self::economyValues())] + $multiselect,
             self::OTHER_ECONOMY => ['label' => i::__('Outra atividade da economia criativa'), 'type' => 'string'],
             self::WITH_MASTERS => ['label' => i::__('Com Mestras e Mestres')] + $yesNo,
             self::MASTERS => ['label' => i::__('Mestras e Mestres da Rede no festejo'), 'type' => 'string'],
             self::CULTURE_POINT => ['label' => i::__('Com Ponto ou Pontão de Cultura')] + $yesNo,
             self::CULTURE_POINT_NAME => ['label' => i::__('Ponto ou Pontão de Cultura'), 'type' => 'string'],
             self::HAS_ACCESSIBILITY => ['label' => i::__('Atende a requisitos de acessibilidade')] + $yesNo,
-            self::ACCESSIBILITY => ['label' => i::__('Acessibilidade'), 'type' => 'multiselect', 'options' => $list(array_merge(...array_column(self::accessibility(), 'requisitos')))],
+            self::ACCESSIBILITY => ['label' => i::__('Acessibilidade'), 'options' => $list(array_merge(...array_column(self::accessibility(), 'requisitos')))] + $multiselect,
             self::OTHER_ACCESSIBILITY => ['label' => i::__('Outro recurso de acessibilidade'), 'type' => 'string'],
             self::HAS_SHELTER => ['label' => i::__('Tem espaços de acolhimento')] + $yesNo,
-            self::SHELTER => ['label' => i::__('Espaços de acolhimento'), 'type' => 'multiselect', 'options' => $list(self::shelter())],
+            self::SHELTER => ['label' => i::__('Espaços de acolhimento'), 'options' => $list(self::shelter())] + $multiselect,
             self::OTHER_SHELTER => ['label' => i::__('Outro espaço de acolhimento'), 'type' => 'string'],
             self::PRODUCER => ['label' => i::__('Tipo de realizador'), 'type' => 'select', 'options' => $list([
                 'Pessoa Física', 'Pessoa Jurídica com fins lucrativos', 'Pessoa Jurídica sem fins lucrativos',

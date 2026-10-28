@@ -13,6 +13,8 @@ use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
 use MDC\Services\FestivityFields;
 use MDC\Services\FestivityForm;
+use MDC\Services\FestivitySeal;
+use MDC\Services\FestivitySearch;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\Curators;
 use MDC\Services\OtherQueue;
@@ -72,6 +74,25 @@ class Controller extends \MapasCulturais\Controller
 
         $app->view->jsObject['config']['mdcMasters'] = ['sealId' => (new ProgramSeal)->configuredId()];
         $this->render('masters');
+    }
+
+    // Busca pública de festejos (views/mdc/festivities.php), só no subsite dos Mestres; lista só os que têm o selo.
+    function GET_festivities()
+    {
+        $app = App::i();
+
+        if (!Plugin::isTheme()) {
+            $app->pass();
+        }
+
+        $app->view->jsObject['config']['mdcFestivities'] = [
+            'sealId' => (new FestivitySeal)->configuredId(),
+            'classification' => FestivityFields::classification(),
+            'sizes' => FestivityFields::definitions()[FestivityFields::SIZE]['options'],
+            'monthParam' => FestivitySearch::MONTH_PARAM,
+            'formUrl' => $app->createUrl('mdc', 'festivity'),
+        ];
+        $this->render('festivities');
     }
 
     // O cadastro do festejo em 6 etapas (views/mdc/festivity.php): `/cadastrar-festejo/` começa um e

@@ -92,6 +92,20 @@ class FestivitySeal
         return $seal && $event->id ? App::i()->repo('EventSealRelation')->findOneBy(['seal' => $seal, 'owner' => $event]) : null;
     }
 
+    // O contador da home: festejos publicados, que têm o selo. Sem o selo configurado, zero e sem registrar erro.
+    function countPublished(): int
+    {
+        if (!$this->configuredId()) {
+            return 0;
+        }
+
+        return (int) App::i()->conn->fetchOne(
+            "SELECT count(*) FROM seal_relation r JOIN event e ON e.id = r.object_id
+             WHERE r.seal_id = :seal AND r.object_type = :type AND e.status = :enabled",
+            ['seal' => $this->configuredId(), 'type' => Event::class, 'enabled' => Event::STATUS_ENABLED]
+        );
+    }
+
     // Só a chave: get() avisa no log quando falta, e há quem pergunte a cada consulta.
     function configuredId(): ?int
     {

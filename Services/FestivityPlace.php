@@ -34,7 +34,7 @@ class FestivityPlace
     }
 
     /**
-     * A UF, a cidade e a região do festejo vêm do primeiro local da agenda, pela data (itens 10 a 13; no festejo
+     * A UF, a cidade, a região e o resumo da agenda vêm do primeiro período, pela data (itens 10 a 13; no festejo
      * itinerante, o primeiro). O core salva o evento a cada período gravado ou apagado (EventOccurrence::save e
      * delete); o plugin chama isto antes de salvar o festejo e ao mudar o endereço de um local.
      */
@@ -54,6 +54,8 @@ class FestivityPlace
             FestivityFields::UF => $uf,
             FestivityFields::CITY => (string) $first?->space?->En_Municipio,
             FestivityFields::REGION => FestivityFields::region($uf),
+            // Para os cartões da busca: o texto do período, ou a data dele.
+            FestivityFields::AGENDA_SUMMARY => $first ? ((string) $first->description ?: $first->startsOn?->format('d/m/Y') ?? '') : '',
         ];
 
         foreach ($values as $key => $value) {

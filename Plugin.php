@@ -168,6 +168,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->skipEventFieldsTheFestejoDoesNotAsk();
         $this->completeTheFestivityPlace();
         $this->openTheFestivityForm();
+        $this->openTheFestivitySearch();
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
         $this->keepOnePlacePerModerator();
@@ -543,7 +544,8 @@ class Plugin extends \MapasCulturais\Plugin
                 $showcase = new Services\MasterShowcase;
                 $this->jsObject['config']['mdcShowcase'] = [
                     'highlights' => $showcase->highlights(),
-                    'counts' => $showcase->counts(),
+                    // Os festejos publicados (FJ-09) junto dos contadores da Rede.
+                    'counts' => $showcase->counts() + ['festivities' => (new Services\FestivitySeal)->countPublished()],
                     'states' => (object) $showcase->byState(),
                     'map' => json_decode((string) file_get_contents(__DIR__ . '/data/br-uf.json'), true),
                     'searchUrl' => App::i()->createUrl('mdc', 'masters'),
@@ -1045,6 +1047,40 @@ class Plugin extends \MapasCulturais\Plugin
         }
     }
 
+
+    // A busca de festejos (Controller::GET_festivities, mdc-festivities-search) em `/festejos-populares/`, como a de
+    // Mestras e Mestres. O mês da agenda vira a lista dos festejos com período nele (FestivitySearch), e a página do
+    // festejo ganha o caminho pela busca.
+    private function openTheFestivitySearch(): void
+    {
+        $app = App::i();
+        $app->config['routes']['shortcuts']['festejos-populares'] = ['mdc', 'festivities'];
+
+        $app->hook('ApiQuery(Event).params', function (&$params) {
+            /** @var ApiQuery $this */
+            if (!array_key_exists(Services\FestivitySearch::MONTH_PARAM, $params)) {
+                return;
+            }
+
+            $month = (int) $params[Services\FestivitySearch::MONTH_PARAM];
+            unset($params[Services\FestivitySearch::MONTH_PARAM]);
+
+            if ($month >= 1 && $month <= 12) {
+                $params['id'] = API::IN(Services\FestivitySearch::idsInMonth($month) ?: [0]);
+            }
+        });
+
+        $app->hook('mapas.printJsObject:before', function () {
+            $event = $this->controller->requestedEntity ?? null;
+
+            if ($this->controller->id === 'event' && $this->controller->action === 'single' && $event instanceof Event && Plugin::isFestivity($event)) {
+                $this->breadcrumb = Services\ProgramBreadcrumb::festivity((string) $event->name);
+                if (isset($this->jsObject['breadcrumb'])) {
+                    $this->jsObject['breadcrumb'] = $this->breadcrumb;
+                }
+            }
+        });
+    }
 
     // A página do festejo (tela 2 do protótipo): as seções do programa nos ganchos da página de evento do core, como o
     // perfil da mestra (showMasterProfile), com o que o servidor monta só do que é público (Services\FestivityProfile).
