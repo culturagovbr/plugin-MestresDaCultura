@@ -23,8 +23,6 @@ app.component('mdc-festivity-classification', {
         return {
             classification: config.classification,
             keys: config.classificationKeys,
-            // O "Outro" marcado com o texto ainda vazio.
-            otherOpen: false,
         };
     },
 
@@ -41,26 +39,40 @@ app.component('mdc-festivity-classification', {
             return this.entity[this.keys.typologies] || [];
         },
 
-        hasOther() {
-            return this.otherOpen || !!this.entity[this.keys.other];
+        // Até duas, e o "Outro" escrito conta como uma (FestivityForm::invalid).
+        isFull() {
+            return this.selected.length + (this.entity[this.keys.other] ? 1 : 0) >= 2;
         },
 
-        // Até duas, e o "Outro" conta como uma (FestivityForm::invalid).
-        isFull() {
-            return this.selected.length + (this.hasOther ? 1 : 0) >= 2;
+        // As etiquetas de "Selecionados": o x desmarca (no segmento, desmarca tudo).
+        tags() {
+            if (!this.segment) {
+                return [];
+            }
+
+            const other = this.entity[this.keys.other];
+
+            return [
+                { key: 'segmento', label: this.segment, segment: true, remove: () => this.changeSegment('') },
+                ...this.selected.map((typology) => ({ key: typology, label: typology, remove: () => this.toggle(typology) })),
+                ...(other ? [{ key: 'outro', label: this.format('outro etiqueta', other), remove: () => { this.entity[this.keys.other] = ''; } }] : []),
+            ];
+        },
+
+        messages() {
+            return [this.keys.segment, this.keys.typologies, this.keys.other].flatMap((key) => this.entity.__validationErrors?.[key] || []);
         },
     },
 
     methods: {
-        errors(key) {
-            return this.entity.__validationErrors?.[key] || [];
+        format(key, value) {
+            return this.text(key).replace('%s', value);
         },
 
         changeSegment(segment) {
             this.entity[this.keys.segment] = segment;
             this.entity[this.keys.typologies] = [];
             this.entity[this.keys.other] = '';
-            this.otherOpen = false;
         },
 
         toggle(typology) {
@@ -69,15 +81,6 @@ app.component('mdc-festivity-classification', {
                 : [...this.selected, typology];
 
             this.entity[this.keys.typologies] = selected;
-        },
-
-        toggleOther() {
-            if (this.hasOther) {
-                this.entity[this.keys.other] = '';
-                this.otherOpen = false;
-            } else {
-                this.otherOpen = true;
-            }
         },
     },
 });

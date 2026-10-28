@@ -28,11 +28,6 @@ app.component('mdc-festivity-checklist', {
             type: String,
             default: '',
         },
-        // Um grupo aberto por vez, como a planilha pede na economia: o segmento e depois as ocupações.
-        collapsible: {
-            type: Boolean,
-            default: false,
-        },
         required: {
             type: Boolean,
             default: false,
@@ -44,20 +39,24 @@ app.component('mdc-festivity-checklist', {
         return { text };
     },
 
-    data() {
-        return {
-            // O "Outro" marcado com o texto ainda vazio.
-            otherOpen: false,
-        };
-    },
-
     computed: {
         checked() {
             return this.entity[this.prop] || [];
         },
 
-        hasOther() {
-            return this.otherOpen || !!this.entity[this.otherProp];
+        otherId() {
+            return `mdc-festivity-other-${this.prop}`;
+        },
+
+        // As etiquetas de "Selecionados": o x desmarca. O que saiu da lista aparece pelo valor.
+        tags() {
+            const labels = Object.fromEntries(this.groups.flatMap((group) => group.items.map((item) => [item.value, item.label])));
+            const other = this.entity[this.otherProp];
+
+            return [
+                ...this.checked.map((value) => ({ key: value, label: labels[value] ?? value, remove: () => this.toggle(value) })),
+                ...(other ? [{ key: 'outro', label: this.text('outro etiqueta').replace('%s', other), remove: () => { this.entity[this.otherProp] = ''; } }] : []),
+            ];
         },
 
         errors() {
@@ -74,15 +73,6 @@ app.component('mdc-festivity-checklist', {
             this.entity[this.prop] = this.checked.includes(value)
                 ? this.checked.filter((item) => item !== value)
                 : [...this.checked, value];
-        },
-
-        toggleOther() {
-            if (this.hasOther) {
-                this.entity[this.otherProp] = '';
-                this.otherOpen = false;
-            } else {
-                this.otherOpen = true;
-            }
         },
     },
 });

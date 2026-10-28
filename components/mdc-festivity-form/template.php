@@ -54,7 +54,7 @@ $this->import('
         </template>
 
         <template v-else-if="step === 2">
-            <mdc-festivity-checklist :entity="entity" prop="mdcFestejoEconomia" other-prop="mdcFestejoEconomiaOutra" :groups="lists.economy" collapsible :title="text('economia')" :description="text('economia dica')"></mdc-festivity-checklist>
+            <mdc-festivity-checklist :entity="entity" prop="mdcFestejoEconomia" other-prop="mdcFestejoEconomiaOutra" :groups="lists.economy" :title="text('economia')" :description="text('economia dica')"></mdc-festivity-checklist>
 
             <entity-field :entity="entity" prop="mdcFestejoComMestres" :label="text('com mestres')"></entity-field>
             <mdc-festivity-masters v-if="entity.mdcFestejoComMestres === 'Sim'" :entity="entity"></mdc-festivity-masters>

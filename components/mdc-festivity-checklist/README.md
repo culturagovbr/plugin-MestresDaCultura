@@ -3,8 +3,8 @@
 Lista de caixas de marcar com "Outro", da etapa 3 do cadastro do festejo: economia criativa (item 16), acessibilidade (19) e acolhimento (20).
 
 - Os grupos e os itens vêm de `MDC\Services\FestivityForm::lists()`, por `$MAPAS.config.mdcFestivity.lists`.
-- Com `collapsible`, cada grupo abre à parte e mostra quantos itens tem marcados, como a planilha pede na economia (o segmento e depois as ocupações).
-- O "Outro" abre o campo de texto, gravado em `other-prop`; desmarcar apaga o texto.
+- O desenho é o da Atuação Cultural dos Mestres (`mdc-acting-field`): as etiquetas de "Selecionados" com o x e as opções em `.check-row`. O grupo com nome vira um acordeão numerado, aberto se já tem item marcado, com quantos tem; a lista sem grupo fica aberta.
+- O "Outro" é um campo de texto, gravado em `other-prop`; o x da etiqueta apaga o texto.
 
 ## Propriedades
 
@@ -13,5 +13,4 @@ Lista de caixas de marcar com "Outro", da etapa 3 do cadastro do festejo: econom
 - *String **otherProp*** - o campo do "Outro".
 - *Array **groups*** - `[{label, items: [{value, label}]}]`.
 - *String **title***, *String **description*** - o título e a ajuda.
-- *Boolean **collapsible*** - um grupo aberto por vez.
 - *Boolean **required*** - marca "obrigatório".
