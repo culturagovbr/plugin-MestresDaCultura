@@ -171,12 +171,15 @@ class FestivityForm
             $invalid[FestivityFields::TYPOLOGIES] = [i::__('Escolha até duas tipologias do segmento')];
         }
 
-        // Os anos de cada fonte de recursos (itens 21 a 24): quatro dígitos, separados por vírgula ou "e".
+        // Os anos de cada fonte de recursos: quatro dígitos, separados por vírgula, ponto e vírgula ou "e", e nenhum
+        // depois do ano atual.
         foreach (array_keys(FestivityFields::fundingSources()) as $key) {
             $years = trim((string) $event->{"{$key}Anos"});
 
             if ($years !== '' && !preg_match('/^\d{4}(\s*(,|;|e)\s*\d{4})*$/u', $years)) {
                 $invalid["{$key}Anos"] = [i::__('Informe os anos com quatro dígitos, separados por vírgula. Ex.: 2023, 2024')];
+            } elseif ($years !== '' && max(array_map('intval', preg_split('/\D+/', $years))) > (int) date('Y')) {
+                $invalid["{$key}Anos"] = [i::__('Os anos com recursos não podem ser depois do ano atual')];
             }
         }
 

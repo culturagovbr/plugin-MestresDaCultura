@@ -20,6 +20,7 @@ $this->import('
     mdc-festivity-classification
     mdc-festivity-masters
     mdc-festivity-person
+    mdc-festivity-years
 ');
 ?>
 <div class="mdc-festivity-form">
@@ -72,7 +73,7 @@ $this->import('
                 <legend class="field__title">{{text('recursos')}}</legend>
                 <template v-for="source in funding" :key="source.key">
                     <entity-field :entity="entity" :prop="source.key" :label="source.question"></entity-field>
-                    <entity-field v-if="entity[source.key] === 'Sim'" :entity="entity" :prop="source.key + 'Anos'" :label="text('anos')" :field-description="text('anos dica')" :required="true"></entity-field>
+                    <mdc-festivity-years v-if="entity[source.key] === 'Sim'" :entity="entity" :prop="source.key + 'Anos'" required></mdc-festivity-years>
                 </template>
             </fieldset>
         </template>

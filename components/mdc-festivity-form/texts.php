@@ -28,8 +28,6 @@ return [
     'tem acolhimento' => i::__('O festejo possui espaços de acolhimento?'),
     'acolhimento' => i::__('Espaços de acolhimento disponíveis'),
     'recursos' => i::__('Recursos públicos'),
-    'anos' => i::__('Em que anos?'),
-    'anos dica' => i::__('Ex.: 2023, 2024'),
     'realizador' => i::__('Tipo de realizador do festejo'),
     'instituicao' => i::__('Nome da instituição, do grupo ou do órgão'),
     'cnpj' => i::__('CNPJ'),
