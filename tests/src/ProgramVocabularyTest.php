@@ -40,7 +40,7 @@ class ProgramVocabularyTest extends TestCase
             }
         }
 
-        foreach (array_keys(ProgramVocabulary::PHRASES) as $phrase) {
+        foreach (array_keys(ProgramVocabulary::PHRASES + ProgramVocabulary::FESTIVITY_PHRASES) as $phrase) {
             $this->assertStringContainsString($phrase, $sources, "A frase do core mudou: {$phrase}");
         }
     }

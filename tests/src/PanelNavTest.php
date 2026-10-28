@@ -102,7 +102,11 @@ class PanelNavTest extends TestCase
             $this->assertNotContains($unused, $labels, "\"{$unused}\" leva a uma tela que o subsite não usa");
         }
 
-        $this->assertArrayHasKey('mdc-criar', $nav, 'O grupo do programa deve ser acrescentado ao menu do core');
+        // Os grupos do programa no alto, com "Meus festejos" no lugar de "Meus Eventos".
+        $this->assertSame(['panel-menu', 'mdc-mestres', 'mdc-festejos'], array_slice(array_keys($nav), 0, 3), 'Os grupos do programa no alto');
+        $this->assertSame(1, count(array_keys($labels, 'Meus festejos')), '"Meus festejos" uma vez só');
+        $this->assertNotContains('Meus Eventos', $labels);
+        $this->assertContains('Meus locais', $labels);
     }
 
     function testSaasSuperAdminSeesEntityItemsEvenWithEntityDisabled()
@@ -124,20 +128,15 @@ class PanelNavTest extends TestCase
             $this->assertNotContains($removed, $labels, "\"{$removed}\" não deve aparecer para usuário comum");
         }
 
-        // Os grupos do core como eles são, menos o que o subsite não usa: "Menu do Painel de Controle" (o caminho de
-        // volta a "Meus cadastros", e a lista dos festejos), "Outras opções" e o do usuário logado (Meu Perfil, Sair).
-        $this->assertSame(
-            [['route' => 'panel/index', 'label' => 'Painel de Controle'], ['route' => 'panel/events', 'icon' => 'celebration', 'label' => 'Meus festejos']],
-            $nav['panel-menu']['items'] ?? null,
-            'Menu do Painel de Controle'
-        );
-        $this->assertSame('Outras opções', $nav['more']['label'] ?? null);
+        // "Painel de Controle" no alto, o cadastro de mestra, os festejos com os locais, "Minha conta" e o do usuário
+        // logado; a Administração do core aparece conforme o papel.
+        $this->assertSame(['panel-menu', 'mdc-mestres', 'mdc-festejos', 'more', 'user'], array_values(array_diff(array_keys($nav), ['admin'])));
+        $this->assertSame(['', ['Painel de Controle']], [$nav['panel-menu']['label'], array_column($nav['panel-menu']['items'], 'label')]);
+        $this->assertSame(['Cadastro de Mestres e Mestras'], array_column($nav['mdc-mestres']['items'], 'label'), 'Sem "Criar": a mestra tem um cadastro só');
+        $this->assertSame(['Cadastrar festejo', 'Meus festejos', 'Meus locais'], array_column($nav['mdc-festejos']['items'], 'label'));
+        $this->assertSame('Minha conta', $nav['more']['label'] ?? null);
         $this->assertSame(['Conta e Privacidade'], array_column($nav['more']['items'] ?? [], 'label'), 'Sem "Meus aplicativos", que o subsite não usa');
         $this->assertSame(['Meu Perfil', 'Sair'], array_column($nav['user']['items'] ?? [], 'label'), 'O grupo do usuário logado, como no core');
-
-        $this->assertContains('Criar Cadastro de Festejo Popular', $labels);
-        $this->assertContains('Conta e Privacidade', $labels);
-        $this->assertContains('Sair', $labels);
     }
 
     function testAdminKeepsTheReducedMenu()
