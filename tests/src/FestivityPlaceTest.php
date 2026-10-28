@@ -139,9 +139,10 @@ class FestivityPlaceTest extends TestCase
         $this->app->em->clear();
         $this->assertSame(Space::STATUS_DRAFT, $this->app->repo('Space')->find($place->id)->status);
 
-        $this->app->repo('EventOccurrence')->find($occurrence->id)->delete(true);
+        // O festejo na lixeira não prende o local.
+        $this->app->repo('Event')->find($event->id)->delete(true);
         [$status] = $delete();
-        $this->assertContains($status, [200, 302], 'Sem festejo, a dona exclui (fora do AJAX o core redireciona)');
+        $this->assertContains($status, [200, 302], 'Com o festejo na lixeira, a dona exclui (fora do AJAX o core redireciona)');
         $this->app->em->clear();
         $this->assertSame(Space::STATUS_TRASH, $this->app->repo('Space')->find($place->id)->status);
     }

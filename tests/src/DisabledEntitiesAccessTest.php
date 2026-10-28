@@ -180,8 +180,12 @@ class DisabledEntitiesAccessTest extends TestCase
             'A entidade events precisa estar habilitada, senão este teste não prova nada'
         );
 
-        $this->assertStatus200(
-            $this->requestFactory->GET('search', 'events'),
+        // No subsite, a busca de eventos leva à de festejos.
+        $this->app->reset();
+        $this->app->run($this->requestFactory->GET('search', 'events'), false);
+        $this->assertSame(
+            $this->app->createUrl('mdc', 'festivities'),
+            $this->app->response->getHeaderLine('Location'),
             'A busca de eventos não deve ser afetada pelo bloqueio'
         );
     }
