@@ -311,7 +311,13 @@ class Plugin extends \MapasCulturais\Plugin
         $app = App::i();
 
         $app->hook('app.init:after', function () use ($app) {
-            if (Plugin::isTheme() && Services\ProgramVocabulary::appliesTo($app->user)) {
+            if (!Plugin::isTheme()) {
+                return;
+            }
+
+            Services\ProgramVocabulary::apply(Services\ProgramVocabulary::FESTIVITY_PHRASES);
+
+            if (Services\ProgramVocabulary::appliesTo($app->user)) {
                 Services\ProgramVocabulary::apply();
             }
         });
@@ -1554,7 +1560,8 @@ class Plugin extends \MapasCulturais\Plugin
             }
 
             $group = ['mdc-gestao' => ['label' => i::__('Gestão do cadastro'), 'column' => 'left', 'items' => Services\PanelSummary::shortcuts($fixedOpportunity->get())]];
-            $position = array_search('mdc-criar', array_keys($nav), true);
+            // Depois dos festejos, o último grupo do programa no menu do tema.
+            $position = array_search('mdc-festejos', array_keys($nav), true);
             $nav = $position === false ? $group + $nav : array_slice($nav, 0, $position + 1, true) + $group + $nav;
         }, 1001);
 
