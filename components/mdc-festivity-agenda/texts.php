@@ -21,6 +21,8 @@ return [
     'cancelar' => i::__('Cancelar'),
     'adicionar' => i::__('Adicionar à agenda'),
     'remover' => i::__('Remover'),
+    'editar local' => i::__('Editar local'),
+    'local removido' => i::__('O local deste período foi excluído. Remova o período e cadastre outro.'),
     'remover pergunta' => i::__('Remover este período da agenda?'),
     'de a' => i::__('{inicio} a {fim}'),
     'das as' => i::__('das {inicio} às {fim}'),

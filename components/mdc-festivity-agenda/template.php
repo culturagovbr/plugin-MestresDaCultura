@@ -9,6 +9,7 @@ $this->import('
     entity-location
     mc-confirm-button
     mc-icon
+    mdc-place-editor
 ');
 ?>
 <div class="mdc-festivity-agenda" :class="{error: errors.length}">
@@ -24,8 +25,13 @@ $this->import('
         <li v-for="occurrence in occurrences" :key="occurrence.id" class="mdc-festivity-agenda__item">
             <div class="mdc-festivity-agenda__when">
                 <strong>{{occurrence.rule?.description}}</strong>
-                <span>{{occurrence.space?.name}} · {{placeOf(occurrence.space)}}</span>
+                <span v-if="!isRemoved(occurrence)">{{occurrence.space.name}} · {{placeOf(occurrence.space)}}</span>
+                <!-- Local na lixeira: a etapa cobra a troca. -->
+                <span v-else class="mdc-festivity-agenda__removed" role="alert">{{text('local removido')}}</span>
             </div>
+            <button v-if="!isRemoved(occurrence)" type="button" class="button button--text button--sm button--icon" @click="$refs.editor.open(occurrence.space.id)">
+                <mc-icon name="edit"></mc-icon> {{text('editar local')}}
+            </button>
             <mc-confirm-button @confirm="remove(occurrence)">
                 <template #button="modal">
                     <button type="button" class="button button--text button--sm button--icon" @click="modal.open()">
@@ -37,6 +43,8 @@ $this->import('
         </li>
     </ul>
     <p v-else class="mdc-festivity-agenda__empty">{{text('vazia')}}</p>
+
+    <mdc-place-editor ref="editor" @saved="refresh"></mdc-place-editor>
 
     <div v-if="adding" class="mdc-festivity-agenda__new">
         <div class="mdc-festivity-agenda__dates">

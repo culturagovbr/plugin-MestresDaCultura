@@ -4,6 +4,7 @@ namespace MDC\Services;
 
 use MapasCulturais\App;
 use MapasCulturais\Entities\Event;
+use MapasCulturais\Entities\EventOccurrence;
 use MapasCulturais\i;
 
 /**
@@ -129,6 +130,8 @@ class FestivityForm
             1 => [
                 'occurrences' => i::__('Informe ao menos um período, com o local'),
                 'place' => i::__('Informe o estado e o município do local'),
+                // Um período com o local excluído.
+                'removedPlace' => i::__('O local de um período foi excluído: remova o período e cadastre outro'),
                 FestivityFields::TERRITORY => i::__('Informe o território'),
                 FestivityFields::LAW_FILE => i::__('Envie o arquivo da lei que reconhece o festejo'),
             ],
@@ -233,6 +236,9 @@ class FestivityForm
             // Vêm do primeiro local da agenda (FestivityPlace::sync); sem período, só a falta dele aparece.
             'place' => count($event->occurrences ?? []) > 0
                 && (!self::filled($event->{FestivityFields::UF}) || !self::filled($event->{FestivityFields::CITY})),
+            'removedPlace' => $event->id && App::i()->em->createQuery('SELECT COUNT(o) FROM ' . EventOccurrence::class . ' o JOIN o.space s WHERE o.event = :event AND o.status > 0 AND s.status < 0')
+                ->setParameter('event', $event)
+                ->getSingleScalarResult() > 0,
             // A lista ou o "Outro" dela.
             FestivityFields::TYPOLOGIES, FestivityFields::ACCESSIBILITY, FestivityFields::SHELTER
                 => !self::filled($event->$key) && !self::filled($event->{FestivityFields::OTHERS[$key]}),

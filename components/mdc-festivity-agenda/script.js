@@ -40,7 +40,7 @@ app.component('mdc-festivity-agenda', {
         // O que o servidor cobra da agenda (FestivityForm): sem período, ou o local sem estado e município.
         errors() {
             const errors = this.entity.__validationErrors || {};
-            return [...(errors.occurrences || []), ...(errors.place || [])];
+            return [...(errors.occurrences || []), ...(errors.place || []), ...(errors.removedPlace || [])];
         },
     },
 
@@ -54,9 +54,19 @@ app.component('mdc-festivity-agenda', {
             const api = new API('eventoccurrence');
             this.occurrences = await api.find({
                 event: `EQ(${this.entity.id})`,
-                '@select': 'id,rule,space.{name,En_Municipio,En_Estado}',
+                '@select': 'id,rule,space.{name,status,En_Municipio,En_Estado}',
                 '@order': 'startsOn ASC',
             });
+        },
+
+        // Local na lixeira, ou que não vem para quem vê.
+        isRemoved(occurrence) {
+            return !occurrence.space || occurrence.space.status < 0;
+        },
+
+        // O local editado (mdc-place-editor) muda o nome na agenda e na lista de escolha.
+        async refresh() {
+            await Promise.all([this.load(), this.loadPlaces()]);
         },
 
         async loadPlaces() {
@@ -64,6 +74,8 @@ app.component('mdc-festivity-agenda', {
             this.places = await api.find({
                 '@select': 'id,name,En_Municipio,En_Estado',
                 '@permissions': '@control',
+                // o local é rascunho até um festejo publicado usá-lo (MDC\Services\FestivityPlace::syncStatus)
+                'status': 'GTE(0)',
                 '@order': 'name ASC',
             });
         },
