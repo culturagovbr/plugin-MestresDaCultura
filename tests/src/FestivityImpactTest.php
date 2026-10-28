@@ -72,5 +72,9 @@ class FestivityImpactTest extends TestCase
         $event->mdcFestejoRouanetAnos = '2023, 2024 e 2025';
         $this->assertArrayNotHasKey('mdcFestejoRouanetAnos', $event->getValidationErrors());
         $this->assertArrayNotHasKey('mdcFestejoRouanetAnos', FestivityForm::missing($event, 2));
+
+        // Ano futuro é recusado.
+        $event->mdcFestejoRouanetAnos = '2024, ' . ((int) date('Y') + 1);
+        $this->assertArrayHasKey('mdcFestejoRouanetAnos', $event->getValidationErrors(), 'Ano futuro');
     }
 }
