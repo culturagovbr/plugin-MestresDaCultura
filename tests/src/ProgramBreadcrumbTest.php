@@ -59,4 +59,13 @@ class ProgramBreadcrumbTest extends TestCase
         $this->assertSame([$this->app->createUrl('site', 'index'), $this->app->createUrl('mdc', 'masters')], array_column(array_slice($path, 0, 2), 'url'));
         $this->assertArrayNotHasKey('url', $path[2], 'O perfil é a página atual');
     }
+
+    // A trilha da página do festejo passa pela busca de festejos.
+    function testTheFestivityPathGoesThroughTheSearch()
+    {
+        $path = ProgramBreadcrumb::festivity('Samba de Roda de Santa Bárbara');
+
+        $this->assertSame(['Início', 'Festejos Populares', 'Samba de Roda de Santa Bárbara'], array_column($path, 'label'));
+        $this->assertSame([$this->app->createUrl('site', 'index'), $this->app->createUrl('mdc', 'festivities')], array_column(array_slice($path, 0, 2), 'url'));
+    }
 }
