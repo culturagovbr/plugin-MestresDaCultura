@@ -29,7 +29,7 @@ $this->import('
                 <!-- Local na lixeira: a etapa cobra a troca. -->
                 <span v-else class="mdc-festivity-agenda__removed" role="alert">{{text('local removido')}}</span>
             </div>
-            <button v-if="!isRemoved(occurrence)" type="button" class="button button--text button--sm button--icon" @click="$refs.editor.open(occurrence.space.id)">
+            <button v-if="canEditPlace(occurrence)" type="button" class="button button--text button--sm button--icon" @click="$refs.editor.open(occurrence.space.id)">
                 <mc-icon name="edit"></mc-icon> {{text('editar local')}}
             </button>
             <mc-confirm-button @confirm="remove(occurrence)">

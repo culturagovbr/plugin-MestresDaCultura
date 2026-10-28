@@ -452,6 +452,11 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
+        // O festejo apagado leva os períodos sem gravar o festejo depois: os locais deles não ficam esperando.
+        $app->hook('entity(Event).remove:after', function () {
+            Services\FestivityPlace::forgetReleased();
+        });
+
         // O local nasce em rascunho e é publicado com o festejo (FestivityPlace::syncStatus). A situação não se edita
         // (o PATCH e o PUT do core a aceitam): a exclusão é a de "Meus locais", que confere os festejos.
         $app->hook('entity(Space).insert:before', function () {
@@ -475,7 +480,8 @@ class Plugin extends \MapasCulturais\Plugin
                 return;
             }
 
-            if ($events = Services\FestivityPlace::eventsAt($space->id)) {
+            // O festejo na lixeira não prende: se voltar, a etapa 2 avisa do local excluído (FestivityForm, removedPlace).
+            if ($events = array_filter(Services\FestivityPlace::eventsAt($space->id), fn ($event) => $event->status >= \MapasCulturais\Entities\Event::STATUS_DRAFT)) {
                 $names = implode(', ', array_map(fn ($event) => $event->name, $events));
                 $this->errorJson(['space' => [sprintf(i::__('Este local está na agenda de: %s. Tire-o dos festejos antes de excluir.'), $names)]], 400);
             }

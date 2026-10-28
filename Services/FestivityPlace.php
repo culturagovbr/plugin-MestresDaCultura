@@ -90,6 +90,11 @@ class FestivityPlace
         }
     }
 
+    static function forgetReleased(): void
+    {
+        self::$released = [];
+    }
+
     /**
      * O local segue o festejo: publicado se algum festejo publicado tem período nele, em rascunho se não. Na lixeira
      * ou arquivado, fica como está.
@@ -129,7 +134,7 @@ class FestivityPlace
 
     /**
      * "Meus locais" (Controller::GET_places): os locais de quem tem a conta no subsite atual, fora da lixeira, com o
-     * endereço e os festejos que têm período em cada um (os que impedem a exclusão).
+     * endereço e os festejos fora da lixeira que têm período em cada um (os que impedem a exclusão).
      *
      * @return list<array{id: int, name: string, status: int, address: string, city: string, uf: string, cep: string, festivities: list<array{id: int, name: string, status: int}>}>
      */
@@ -143,7 +148,7 @@ class FestivityPlace
 
         $festivities = [];
         if ($spaces) {
-            $rows = $app->em->createQuery('SELECT DISTINCT IDENTITY(o.space) AS space, e.id, e.name, e.status FROM ' . EventOccurrence::class . ' o JOIN o.event e WHERE o.space IN (:spaces) AND o.status > 0 ORDER BY e.name ASC')
+            $rows = $app->em->createQuery('SELECT DISTINCT IDENTITY(o.space) AS space, e.id, e.name, e.status FROM ' . EventOccurrence::class . ' o JOIN o.event e WHERE o.space IN (:spaces) AND o.status > 0 AND e.status >= 0 ORDER BY e.name ASC')
                 ->setParameter('spaces', $spaces)
                 ->getArrayResult();
 

@@ -12,8 +12,6 @@ app.component('mdc-places', {
         return {
             places: config.places,
             formUrl: config.formUrl,
-            // os erros de exclusão, por local
-            errors: {},
         };
     },
 
@@ -47,15 +45,14 @@ app.component('mdc-places', {
             this.places.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
         },
 
-        // O servidor barra a exclusão do local de um festejo (Plugin, DELETE(space.single):before); o erro diz quais.
+        // O servidor barra a exclusão do local de um festejo (Plugin, DELETE(space.single):before); o aviso do core
+        // diz quais festejos o usam.
         async remove(place) {
-            delete this.errors[place.id];
-
             try {
                 await new API('space').getEntityInstance(place.id).delete();
                 this.places = this.places.filter((item) => item.id !== place.id);
             } catch (error) {
-                this.errors[place.id] = Object.values(error?.data || {}).flat().join(' ') || this.text('falha');
+                // O core já avisou.
             }
         },
     },

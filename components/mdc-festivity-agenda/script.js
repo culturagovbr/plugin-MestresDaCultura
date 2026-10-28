@@ -54,7 +54,7 @@ app.component('mdc-festivity-agenda', {
             const api = new API('eventoccurrence');
             this.occurrences = await api.find({
                 event: `EQ(${this.entity.id})`,
-                '@select': 'id,rule,space.{name,status,En_Municipio,En_Estado}',
+                '@select': 'id,rule,space.{name,status,En_Municipio,En_Estado,currentUserPermissions}',
                 '@order': 'startsOn ASC',
             });
         },
@@ -62,6 +62,11 @@ app.component('mdc-festivity-agenda', {
         // Local na lixeira, ou que não vem para quem vê.
         isRemoved(occurrence) {
             return !occurrence.space || occurrence.space.status < 0;
+        },
+
+        // Só quem pode editar o local.
+        canEditPlace(occurrence) {
+            return !this.isRemoved(occurrence) && !!occurrence.space.currentUserPermissions?.modify;
         },
 
         // O local editado (mdc-place-editor) muda o nome na agenda e na lista de escolha.

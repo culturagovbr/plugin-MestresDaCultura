@@ -33,7 +33,6 @@ $this->import('
             <ul v-if="place.festivities.length">
                 <li v-for="festivity in place.festivities" :key="festivity.id">
                     <a :href="formUrl + festivity.id + '/'">{{festivity.name}}</a>
-                    <small v-if="festivity.status < 0"> ({{text('na lixeira')}})</small>
                 </li>
             </ul>
             <p v-else>{{text('sem festejo')}}</p>
@@ -55,7 +54,6 @@ $this->import('
             <small v-else class="mdc-places__locked">{{text('em uso')}}</small>
         </div>
 
-        <p v-if="errors[place.id]" class="field__error" role="alert">{{errors[place.id]}}</p>
     </article>
 
     <mdc-place-editor ref="editor" @saved="updated"></mdc-place-editor>
