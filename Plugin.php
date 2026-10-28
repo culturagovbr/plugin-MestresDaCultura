@@ -169,6 +169,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->completeTheFestivityPlace();
         $this->openTheFestivityForm();
         $this->openTheFestivitySearch();
+        $this->keepEntitiesInTheSubsite();
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
         $this->keepOnePlacePerModerator();
@@ -1047,6 +1048,63 @@ class Plugin extends \MapasCulturais\Plugin
         }
     }
 
+
+    // O subsite dos Mestres só filtra por subsite os eventos, as oportunidades e os projetos (filter_subsite_* da
+    // configuração do subsite); os espaços e as ocorrências vinham de todos os subsites, inclusive as ocorrências de
+    // rascunhos. Aqui, como o core faz com os eventos (Subsite::applyFilters): só os do subsite atual. Os agentes seguem
+    // como no core: o perfil da mestra pode ter nascido em outro subsite, e as telas do programa já filtram pelo selo.
+    private function keepEntitiesInTheSubsite(): void
+    {
+        $app = App::i();
+        $current = fn () => $app->subsite?->id ? API::EQ($app->subsite->id) : API::NULL();
+
+        $app->hook('ApiQuery(space).params', function (&$params) use ($current) {
+            if (Plugin::isTheme()) {
+                $params['_subsiteId'] = $current();
+            }
+        });
+
+        // A agenda de um festejo que a pessoa pode ver, rascunho incluído, é como o formulário e a página a leem
+        // (event: EQ(id)). Fora isso, só as dos festejos publicados do subsite.
+        $app->hook('ApiQuery(eventoccurrence).params', function (&$params) use ($app, $current) {
+            /** @var ApiQuery $this */
+            if (!Plugin::isTheme() || $this->parentQuery) {
+                return;
+            }
+
+            if (preg_match('/^EQ\((\d+)\)$/', (string) ($params['event'] ?? ''), $match)) {
+                $event = $app->repo('Event')->find((int) $match[1]);
+
+                if ($event && Plugin::isFestivity($event) && $event->canUser('view')) {
+                    return;
+                }
+            }
+
+            $this->addFilterByApiQuery(new ApiQuery(Event::class, ['_subsiteId' => $current(), 'status' => API::EQ(Event::STATUS_ENABLED)]), 'id', 'event');
+        });
+
+        // O evento de outro subsite abria aqui, vazio (a API dele é filtrada): vai para o subsite dele, como o cadastro.
+        $app->hook('GET(event.<<single|edit>>):before', function () use ($app) {
+            $event = $this->requestedEntity;
+
+            if (Plugin::isTheme() && $event instanceof Event && $event->id && !Services\SubsiteRedirect::isCurrent($event->subsite)) {
+                $app->redirect(Services\SubsiteRedirect::urlOn($event->subsite, $this));
+            }
+        });
+
+        // A busca de eventos do core repetiria a de festejos.
+        $app->hook('GET(search.events):before', function () use ($app) {
+            if (Plugin::isTheme()) {
+                $app->redirect($app->createUrl('mdc', 'festivities'));
+            }
+        });
+
+        $app->hook('entity(EventOccurrence).validationErrors', function (array &$errors) {
+            if ($this->event && $this->space && Plugin::isFestivity($this->event) && !Services\SubsiteRedirect::isCurrent($this->space->subsite)) {
+                $errors['space'] = [i::__('Escolha um local cadastrado no subsite dos Mestres.')];
+            }
+        });
+    }
 
     // A busca de festejos (Controller::GET_festivities, mdc-festivities-search) em `/festejos-populares/`, como a de
     // Mestras e Mestres. O mês da agenda vira a lista dos festejos com período nele (FestivitySearch), e a página do

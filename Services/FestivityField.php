@@ -43,9 +43,15 @@ class FestivityField
             return true;
         }
 
-        $event = App::i()->repo('Event')->find((int) $value);
+        return self::isFestivity((int) $value);
+    }
 
-        return $event && $event->status === Event::STATUS_ENABLED;
+    // Um festejo publicado do Calendário: tem o selo dos festejos (FestivitySeal).
+    private static function isFestivity(int $id): bool
+    {
+        $event = App::i()->repo('Event')->find($id);
+
+        return $event && $event->status === Event::STATUS_ENABLED && (new FestivitySeal)->relationOf($event);
     }
 
     // Para a ficha em PDF e a planilha: o nome do festejo, e não o id.
@@ -115,7 +121,7 @@ class FestivityField
 
         foreach ($registration ? self::keysOf($registration->opportunity->id) : [] as $key) {
             $value = (string) $registration->getMetadata($key);
-            if (ctype_digit($value)) {
+            if (ctype_digit($value) && self::isFestivity((int) $value)) {
                 array_unshift($ids, $value);
             }
         }
