@@ -35,7 +35,9 @@ class SubsiteIsolationTest extends TestCase
         $there = $this->place($event, 'Recife', 'PE');
         $this->putInSubsite('space', $there->id, $this->other);
 
-        $found = (new ApiQuery(Space::class, ['@select' => 'id', 'owner' => "EQ({$event->owner->id})"]))->find();
+        // Consulta como a etapa 2: os locais em rascunho de quem os controla, com o cache de permissão refeito.
+        $this->processPCache();
+        $found = (new ApiQuery(Space::class, ['@select' => 'id', '@permissions' => '@control', 'status' => 'GTE(0)', 'owner' => "EQ({$event->owner->id})"]))->find();
 
         $this->assertSame([$here->id], array_column($found, 'id'));
     }
