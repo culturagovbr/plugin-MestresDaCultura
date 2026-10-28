@@ -13,6 +13,7 @@ use MDC\Entities\Node;
 use MDC\Exceptions\CurationRefused;
 use MDC\Services\FestivityFields;
 use MDC\Services\FestivityForm;
+use MDC\Services\FestivityPlace;
 use MDC\Services\FestivitySeal;
 use MDC\Services\FestivitySearch;
 use MDC\Services\FixedOpportunity;
@@ -93,6 +94,27 @@ class Controller extends \MapasCulturais\Controller
             'formUrl' => $app->createUrl('mdc', 'festivity'),
         ];
         $this->render('festivities');
+    }
+
+    // "Meus locais" (views/mdc/places.php, `/meus-locais/`), no painel: os locais da agenda dos festejos da conta, com
+    // edição de nome e endereço e exclusão dos que nenhum festejo usa.
+    function GET_places()
+    {
+        $app = App::i();
+
+        if (!Plugin::isTheme()) {
+            $app->pass();
+        }
+
+        $this->requireAuthentication();
+
+        $app->view->jsObject['config']['mdcPlaces'] = [
+            'places' => FestivityPlace::ofUser($app->user),
+            'formUrl' => $app->createUrl('mdc', 'festivity'),
+        ];
+
+        $this->layout = 'panel';
+        $this->render('places');
     }
 
     // O cadastro do festejo em 6 etapas (views/mdc/festivity.php): `/cadastrar-festejo/` começa um e
