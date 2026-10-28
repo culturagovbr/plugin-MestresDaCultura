@@ -140,6 +140,20 @@ app.component('mdc-festivity-form', {
             }
         },
 
+        async saveAndExit(modal) {
+            this.saving = true;
+
+            try {
+                await this.save();
+                this.errors = {};
+                modal.open();
+            } catch (error) {
+                // O core já avisou e marcou os campos.
+            } finally {
+                this.saving = false;
+            }
+        },
+
         // Publicar cobra as 6 etapas (FestivityForm no servidor); o que faltar aparece aqui.
         async publish() {
             this.saving = true;

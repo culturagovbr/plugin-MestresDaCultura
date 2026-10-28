@@ -121,10 +121,28 @@ $this->import('
     </div>
 
     <div class="mdc-festivity-form__actions">
-        <mc-link v-if="step === 0" route="panel/index" class="button button--primary-outline">{{text('voltar ao painel')}}</mc-link>
-        <button v-else type="button" class="button button--primary-outline" :disabled="saving" @click="goTo(step - 1)">{{text('etapa anterior')}}</button>
+        <button v-if="step > 0" type="button" class="button button--primary-outline" :disabled="saving" @click="goTo(step - 1)">{{text('etapa anterior')}}</button>
+        <mc-link v-else-if="!entity.id" route="panel/index" class="button button--primary-outline">{{text('voltar ao painel')}}</mc-link>
 
-        <button v-if="!isLast" type="button" class="button button--primary" :disabled="saving" @click="next">{{text('salvar e avancar')}}</button>
-        <button v-else type="button" class="button button--primary" :disabled="saving" @click="publish">{{text('publicar')}}</button>
+        <div class="mdc-festivity-form__forward">
+            <!-- Salva sem cobrar a etapa e confirma a saída. -->
+            <mc-modal :title="text('sair titulo')" classes="mdc-festivity-form__exit">
+                <template #default>
+                    <p>{{entity.status > 0 ? text('sair publicado') : text('sair rascunho')}}</p>
+                </template>
+
+                <template #button="modal">
+                    <button type="button" class="button button--primary-outline" :disabled="saving" @click="saveAndExit(modal)">{{text('salvar e sair')}}</button>
+                </template>
+
+                <template #actions="modal">
+                    <button type="button" class="button button--text" @click="modal.close()">{{text('continuar editando')}}</button>
+                    <mc-link route="panel/events" :hash="entity.status > 0 ? 'publish' : 'draft'" class="button button--primary">{{text('sair')}}</mc-link>
+                </template>
+            </mc-modal>
+
+            <button v-if="!isLast" type="button" class="button button--primary" :disabled="saving" @click="next">{{text('salvar e avancar')}}</button>
+            <button v-else type="button" class="button button--primary" :disabled="saving" @click="publish">{{text('publicar')}}</button>
+        </div>
     </div>
 </div>

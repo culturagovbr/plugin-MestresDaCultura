@@ -47,5 +47,11 @@ return [
     'voltar ao painel' => i::__('Voltar ao Painel'),
     'etapa anterior' => i::__('Etapa anterior'),
     'salvar e avancar' => i::__('Salvar e avançar'),
+    'salvar e sair' => i::__('Salvar e sair'),
+    'sair titulo' => i::__('Festejo salvo. Quer mesmo sair?'),
+    'sair rascunho' => i::__('Seu festejo foi salvo em rascunho. Para continuar depois, vá ao Painel de Controle, acesse Meus festejos e encontre o festejo na aba Em rascunho.'),
+    'sair publicado' => i::__('As alterações foram salvas e o festejo continua publicado.'),
+    'continuar editando' => i::__('Continuar editando'),
+    'sair' => i::__('Sair'),
     'publicar' => i::__('Publicar festejo'),
 ];
