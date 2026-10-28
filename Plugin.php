@@ -427,15 +427,56 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
-        // O selo dos festejos acompanha a publicação (FestivitySeal), depois de gravada.
-        $app->hook('entity(Event).save:finish', function () use ($plugin) {
+        // O selo dos festejos e a situação dos locais (FestivityPlace::syncStatus) acompanham a publicação, depois de
+        // gravada.
+        $app->hook('entity(Event).save:finish', function ($flush = false) use ($plugin) {
             if (Plugin::isFestivity($this)) {
                 $plugin->festivitySeal()->sync($this);
+
+                // Sem flush, o banco ainda não tem a gravação: a situação dos locais sai na que vier com ele.
+                if ($flush) {
+                    Services\FestivityPlace::syncStatus($this);
+                }
+            }
+        });
+
+        $app->hook('entity(EventOccurrence).remove:before', function () {
+            if (Plugin::isTheme()) {
+                Services\FestivityPlace::release($this);
+            }
+        });
+
+        // O local nasce em rascunho e é publicado com o festejo (FestivityPlace::syncStatus). A situação não se edita
+        // (o PATCH e o PUT do core a aceitam): a exclusão é a de "Meus locais", que confere os festejos.
+        $app->hook('entity(Space).insert:before', function () {
+            if (Plugin::isTheme()) {
+                $this->status = \MapasCulturais\Entities\Space::STATUS_DRAFT;
+            }
+        });
+
+        $app->hook('<<PATCH|PUT>>(space.single):data', function (&$data) {
+            if (Plugin::isTheme()) {
+                unset($data['status']);
+            }
+        });
+
+        // A exclusão de "Meus locais" não leva o local de um festejo; o erro diz quais o usam. A permissão é a do core,
+        // conferida antes para não mostrar a outra pessoa os festejos do local.
+        $app->hook('DELETE(space.single):before', function () {
+            $space = $this->requestedEntity;
+
+            if (!Plugin::isTheme() || !$space instanceof \MapasCulturais\Entities\Space || !$space->canUser('remove')) {
+                return;
+            }
+
+            if ($events = Services\FestivityPlace::eventsAt($space->id)) {
+                $names = implode(', ', array_map(fn ($event) => $event->name, $events));
+                $this->errorJson(['space' => [sprintf(i::__('Este local está na agenda de: %s. Tire-o dos festejos antes de excluir.'), $names)]], 400);
             }
         });
 
         $app->hook('entity(Space).save:finish', function () use ($app) {
-            if (!Plugin::isTheme() || !$this->id) {
+            if (!Plugin::isTheme() || !$this->id || Services\FestivityPlace::$syncing) {
                 return;
             }
 
@@ -459,6 +500,8 @@ class Plugin extends \MapasCulturais\Plugin
     {
         $app = App::i();
         $app->config['routes']['shortcuts']['cadastrar-festejo'] = ['mdc', 'festivity'];
+        // "Meus locais" (Controller::GET_places), no painel.
+        $app->config['routes']['shortcuts']['meus-locais'] = ['mdc', 'places'];
 
         $isFestivity = fn (Event $event): bool => Plugin::isFestivity($event);
 
@@ -1099,9 +1142,17 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
+        // Só os próprios locais do subsite. Sem permissão no local, o core gravaria o período como pendente
+        // (EventOccurrence::save), e ele apareceria em "Meus locais" da dona do local (revisão do FJ-13).
         $app->hook('entity(EventOccurrence).validationErrors', function (array &$errors) {
-            if ($this->event && $this->space && Plugin::isFestivity($this->event) && !Services\SubsiteRedirect::isCurrent($this->space->subsite)) {
+            if (!$this->event || !$this->space || !Plugin::isFestivity($this->event)) {
+                return;
+            }
+
+            if (!Services\SubsiteRedirect::isCurrent($this->space->subsite)) {
                 $errors['space'] = [i::__('Escolha um local cadastrado no subsite dos Mestres.')];
+            } elseif (!$this->space->canUser('modify')) {
+                $errors['space'] = [i::__('Escolha um dos seus locais ou cadastre um novo.')];
             }
         });
     }
