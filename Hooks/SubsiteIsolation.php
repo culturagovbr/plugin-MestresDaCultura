@@ -181,36 +181,10 @@ final class SubsiteIsolation
     private static function showOnlyTheProgramSeal(Plugin $plugin): void
     {
         $app = App::i();
-        $programSeal = $plugin->programSeal();
-        $festivitySeal = $plugin->festivitySeal();
-        $fixedOpportunity = $plugin->fixedOpportunity();
+        $visibility = new Services\SealVisibility($plugin->programSeal(), $plugin->festivitySeal(), $plugin->fixedOpportunity());
 
-        // Os ids que a pessoa vê; null, sem filtro (fora do subsite, ou sem o selo do programa configurado). Quem não é
-        // admin vê o selo dos mestres e o dos festejos.
-        $visible = function () use ($app, $programSeal, $festivitySeal, $fixedOpportunity): ?array {
-            if (!Plugin::isTheme()) {
-                return null;
-            }
-
-            if (!$app->user->is('admin')) {
-                return $programSeal->configuredId() ? array_values(array_filter([$programSeal->configuredId(), $festivitySeal->configuredId()])) : null;
-            }
-
-            $subsite = $fixedOpportunity->subsiteId();
-            $sql = $subsite === null ? 'SELECT id FROM seal WHERE subsite_id IS NULL' : 'SELECT id FROM seal WHERE subsite_id = :subsite';
-
-            return array_map('intval', $app->conn->fetchFirstColumn($sql, ['subsite' => $subsite]));
-        };
-
-        $keepVisibleSeals = function (array &$agents, array $ids): void {
-            foreach ($agents as &$agent) {
-                foreach (['seals', 'verifiedSeals'] as $key) {
-                    if (is_array($agent[$key] ?? null)) {
-                        $agent[$key] = array_values(array_filter($agent[$key], fn ($seal) => in_array((int) ($seal['sealId'] ?? 0), $ids, true)));
-                    }
-                }
-            }
-        };
+        // Os ids que a pessoa vê; null, sem filtro (fora do subsite, ou sem o selo do programa configurado).
+        $visible = fn (): ?array => Plugin::isTheme() ? $visibility->visibleTo($app->user) : null;
 
         $app->hook('ApiQuery(Seal).params', function (&$params) use ($visible) {
             /** @var ApiQuery $this */
@@ -222,24 +196,24 @@ final class SubsiteIsolation
             $params['id'] = isset($params['id']) ? API::AND($params['id'], $only) : $only;
         });
 
-        $app->hook('API.<<find|findOne>>(agent).result', function ($params, &$result) use ($visible, $keepVisibleSeals) {
+        $app->hook('API.<<find|findOne>>(agent).result', function ($params, &$result) use ($visible) {
             if (!is_array($result) || ($ids = $visible()) === null) {
                 return;
             }
 
             if (isset($result['id'])) {
                 $one = [&$result];
-                $keepVisibleSeals($one, $ids);
+                Services\SealVisibility::keepVisible($one, $ids);
             } else {
-                $keepVisibleSeals($result, $ids);
+                Services\SealVisibility::keepVisible($result, $ids);
             }
         });
 
         // Os selos do agente também saem filtrados do JSON da página do perfil.
-        $app->hook('view.requestedEntity(Agent).result', function (&$entity) use ($visible, $keepVisibleSeals) {
+        $app->hook('view.requestedEntity(Agent).result', function (&$entity) use ($visible) {
             if (($ids = $visible()) !== null) {
                 $one = [&$entity];
-                $keepVisibleSeals($one, $ids);
+                Services\SealVisibility::keepVisible($one, $ids);
             }
         });
 
