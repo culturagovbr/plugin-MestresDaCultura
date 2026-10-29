@@ -112,7 +112,7 @@ class SealScopeTest extends TestCase
             $this->assertSame($expected, $this->sealIds($user), "{$role}: só os selos do subsite dos Mestres");
             $this->assertSame([$this->programSeal->id], $this->agentApiSeals($user, 'find'), "{$role}: o agente traz só os selos do subsite");
             $this->assertEquals(404, $this->statusOf($user, 'single', $this->otherSeal->id), "{$role}: a página de selo de fora não abre");
-            $this->assertNotEquals(404, $this->statusOf($user, 'single', $localSeal->id), "{$role}: a de um selo do subsite abre");
+            $this->assertSame(200, $this->statusOf($user, 'single', $localSeal->id), "{$role}: a de um selo do subsite abre");
         }
     }
 
@@ -154,6 +154,6 @@ class SealScopeTest extends TestCase
 
         $this->assertEquals(404, $this->statusOf($visitor, 'single', $this->otherSeal->id), 'A página de outro selo não abre');
         $this->assertEquals(404, $this->statusOf($visitor, 'sealRelation', $this->relationOf($this->otherSeal)), 'Nem o certificado dele');
-        $this->assertNotEquals(404, $this->statusOf($visitor, 'sealRelation', $this->relationOf($this->programSeal)), 'O certificado do programa abre');
+        $this->assertSame(200, $this->statusOf($visitor, 'sealRelation', $this->relationOf($this->programSeal)), 'O certificado do programa abre');
     }
 }

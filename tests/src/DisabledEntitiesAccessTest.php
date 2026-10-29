@@ -16,12 +16,12 @@ class DisabledEntitiesAccessTest extends TestCase
 
     private const DISABLED = ['agents', 'spaces', 'projects'];
 
-    private function assertHttpStatusCodeIsNot404($request, string $message): void
+    private function assertOpens($request, string $message): void
     {
         $this->app->reset();
         $this->app->run($request, false);
 
-        $this->assertNotEquals(404, $this->app->response->getStatusCode(), $message);
+        $this->assertSame(200, $this->app->response->getStatusCode(), $message);
     }
 
     private function assertEntityIsDisabled(string $entity): void
@@ -86,10 +86,19 @@ class DisabledEntitiesAccessTest extends TestCase
         }
     }
 
-    // A gravação do próprio espaço abriu para o local do festejo (FestivityPlaceTest); a remoção segue fechada.
-    function testWriteOnSpaceAndProjectIsBlockedForRegularUser()
+    // A criação, a alteração e a remoção de projeto ficam fechadas, mesmo para o projeto da própria pessoa.
+    function testWriteOnProjectIsBlockedForRegularUser()
     {
-        $this->login($this->userDirector->createUser());
+        $user = $this->userDirector->createUser();
+        $this->app->disableAccessControl();
+        $project = new \MapasCulturais\Entities\Project;
+        $project->name = 'Projeto da pessoa';
+        $project->shortDescription = 'Projeto';
+        $project->type = 1;
+        $project->owner = $user->profile;
+        $project->save(true);
+        $this->app->enableAccessControl();
+        $this->login($user);
 
         $this->assertStatus404(
             $this->requestFactory->POST('project', 'index', [], ['name' => 'Teste']),
@@ -97,16 +106,17 @@ class DisabledEntitiesAccessTest extends TestCase
         );
 
         $this->assertStatus404(
-            $this->requestFactory->createServerRequest('PATCH', 'project', 'single', [1], [], [], [], ['name' => 'Teste']),
-            'A alteração de project por requisição direta deve recusar usuário comum'
+            $this->requestFactory->createServerRequest('PATCH', 'project', 'single', [$project->id], [], [], [], ['name' => 'Teste']),
+            'A alteração do próprio project por requisição direta deve recusar usuário comum'
         );
 
-        foreach (['space', 'project'] as $controller) {
-            $this->assertStatus404(
-                $this->requestFactory->createServerRequest('DELETE', $controller, 'single', [1]),
-                "A remoção de {$controller} por requisição direta deve recusar usuário comum"
-            );
-        }
+        $this->assertStatus404(
+            $this->requestFactory->createServerRequest('DELETE', 'project', 'single', [$project->id]),
+            'A remoção do próprio project por requisição direta deve recusar usuário comum'
+        );
+
+        $this->assertSame('Projeto da pessoa', $this->app->conn->fetchOne('SELECT name FROM project WHERE id = ?', [$project->id]), 'Nada mudou');
+        $this->assertSame(1, (int) $this->app->conn->fetchOne('SELECT status FROM project WHERE id = ?', [$project->id]));
     }
 
     function testWriteOnAgentRemainsOpen()
@@ -114,7 +124,7 @@ class DisabledEntitiesAccessTest extends TestCase
         $user = $this->userDirector->createUser();
         $this->login($user);
 
-        $this->assertHttpStatusCodeIsNot404(
+        $this->assertOpens(
             $this->requestFactory->createServerRequest('PATCH', 'agent', 'single', [$user->profile->id], [], [], [], ['name' => 'Teste']),
             'A escrita em agente segue aberta: é por ela que o usuário edita o próprio perfil'
         );

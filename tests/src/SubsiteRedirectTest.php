@@ -139,7 +139,7 @@ class SubsiteRedirectTest extends TestCase
         [$status, $location] = $this->open($user, $own);
 
         // O rascunho pode redirecionar, mas só dentro do próprio subsite.
-        $this->assertNotEquals(404, $status);
+        $this->assertContains($status, [200, 302]);
         $this->assertTrue($location === '' || str_starts_with($location, $this->app->baseUrl), 'O cadastro do programa fica no subsite dos Mestres');
     }
 

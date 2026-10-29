@@ -72,6 +72,6 @@ class ManagementShortcutsTest extends TestCase
         $this->assertSame($this->app->createUrl('opportunity', 'edit', [$this->fixed->id]) . '#config', $location, 'Para a aba de fases, onde fica a comissão');
 
         [$status] = $this->open($this->userDirector->createUser(), 'panel', 'mdc-committee');
-        $this->assertNotContains($status, [301, 302, 303, 307], 'Quem não controla não é levado à gestão');
+        $this->assertSame(404, $status, 'Quem não controla não é levado à gestão');
     }
 }

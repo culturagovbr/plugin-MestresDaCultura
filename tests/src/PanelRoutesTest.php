@@ -56,7 +56,7 @@ class PanelRoutesTest extends TestCase
         $master = $this->userDirector->createUser();
 
         foreach (self::OPEN as $action) {
-            $this->assertNotEquals(404, $this->statusOf($master, $action), "panel/{$action} segue aberto");
+            $this->assertSame(200, $this->statusOf($master, $action), "panel/{$action} segue aberto");
         }
     }
 
@@ -89,7 +89,7 @@ class PanelRoutesTest extends TestCase
         $admin = $this->userDirector->createUser('admin');
 
         foreach (['seals', 'user-management'] as $action) {
-            $this->assertNotEquals(404, $this->statusOf($admin, $action), "panel/{$action} segue aberto para o gestor");
+            $this->assertSame(200, $this->statusOf($admin, $action), "panel/{$action} segue aberto para o gestor");
         }
     }
 
@@ -98,6 +98,6 @@ class PanelRoutesTest extends TestCase
     {
         $this->assertEquals(404, $this->statusOf($this->userDirector->createUser('admin'), 'opportunities'), 'O gestor não abre');
         $this->assertEquals(404, $this->statusOf($this->userDirector->createUser(), 'opportunities'), 'O mestre não abre');
-        $this->assertNotEquals(404, $this->statusOf($this->userDirector->createUser('saasSuperAdmin'), 'opportunities'), 'O saasSuperAdmin abre');
+        $this->assertSame(200, $this->statusOf($this->userDirector->createUser('saasSuperAdmin'), 'opportunities'), 'O saasSuperAdmin abre');
     }
 }

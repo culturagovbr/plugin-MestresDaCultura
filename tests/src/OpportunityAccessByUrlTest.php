@@ -81,7 +81,9 @@ class OpportunityAccessByUrlTest extends TestCase
 
         $phase = $fixed->lastPhase;
 
-        $this->assertNotEquals(404, $this->statusOf('single', $phase->id), 'A fase da oportunidade fixa precisa abrir');
+        // A página da fase leva à do programa, sem recusa.
+        $this->assertSame(302, $this->statusOf('single', $phase->id), 'A fase da oportunidade fixa precisa abrir');
+        $this->assertSame($fixed->singleUrl, $this->app->response->getHeaderLine('Location'));
     }
 
     // O gestor do subsite (admin), como o mestre, só alcança o programa.
@@ -93,7 +95,7 @@ class OpportunityAccessByUrlTest extends TestCase
         $this->login($this->userDirector->createUser('admin'));
 
         $this->assertEquals(404, $this->statusOf('single', $other->id), 'Outra oportunidade não abre para o gestor');
-        $this->assertNotEquals(404, $this->statusOf('single', $fixed->id), 'O programa abre');
+        $this->assertSame(200, $this->statusOf('single', $fixed->id), 'O programa abre');
     }
 
     // O saasSuperAdmin abre as oportunidades do subsite dos Mestres, e não as dos outros.
@@ -108,7 +110,7 @@ class OpportunityAccessByUrlTest extends TestCase
         $this->putInSubsite('opportunity', $sibling->id, $subsite);
         $this->login($this->userDirector->createUser('saasSuperAdmin'));
 
-        $this->assertNotEquals(404, $this->statusOf('single', $sibling->id), 'Outra oportunidade do subsite dos Mestres abre');
+        $this->assertSame(200, $this->statusOf('single', $sibling->id), 'Outra oportunidade do subsite dos Mestres abre');
         $this->assertEquals(404, $this->statusOf('edit', $other->id), 'A de outro subsite não abre');
     }
 
