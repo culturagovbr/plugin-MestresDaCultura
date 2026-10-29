@@ -23,6 +23,17 @@ final class Masters
         self::openTheMastersSearch($plugin);
         self::skipProfileFieldsTheProgramDoesNotAsk($plugin);
         self::showMasterProfile($plugin);
+        self::lockThePublicData();
+    }
+
+    // Os dados públicos do agente (MasterPublicData) só são gravados pela aprovação, em qualquer domínio.
+    private static function lockThePublicData(): void
+    {
+        App::i()->hook('<<PATCH|PUT>>(agent.single):data, POST(agent.index):data', function (&$data) {
+            foreach (array_keys(Services\MasterPublicData::metadata()) as $key) {
+                unset($data[$key]);
+            }
+        });
     }
 
     // Em todo o Mapa, as definições de `comunidadesTradicional` do agente ganham as comunidades do programa, depois
