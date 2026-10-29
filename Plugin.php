@@ -110,35 +110,7 @@ class Plugin extends \MapasCulturais\Plugin
         Hooks\Festivities::register($this);
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
-        $this->applyProgramSeal();
-        $this->notifyApproval();
-        $this->allowFinalPhaseSync();
-    }
-
-    // A aprovação na moderação vem da autoaplicação, no envio da avaliação, e o core agenda a cópia da inscrição
-    // para a fase final em nome de quem mudou o status: o avaliador, que não controla a oportunidade, e a cópia
-    // falha. Só neste job e só na oportunidade fixa, a cópia roda sem a checagem. O `execute:after` do job não
-    // roda quando ele falha; o `app.executeJob:after` roda sempre.
-    private function allowFinalPhaseSync(): void
-    {
-        $app = App::i();
-        $plugin = $this;
-        $disabled = false;
-
-        $app->hook('job(' . \OpportunityPhases\Jobs\SyncPhaseRegistrations::SLUG . ').execute:before', function () use ($app, $plugin, &$disabled) {
-            /** @var \MapasCulturais\Entities\Job $this */
-            if ($plugin->fixedOpportunity()->matches($this->opportunity)) {
-                $app->disableAccessControl();
-                $disabled = true;
-            }
-        });
-
-        $app->hook('app.executeJob:after', function () use ($app, &$disabled) {
-            if ($disabled) {
-                $app->enableAccessControl();
-                $disabled = false;
-            }
-        });
+        Hooks\Approval::register($this);
     }
 
     // Troca o template de e-mail do core pelo da Rede nos cadastros do programa (ver Services\ProgramMails).
@@ -181,65 +153,6 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // Selo do programa (ver Services\ProgramSeal): entra na aprovação, antes do aviso que leva o link do
-    // certificado, e sai se o cadastro deixa de estar aprovado. Só na fase de cadastro, como o aviso. Os dados públicos
-    // da busca (Services\MasterPublicData) entram e saem junto.
-    private function applyProgramSeal(): void
-    {
-        $app = App::i();
-        $plugin = $this;
-
-        $isRegistrationPhase = fn (Registration $registration): bool => $registration->opportunity->id === $plugin->fixedOpportunity()->get()?->id;
-
-        // A aprovação, nesta ordem e num gancho só: o selo, os dados públicos e o aviso, que leva o link do certificado
-        // (o próprio selo). Só na fase de cadastro: a cópia para a fase final também passa por aqui e avisaria duas vezes.
-        $app->hook('entity(Registration).status(approved)', function () use ($plugin, $isRegistrationPhase) {
-            /** @var Registration $this */
-            if ($isRegistrationPhase($this)) {
-                $plugin->programSeal()->apply($this);
-                (new Services\MasterPublicData)->publish($this);
-                (new Services\Moderation)->notifyApproved($this, $plugin->programSeal()->relationOf($this)?->singleUrl);
-            }
-        });
-
-        $app->hook('entity(Registration).status(<<draft|sent|invalid|notapproved|waitlist>>)', function () use ($plugin, $isRegistrationPhase) {
-            /** @var Registration $this */
-            if ($isRegistrationPhase($this)) {
-                $plugin->programSeal()->remove($this);
-                (new Services\MasterPublicData)->clear($this->owner);
-            }
-        });
-
-        // Com o selo retirado, o link do certificado (o do e-mail de aprovação) daria erro 500: o core usa o vínculo
-        // antes de ver se ele existe. Aqui, vira "não encontrado".
-        $app->hook('GET(seal.sealRelation):before', function () use ($app) {
-            if (Plugin::isTheme() && !$app->repo('SealRelation')->find((int) ($this->data['id'] ?? 0))) {
-                $app->pass();
-            }
-        });
-
-        // A página do certificado é a do core, sem botão de impressão e com um "Voltar" que aponta para `#`: a barra
-        // do plugin entra logo depois do cabeçalho do site, só no certificado do selo do programa e no dos festejos.
-        $app->hook('template(seal.sealRelation.main-header):after', function () use ($app, $plugin) {
-            /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
-            $relation = $app->repo('SealRelation')->find((int) ($this->controller->data['id'] ?? 0));
-
-            if ($relation && ($plugin->programSeal()->isTheProgramSeal($relation->seal) || $plugin->festivitySeal()->isTheFestivitySeal($relation->seal))) {
-                $this->import('mdc-certificate-actions');
-                echo '<mdc-certificate-actions></mdc-certificate-actions>';
-            }
-        });
-    }
-
-
-    // O e-mail de aprovação; ele sai no gancho da aprovação (applyProgramSeal), depois do selo.
-    private function notifyApproval(): void
-    {
-        App::i()->config['mailer.templates'][Services\Moderation::MAIL_APPROVED] = [
-            'title' => i::__('[Rede de Mestras e Mestres] Seu cadastro foi aprovado'),
-            'template' => Services\Moderation::MAIL_APPROVED . '.html',
-        ];
-    }
 
     static function isTheOnlyRegistrationOfTheUser(Registration $registration): bool
     {
