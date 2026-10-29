@@ -85,8 +85,9 @@ app.component('mdc-festivity-classification', {
             this.$nextTick(() => this.$refs['segment-' + index]?.[0]?.focus());
         },
 
-        // Pelo x da etiqueta: desmarca de vez.
+        // Pelo x da etiqueta: desmarca de vez, inclusive o guardado.
         changeSegment(segment) {
+            delete this.kept[this.entity[this.keys.segment]];
             this.entity[this.keys.segment] = segment;
             this.entity[this.keys.typologies] = [];
             this.entity[this.keys.other] = '';
