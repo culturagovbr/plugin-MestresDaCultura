@@ -4,11 +4,16 @@ namespace Tests\MDC;
 
 use MDC\Services\FestivitySeal;
 use MDC\Services\FixedOpportunity;
+use MDC\Services\MasterPublicData;
+use MDC\Services\Moderation;
 use MDC\Services\ProgramSeal;
+use MailNotification\JobTypes\SendMailNotification;
+use MapasCulturais\Entities\Registration;
 use Tests\Abstract\TestCase;
 use Tests\Builders\PhasePeriods\Open;
 use Tests\Builders\SealBuilder;
 use Tests\Traits\OpportunityBuilder;
+use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
 /**
@@ -17,7 +22,10 @@ use Tests\Traits\UserDirector;
  */
 class ProgramSealTest extends TestCase
 {
+    use CapturesLog;
     use OpportunityBuilder;
+    use ProgramOpportunity;
+    use RequestFactory;
     use UserDirector;
 
     function testTheSealIsReadAgainAfterTheEntityManagerIsCleared()
@@ -55,5 +63,37 @@ class ProgramSealTest extends TestCase
 
         $this->assertTrue($this->app->em->contains($festivitySeal->get()), 'O selo dos festejos também é relido');
         $this->assertTrue($this->app->em->contains($fixed->get()), 'E a oportunidade do programa');
+    }
+
+    // Pela rota do core, as duas inscrições do lote ganham o selo, os dados públicos e o e-mail com o certificado.
+    function testApplyingTheResultApprovesTheWholeBatch()
+    {
+        $this->captureLog();
+        $opportunity = $this->createProgramOpportunity();
+        $seal = (new SealBuilder)->reset($this->app->user->profile)->fillRequiredProperties()->save()->getInstance();
+        $this->app->config[ProgramSeal::CONFIG_KEY] = $seal->id;
+        $this->opportunityBuilder->createSentRegistrations(number_of_registrations: 2);
+
+        $ids = $this->app->conn->fetchFirstColumn('SELECT id FROM registration WHERE opportunity_id = ? ORDER BY id', [$opportunity->id]);
+        $this->app->disableAccessControl();
+        foreach ($ids as $id) {
+            $owner = $this->app->repo('Registration')->find($id)->owner;
+            $owner->nomeSocial = "Mestra {$id}";
+            $owner->save(true);
+        }
+        $this->app->enableAccessControl();
+        $this->app->conn->executeStatement("UPDATE registration SET consolidated_result = '1' WHERE id IN (?, ?)", $ids);
+
+        $this->app->reset();
+        $this->app->run($this->requestFactory->POST('opportunity', 'applyEvaluationsDocumentary', [$opportunity->id], ['from' => '1', 'to' => Registration::STATUS_APPROVED]), false);
+        $this->assertSame(200, $this->app->response->getStatusCode(), (string) $this->app->response->getBody());
+
+        $this->assertSame([Registration::STATUS_APPROVED, Registration::STATUS_APPROVED], array_map('intval', $this->app->conn->fetchFirstColumn('SELECT status FROM registration WHERE id IN (?, ?) ORDER BY id', $ids)));
+        $this->assertSame(2, (int) $this->app->conn->fetchOne('SELECT count(*) FROM seal_relation WHERE seal_id = ?', [$seal->id]), 'As duas ganham o selo');
+        foreach ($ids as $id) {
+            $agent = $this->app->conn->fetchOne('SELECT agent_id FROM registration WHERE id = ?', [$id]);
+            $this->assertSame("Mestra {$id}", $this->app->conn->fetchOne('SELECT value FROM agent_meta WHERE object_id = ? AND key = ?', [$agent, MasterPublicData::KNOWN_AS]), 'E os dados públicos');
+            $this->assertSame(1, (int) $this->app->conn->fetchOne("SELECT count(*) FROM job WHERE name = ? AND metadata->>'template' = ? AND metadata->>'registrationId' = ?", [SendMailNotification::SLUG, Moderation::MAIL_APPROVED, (string) $id]), 'E o e-mail');
+        }
     }
 }

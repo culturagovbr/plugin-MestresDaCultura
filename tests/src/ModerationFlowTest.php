@@ -26,6 +26,7 @@ use Tests\Traits\UserDirector;
 class ModerationFlowTest extends TestCase
 {
     use CapturesLog;
+    use RunsJobs;
     use OpportunityBuilder;
     use RequestFactory;
     use UserDirector;
@@ -170,6 +171,26 @@ class ModerationFlowTest extends TestCase
         $approved = $this->jobs(SendMailNotification::SLUG, '%' . Moderation::MAIL_APPROVED . '%');
         $this->assertCount(1, $approved);
         $this->assertSame($relation->singleUrl, json_decode($approved[0], true)['params']['certificateLink'] ?? null, 'O e-mail leva o certificado');
+    }
+
+    // A aprovação chega à fase final (Approval::allowFinalPhaseSync), e a inscrição copiada não manda outro e-mail.
+    function testTheApprovalReachesTheFinalPhaseWithASingleMail()
+    {
+        // Conta os e-mails de aprovação ao rodar o job, pela inscrição de cada um.
+        $mails = [];
+        $this->app->hook('job(' . SendMailNotification::SLUG . ').execute:before', function () use (&$mails) {
+            if ($this->template === Moderation::MAIL_APPROVED) {
+                $mails[$this->registrationId] = true;
+            }
+        });
+
+        $this->moderate([$this->document => 'valid', $this->name => 'valid']);
+        $this->runJobs();
+        $registration = $this->registration();
+
+        $copies = (int) $this->app->conn->fetchOne('SELECT count(*) FROM registration WHERE number = :number AND opportunity_id = :last', ['number' => $registration->number, 'last' => $registration->opportunity->lastPhase->id]);
+        $this->assertSame(1, $copies, 'A inscrição chega à fase final');
+        $this->assertSame([$registration->id], array_keys($mails), 'Um e-mail de aprovação só, o da fase de cadastro');
     }
 
     // Sem o selo do programa configurado, a aprovação segue e o aviso sai, sem o certificado.

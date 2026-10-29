@@ -23,6 +23,7 @@ use Tests\Traits\UserDirector;
 class ModerationQueueTest extends TestCase
 {
     use OpportunityBuilder;
+    use RunsJobs;
     use UserDirector;
 
     private User $superAdmin;
@@ -103,24 +104,6 @@ class ModerationQueueTest extends TestCase
         $this->app->enableAccessControl();
 
         return $evaluation->id;
-    }
-
-    /**
-     * Os jobs vencidos até agora. O `processJobs` do core para no primeiro job cujo id (um hash) começa com letra: o
-     * `executeJob` devolve `(int) $job_id`, que dá 0. E o job roda em outro processo, com o cache da requisição vazio;
-     * aqui, no mesmo, a comissão ficaria a de antes.
-     */
-    private function runJobs(): void
-    {
-        $user = $this->app->user;
-        $due = fn () => (int) $this->app->conn->fetchOne('SELECT count(*) FROM job WHERE status = 0 AND iterations_count < iterations AND next_execution_timestamp <= :now', ['now' => date('Y-m-d H:i:s')]);
-
-        for ($round = 0; $round < 20 && $due(); $round++) {
-            $this->app->rcache->deleteAll();
-            $this->app->executeJob();
-        }
-
-        $this->login($user);
     }
 
     private function disable(EvaluationMethodConfigurationAgentRelation $relation): void
