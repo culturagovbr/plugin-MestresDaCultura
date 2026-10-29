@@ -4,6 +4,7 @@ namespace Tests\MDC;
 
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
+use MDC\Services\ActingField;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\Moderation;
 use Tests\Abstract\TestCase;
@@ -36,6 +37,7 @@ class CorrectionValidationTest extends TestCase
                 ->createField('reaberto', 'text', title: 'Documento', required: true)
                 ->createField('novo', 'text', title: 'Criado depois do envio', required: true)
                 ->createField('nova_lista', 'select', title: 'Lista criada depois do envio', required: true, options: ['Sim', 'Não'])
+                ->createField('atuacao', ActingField::SLUG, title: 'Atuação Cultural')
                 ->done()
             ->save()
             ->refresh()
@@ -48,13 +50,16 @@ class CorrectionValidationTest extends TestCase
     }
 
     /** Enviado; com `$reopened`, devolvido com esses campos reabertos e a correção ainda não enviada. */
-    private function registrationIn(Opportunity $opportunity, ?array $reopened): Registration
+    private function registrationIn(Opportunity $opportunity, ?array $reopened, array $values = []): Registration
     {
         $registration = $this->registrationDirector->createDraftRegistrations($opportunity, 1)[0];
         $registration->opportunity->registerRegistrationMetadata();
         $registration->registerFieldsMetadata();
 
         $this->app->disableAccessControl();
+        foreach ($values as $field => $value) {
+            $registration->$field = $value;
+        }
         $registration->status = Registration::STATUS_SENT;
         if ($reopened !== null) {
             $registration->editableFields = $reopened;
@@ -98,5 +103,20 @@ class CorrectionValidationTest extends TestCase
         $errors = $this->registrationIn($opportunity, [$this->field('reaberto', $opportunity)])->getValidationErrors();
 
         $this->assertArrayHasKey($this->field('novo', $opportunity), $errors);
+    }
+
+    // Os erros das validações do plugin no envio (a Atuação, o ID de premiado) também saem fora dos reabertos.
+    function testInTheCorrectionAFieldErrorOutsideTheReopenedDoesNotBlockTheResend()
+    {
+        $opportunity = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $opportunity->id;
+        $acting = $this->field('atuacao');
+        $invalid = ['nodes' => 'não é lista', 'others' => []];
+
+        $outside = $this->registrationIn($opportunity, null, [$acting => $invalid])->getSendValidationErrors();
+        $this->assertArrayHasKey($acting, $outside, 'Fora da correção, a validação do plugin vale');
+
+        $returned = $this->registrationIn($opportunity, [$this->field('reaberto')], [$acting => $invalid])->getSendValidationErrors();
+        $this->assertArrayNotHasKey($acting, $returned, 'Na correção, o campo não reaberto não trava o reenvio');
     }
 }
