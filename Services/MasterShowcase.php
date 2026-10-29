@@ -19,9 +19,6 @@ class MasterShowcase
     // Quantos aprovados mais recentes a vitrine mostra.
     const HIGHLIGHTS = 6;
 
-    // Como no cabeçalho do perfil.
-    private const ACTIVITIES = 3;
-
     // Tamanho do resumo do cartão: a mini bio ou o começo da descrição longa.
     private const SUMMARY = 160;
 
@@ -50,7 +47,7 @@ class MasterShowcase
             'id' => (int) $row['id'],
             'name' => (string) $row['name'],
             'knownAs' => (string) $row['known_as'],
-            'activities' => array_slice(MasterProfile::activities((array) ActingField::unserialize($row['acting'])), 0, self::ACTIVITIES),
+            'activities' => array_slice(MasterProfile::activities((array) ActingField::unserialize($row['acting'])), 0, MasterProfile::HEADER_ACTIVITIES),
             'city' => self::text($row['city']),
             'summary' => self::summary((string) $row['short_description'], (string) $row['long_description']),
             'avatar' => $avatars[(int) $row['id']] ?? null,

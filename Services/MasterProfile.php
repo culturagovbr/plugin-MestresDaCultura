@@ -12,8 +12,8 @@ use MapasCulturais\Entities\Registration;
  */
 class MasterProfile
 {
-    // Quantas atividades o cabeçalho cita; a atuação completa fica na seção própria.
-    private const HEADER_ACTIVITIES = 3;
+    // Quantas atividades o cabeçalho do perfil e os cartões da vitrine (MasterShowcase) citam.
+    const HEADER_ACTIVITIES = 3;
 
     function __construct(private FixedOpportunity $opportunity, private ProgramSeal $seal)
     {
