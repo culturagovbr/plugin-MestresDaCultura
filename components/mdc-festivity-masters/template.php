@@ -33,7 +33,8 @@ $this->import('
             <button type="button" class="mdc-festivity-masters__result" @click="add(master)">{{labelOf(master)}}</button>
         </li>
     </ul>
-    <p v-else-if="searched" class="mdc-festivity-masters__empty" role="status">{{text('nenhum')}}</p>
+    <!-- Região viva, sempre na página. -->
+    <p class="mdc-festivity-masters__empty" role="status">{{searchFailed ? text('falha busca') : (searched && !results.length ? text('nenhum') : '')}}</p>
 
     <small v-for="error in errors" class="field__error">{{error}}</small>
     <p class="sr-only" role="status">{{announcement}}</p>

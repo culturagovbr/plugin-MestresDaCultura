@@ -33,7 +33,7 @@ $this->import('
                 </label>
                 <label class="field">
                     <span class="field__title"><?php i::_e('Cidade') ?></span>
-                    <input v-model.trim="city" type="text">
+                    <input v-model.lazy.trim="city" type="text">
                 </label>
                 <label class="field">
                     <span class="field__title"><?php i::_e('Segmento') ?></span>
@@ -73,7 +73,8 @@ $this->import('
             <p class="mdc-festivities-search__intro"><?php i::_e('Os festejos cadastrados por quem os realiza, com a agenda de cada ano.') ?></p>
             <a class="button button--primary" :href="formUrl"><?php i::_e('Cadastrar festejo') ?></a>
         </div>
-        <mc-entities type="event" :select="select" :query="query" order="name ASC" :limit="12" watch-query>
+        <!-- A chave remonta a lista a cada filtro; a cidade só conta ao sair do campo. -->
+        <mc-entities :key="JSON.stringify(query)" type="event" :select="select" :query="query" order="name ASC" :limit="12">
             <template #header="{entities}">
                 <p v-if="!entities.loading" class="mdc-festivities-search__count" role="status">
                     {{ entities.metadata?.count ?? 0 }} <?php i::_e('festejos encontrados') ?>

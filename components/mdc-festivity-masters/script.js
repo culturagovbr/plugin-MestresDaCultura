@@ -25,6 +25,9 @@ app.component('mdc-festivity-masters', {
             loading: false,
             failed: false,
             announcement: '',
+            // a busca em andamento: a resposta de uma anterior, ou depois de escolher, é descartada
+            searchId: 0,
+            searchFailed: false,
         };
     },
 
@@ -72,7 +75,9 @@ app.component('mdc-festivity-masters', {
 
         search() {
             clearTimeout(this.timer);
+            const id = ++this.searchId;
             this.searched = false;
+            this.searchFailed = false;
 
             if (this.query.trim().length < 3) {
                 this.results = [];
@@ -80,10 +85,19 @@ app.component('mdc-festivity-masters', {
             }
 
             this.timer = setTimeout(async () => {
-                const ids = this.selected.map((master) => master.id);
-                const found = await this.find({ '@keyword': `%${this.query.trim()}%`, '@limit': 10, '@order': 'name ASC' });
-                this.results = found.filter((master) => !ids.includes(master.id));
-                this.searched = true;
+                try {
+                    const found = await this.find({ '@keyword': `%${this.query.trim()}%`, '@limit': 10, '@order': 'name ASC' });
+
+                    if (id === this.searchId) {
+                        const ids = this.selected.map((master) => master.id);
+                        this.results = found.filter((master) => !ids.includes(master.id));
+                        this.searched = true;
+                    }
+                } catch {
+                    if (id === this.searchId) {
+                        this.searchFailed = true;
+                    }
+                }
             }, 300);
         },
 
@@ -98,6 +112,7 @@ app.component('mdc-festivity-masters', {
 
         // O foco volta à busca, e o leitor de tela anuncia quem entrou.
         add(master) {
+            this.searchId++;
             this.selected.push(master);
             this.save();
             this.query = '';

@@ -48,7 +48,7 @@ $this->import('
         </template>
 
         <template v-else-if="step === 1">
-            <mdc-festivity-agenda :entity="entity" :required="isRequired('occurrences')"></mdc-festivity-agenda>
+            <mdc-festivity-agenda ref="agenda" :entity="entity" :required="isRequired('occurrences')" @change="agendaChanged"></mdc-festivity-agenda>
             <entity-field :entity="entity" prop="mdcFestejoTerritorio" :label="text('territorio')" :required="isRequired('mdcFestejoTerritorio')"></entity-field>
             <entity-field :entity="entity" prop="mdcFestejoLei" :label="text('lei')"></entity-field>
             <entity-file v-if="entity.mdcFestejoLei === 'Sim'" :entity="entity" group-name="mdcLegislacao" :title="text('arquivo da lei')" editable required></entity-file>

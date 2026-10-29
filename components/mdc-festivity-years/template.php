@@ -15,6 +15,7 @@
         <button v-for="year in years" :key="year" type="button" class="mdc-festivity-years__year" :class="{ 'mdc-festivity-years__year--selected': selected.includes(year) }" :aria-pressed="selected.includes(year) ? 'true' : 'false'" @click="toggle(year)">
             {{year}}
         </button>
+        <button v-if="hasEarlier" type="button" class="button button--text button--sm" @click="shown += 15">{{text('anteriores')}}</button>
     </div>
 
     <small v-for="error in errors" class="field__error">{{error}}</small>

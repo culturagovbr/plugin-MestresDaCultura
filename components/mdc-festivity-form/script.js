@@ -22,6 +22,29 @@ app.component('mdc-festivity-form', {
         };
     },
 
+    // Apaga o que depende de uma resposta quando ela muda, como FestivityFields::clearUnanswered na gravação.
+    created() {
+        const dependencies = Object.entries($MAPAS.config.mdcFestivity.dependencies || {});
+
+        for (const parent of new Set(dependencies.map(([, [question]]) => question))) {
+            const clear = () => {
+                for (const [key, [question, answers]] of dependencies) {
+                    const value = this.entity[key];
+
+                    if (question === parent && !answers.includes(this.entity[parent]) && value !== null && value !== undefined && value !== '' && !(Array.isArray(value) && !value.length)) {
+                        this.entity[key] = Array.isArray(value) ? [] : '';
+                    }
+                }
+            };
+
+            // Limpa depois da tela atualizada e de novo na volta seguinte, depois do setTimeout do entity-field.
+            this.$watch(() => this.entity[parent], () => {
+                clear();
+                setTimeout(clear);
+            }, { flush: 'post' });
+        }
+    },
+
     computed: {
         labels() {
             return this.steps.map((step) => step.label);
@@ -103,18 +126,48 @@ app.component('mdc-festivity-form', {
             }
         },
 
+        // O erro da gravação, inclusive de campos de outras etapas, entra na lista "Para seguir, falta".
+        failed(error) {
+            if (error?.data && typeof error.data === 'object') {
+                this.errors = error.data;
+            }
+        },
+
+        // Um período preenchido na agenda e não adicionado barra a troca de etapa e a saída, e leva a pessoa até ele.
+        agendaPending() {
+            if (!this.$refs.agenda?.pending()) {
+                return false;
+            }
+
+            this.errors = { pendingPeriod: [this.text('periodo pendente')] };
+            this.$refs.agenda.focusPending();
+            return true;
+        },
+
+        // O que a agenda cobrava sai quando ela muda; a próxima conferência diz se ainda falta.
+        agendaChanged() {
+            for (const key of ['occurrences', 'place', 'removedPlace']) {
+                delete this.errors[key];
+                delete this.entity.__validationErrors?.[key];
+            }
+        },
+
         show(step) {
             this.step = step;
             this.$nextTick(() => this.$refs.stepTitle?.focus());
         },
 
         async next() {
+            if (this.agendaPending()) {
+                return;
+            }
+
             this.saving = true;
 
             try {
                 await this.save();
             } catch (error) {
-                // O core já avisou e marcou os campos.
+                this.failed(error);
                 this.saving = false;
                 return;
             }
@@ -135,7 +188,7 @@ app.component('mdc-festivity-form', {
         },
 
         async goTo(step) {
-            if (step === this.step || this.saving) {
+            if (step === this.step || this.saving || this.agendaPending()) {
                 return;
             }
 
@@ -148,13 +201,17 @@ app.component('mdc-festivity-form', {
                 this.errors = {};
                 this.show(step);
             } catch (error) {
-                // O core já avisou e marcou os campos.
+                this.failed(error);
             } finally {
                 this.saving = false;
             }
         },
 
         async saveAndExit(modal) {
+            if (this.agendaPending()) {
+                return;
+            }
+
             this.saving = true;
 
             try {
@@ -162,7 +219,7 @@ app.component('mdc-festivity-form', {
                 this.errors = {};
                 modal.open();
             } catch (error) {
-                // O core já avisou e marcou os campos.
+                this.failed(error);
             } finally {
                 this.saving = false;
             }
@@ -170,6 +227,10 @@ app.component('mdc-festivity-form', {
 
         // Publicar cobra as 6 etapas (FestivityForm no servidor); o que faltar aparece aqui.
         async publish() {
+            if (this.agendaPending()) {
+                return;
+            }
+
             this.saving = true;
 
             try {

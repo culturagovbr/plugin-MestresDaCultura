@@ -11,7 +11,7 @@ $this->import('
 ');
 ?>
 <!-- O nome e o endereço do local, pelo CEP. -->
-<mc-modal ref="modal" :title="place && !place.id ? text('titulo novo') : text('titulo')" classes="mdc-place-editor" @close="place = null">
+<mc-modal ref="modal" :title="place && !place.id ? text('titulo novo') : text('titulo')" classes="mdc-place-editor" @close="close">
     <template #default>
         <div v-if="place" class="mdc-place-editor__form">
             <entity-field :entity="place" prop="name" :label="text('nome')"></entity-field>

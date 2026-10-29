@@ -19,9 +19,14 @@ app.component('mdc-festivity-person', {
         const person = $MAPAS.config.mdcFestivity.person;
         let agent = null;
 
+        // Os dados da carga entram uma vez só na instância do cache do core.
         if (person?.data) {
             agent = new API('agent').getEntityInstance(person.id);
-            agent.populate({ id: person.id, ...person.data });
+
+            if (!agent.__mdcPersonLoaded) {
+                agent.populate({ id: person.id, ...person.data });
+                agent.__mdcPersonLoaded = true;
+            }
         }
 
         return {

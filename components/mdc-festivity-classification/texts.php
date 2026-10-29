@@ -13,4 +13,5 @@ return [
     'outro' => i::__('Outro'),
     'outro ajuda' => i::__('Escreva a tipologia que não está na lista'),
     'outro etiqueta' => i::__('Outro: %s'),
+    'remover' => i::__('Remover %s'),
 ];

@@ -25,7 +25,10 @@ $this->import('
             <ul class="mc-tag-list__tagList">
                 <li v-for="tag in tags" :key="tag.key" class="mc-tag-list__tag mc-tag-list__tag--editable">
                     <span>{{tag.label}}</span>
-                    <mc-icon name="delete" @click="tag.remove()" is-link></mc-icon>
+                    <!-- Botão que tira a etiqueta, também pelo teclado. -->
+                    <button type="button" class="mdc-festivity-choices__remove" :aria-label="format('remover', tag.label)" @click="tag.remove()">
+                        <mc-icon name="delete"></mc-icon>
+                    </button>
                 </li>
             </ul>
         </div>

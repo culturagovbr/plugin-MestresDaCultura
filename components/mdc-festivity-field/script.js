@@ -38,6 +38,10 @@ app.component('mdc-festivity-field', {
             searched: false,
             timer: null,
             announcement: '',
+            // o festejo escolhido antes saiu do Calendário (despublicado): o id segue gravado até a pessoa trocar
+            gone: false,
+            searchId: 0,
+            searchFailed: false,
             formUrl: Utils.createUrl('mdc', 'festivity'),
         };
     },
@@ -46,7 +50,13 @@ app.component('mdc-festivity-field', {
         const value = String(this.entity[this.prop] ?? '').trim();
 
         if (/^\d+$/.test(value)) {
-            this.chosen = await new API('event').findOne(Number(value), 'id,name,singleUrl,mdcFestejoCidade,mdcFestejoUf').catch(() => null);
+            const found = await new API('event').findOne(Number(value), 'id,name,singleUrl,mdcFestejoCidade,mdcFestejoUf').catch(() => null);
+
+            // Só mostra o festejo se ele ainda for o escolhido.
+            if (String(this.entity[this.prop] ?? '').trim() === value) {
+                this.chosen = found;
+                this.gone = !found;
+            }
         } else {
             this.legacy = value;
         }
@@ -57,10 +67,13 @@ app.component('mdc-festivity-field', {
             return [festivity.mdcFestejoCidade, festivity.mdcFestejoUf].filter(Boolean).join(', ');
         },
 
-        // Só os do Calendário (publicados e com o selo dos festejos), como o servidor confere (FestivityField::isValid).
+        // Só os do Calendário (publicados e com o selo dos festejos); descarta a resposta de uma busca anterior ou que
+        // chega depois da escolha.
         search() {
             clearTimeout(this.timer);
+            const id = ++this.searchId;
             this.searched = false;
+            this.searchFailed = false;
 
             if (this.query.trim().length < 3) {
                 this.results = [];
@@ -68,19 +81,31 @@ app.component('mdc-festivity-field', {
             }
 
             this.timer = setTimeout(async () => {
-                this.results = await new API('event').find({
-                    '@select': 'id,name,singleUrl,mdcFestejoCidade,mdcFestejoUf',
-                    '@keyword': `%${this.query.trim()}%`,
-                    '@seals': String($MAPAS.config.mdcFestivityField?.sealId ?? 0),
-                    status: 'EQ(1)',
-                    '@order': 'name ASC',
-                    '@limit': 10,
-                });
-                this.searched = true;
+                try {
+                    const found = await new API('event').find({
+                        '@select': 'id,name,singleUrl,mdcFestejoCidade,mdcFestejoUf',
+                        '@keyword': `%${this.query.trim()}%`,
+                        '@seals': String($MAPAS.config.mdcFestivityField?.sealId ?? 0),
+                        status: 'EQ(1)',
+                        '@order': 'name ASC',
+                        '@limit': 10,
+                    });
+
+                    if (id === this.searchId) {
+                        this.results = found;
+                        this.searched = true;
+                    }
+                } catch {
+                    if (id === this.searchId) {
+                        this.searchFailed = true;
+                    }
+                }
             }, 300);
         },
 
         choose(festivity) {
+            this.searchId++;
+            this.gone = false;
             this.chosen = festivity;
             this.legacy = '';
             this.query = '';

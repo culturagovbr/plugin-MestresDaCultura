@@ -15,6 +15,7 @@
 
     <template v-else>
         <p v-if="legacy" class="mdc-festivity-field__legacy">{{ text('resposta anterior') }} <strong>{{ legacy }}</strong></p>
+        <p v-if="gone" class="mdc-festivity-field__legacy" role="alert">{{ text('saiu') }}</p>
 
         <template v-if="!disabled">
             <!-- O nome vem do `<label>` do entity-field (field-id); a dica fica no placeholder. -->
@@ -26,8 +27,10 @@
                     </button>
                 </li>
             </ul>
-            <p v-else-if="searched" class="mdc-festivity-field__empty" role="status">
-                {{ text('nenhum') }} <a :href="formUrl" target="_blank" rel="noopener">{{ text('cadastre') }}</a>
+            <!-- Região viva, sempre na página. -->
+            <p class="mdc-festivity-field__empty" role="status">
+                <template v-if="searchFailed">{{ text('falha busca') }}</template>
+                <template v-else-if="searched && !results.length">{{ text('nenhum') }} <a :href="formUrl" target="_blank" rel="noopener">{{ text('cadastre') }}</a></template>
             </p>
         </template>
     </template>

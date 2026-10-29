@@ -46,6 +46,11 @@ app.component('mdc-festivity-agenda', {
             const errors = this.entity.__validationErrors || {};
             return [...(errors.occurrences || []), ...(errors.place || []), ...(errors.removedPlace || [])];
         },
+
+        // No festejo publicado, o último período só sai depois de entrar um novo.
+        keepsTheLast() {
+            return this.entity.status > 0 && this.occurrences.filter((occurrence) => !this.isRemoved(occurrence)).length === 1;
+        },
     },
 
     // Lê a agenda e os locais; se a leitura falhar, mostra o aviso.
@@ -86,9 +91,12 @@ app.component('mdc-festivity-agenda', {
 
         async loadPlaces() {
             const api = new API('space');
+            // Só os locais de quem cadastrou o festejo, também quando quem edita é o suporte.
+            const owner = this.entity.owner?.id ?? this.entity.owner;
             this.places = await api.find({
                 '@select': 'id,name,En_Municipio,En_Estado',
                 '@permissions': '@control',
+                ...(Number(owner) ? { owner: `EQ(${Number(owner)})` } : {}),
                 // o local é rascunho até um festejo publicado usá-lo (MDC\Services\FestivityPlace::syncStatus)
                 'status': 'GTE(0)',
                 '@order': 'name ASC',
@@ -122,6 +130,19 @@ app.component('mdc-festivity-agenda', {
             this.placeId = '';
             this.newPlace = null;
             this.startsOn = this.until = this.startsAt = this.endsAt = '';
+            this.$nextTick(() => this.$refs.start?.focus());
+        },
+
+        // Há um período preenchido e não adicionado.
+        pending() {
+            return this.adding && !!(this.startsOn || this.until || this.startsAt || this.endsAt || this.placeId);
+        },
+
+        // Leva a pessoa ao período pendente.
+        focusPending() {
+            const start = document.getElementById('mdc-festivity-starts-on');
+            start?.scrollIntoView({ block: 'center' });
+            start?.focus();
         },
 
         // O texto do período, sem repetir o mês e o ano iguais: "3 a 5 de dezembro de 2026".
@@ -164,6 +185,11 @@ app.component('mdc-festivity-agenda', {
             }
             if (this.placeId === 'new' && (!this.newPlace.name || !this.newPlace.En_Estado || !this.newPlace.En_Municipio)) {
                 return this.text('falta endereco');
+            }
+            // O local escolhido precisa de estado e município.
+            const chosen = this.places.find((place) => place.id === this.placeId);
+            if (chosen && (!chosen.En_Estado || !chosen.En_Municipio)) {
+                return this.text('local sem endereco');
             }
 
             return '';
@@ -208,23 +234,51 @@ app.component('mdc-festivity-agenda', {
                 }
 
                 this.cancel();
-                await Promise.all([this.load(), this.loadPlaces()]);
                 this.$emit('change');
             } catch (error) {
                 this.error = error?.data && typeof error.data === 'object' ? Object.values(error.data).flat().join(' ') : this.text('falha');
+
+                // O local novo, já gravado, fica escolhido.
+                if (this.newPlace?.id) {
+                    const id = this.newPlace.id;
+                    await this.loadPlaces().catch(() => {});
+                    this.newPlace = null;
+                    this.placeId = id;
+                }
+                this.saving = false;
+                return;
+            }
+
+            // Período gravado: relê a agenda e os locais; se a releitura falhar, mostra o aviso.
+            try {
+                await Promise.all([this.load(), this.loadPlaces()]);
+            } catch {
+                this.failed = true;
             } finally {
                 this.saving = false;
             }
         },
 
+        // O foco vai para o "Remover" seguinte, ou para o "Adicionar período" quando não há mais.
         async remove(occurrence) {
+            const index = this.occurrences.indexOf(occurrence);
+
             try {
                 await occurrence.delete(true);
-                await this.load();
-                this.$emit('change');
             } catch (error) {
                 // O core já avisou.
+                return;
             }
+
+            try {
+                await this.load();
+            } catch {
+                this.failed = true;
+            }
+            this.$emit('change');
+
+            const next = this.occurrences[Math.min(index, this.occurrences.length - 1)];
+            this.$nextTick(() => (next ? this.$refs['remove-' + next.id]?.[0] ?? this.$refs['remove-' + next.id] : this.$refs.start)?.focus());
         },
     },
 });

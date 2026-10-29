@@ -13,17 +13,15 @@ app.component('mdc-place-editor', {
         return {
             place: null,
             saving: false,
+            saved: false,
         };
     },
 
     methods: {
-        // O local inteiro, com as permissões que o entity-location lê; o rascunho só vem pedindo a situação.
+        // Abre o local inteiro, relido do servidor, com as permissões que o entity-location lê.
         async open(id) {
-            const [place] = await new API('space').find({
-                id: `EQ(${id})`,
-                status: 'GTE(0)',
-                '@select': 'id,name,status,location,endereco,En_CEP,En_Nome_Logradouro,En_Num,En_Complemento,En_Bairro,En_Municipio,En_Estado,currentUserPermissions',
-            }).catch(() => []);
+            this.saved = false;
+            const [place] = await this.read(id).catch(() => []);
 
             if (place) {
                 this.place = place;
@@ -31,6 +29,24 @@ app.component('mdc-place-editor', {
             } else {
                 this.messages.error(this.text('falha'));
             }
+        },
+
+        // Lê o local pedindo a permissão, o que traz também o local em rascunho.
+        read(id) {
+            return new API('space').fetch('find', {
+                id: `EQ(${id})`,
+                status: 'GTE(0)',
+                '@permissions': '@control',
+                '@select': 'id,name,status,location,endereco,En_CEP,En_Nome_Logradouro,En_Num,En_Complemento,En_Bairro,En_Municipio,En_Estado,currentUserPermissions',
+            }, { refresh: true });
+        },
+
+        // Fechou sem salvar: o local volta ao gravado, na agenda e na lista também.
+        close() {
+            if (!this.saved && this.place?.id) {
+                this.read(this.place.id).catch(() => {});
+            }
+            this.place = null;
         },
 
         // O local novo de "Meus locais", de quem cadastra, com a permissão que o entity-location lê. O tipo vem do
@@ -48,6 +64,7 @@ app.component('mdc-place-editor', {
 
             try {
                 await this.place.save();
+                this.saved = true;
                 this.$emit('saved', this.place);
                 modal.close();
             } catch (error) {

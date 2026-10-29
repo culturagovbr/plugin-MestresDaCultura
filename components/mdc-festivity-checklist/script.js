@@ -63,7 +63,7 @@ app.component('mdc-festivity-checklist', {
 
             return [
                 ...this.checked.map((value) => ({ key: value, label: labels[value] ?? value, remove: () => this.toggle(value) })),
-                ...(other ? [{ key: 'outro', label: this.text('outro etiqueta').replace('%s', other), remove: () => { this.entity[this.otherProp] = ''; } }] : []),
+                ...(other ? [{ key: 'outro', label: this.format('outro etiqueta', other), remove: () => { this.entity[this.otherProp] = ''; } }] : []),
             ];
         },
 
@@ -73,6 +73,10 @@ app.component('mdc-festivity-checklist', {
     },
 
     methods: {
+        format(key, value) {
+            return this.text(key).replace('%s', value);
+        },
+
         countIn(group) {
             return group.items.filter((item) => this.checked.includes(item.value)).length;
         },

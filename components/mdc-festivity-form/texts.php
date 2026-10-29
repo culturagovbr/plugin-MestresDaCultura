@@ -42,6 +42,7 @@ return [
     'aceite' => i::__('Declaro que as informações deste cadastro são verdadeiras e de minha responsabilidade, e autorizo a publicação dos dados do festejo no Calendário de Festejos Populares do Brasil e o uso das fotos e dos vídeos para divulgação, nos termos da Lei Geral de Proteção de Dados (LGPD). Os meus dados pessoais não ficam públicos, a não ser o e-mail e o telefone que eu autorizei.'),
     'obrigatorio' => i::__('obrigatório'),
     'falta' => i::__('Para seguir, falta:'),
+    'periodo pendente' => i::__('Termine de adicionar o período à agenda, ou cancele.'),
     'voltar ao painel' => i::__('Voltar ao Painel'),
     'etapa anterior' => i::__('Etapa anterior'),
     'salvar e avancar' => i::__('Salvar e avançar'),

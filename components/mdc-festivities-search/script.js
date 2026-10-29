@@ -67,8 +67,9 @@ app.component('mdc-festivities-search', {
             if (this.size) {
                 query.mdcFestejoPorte = `EQ(${this.size})`;
             }
+            // As da Rede, pela regra da página do festejo (MDC\Services\FestivitySearch::idsWithMasters).
             if (this.withMasters) {
-                query.mdcFestejoMestres = 'ILIKE(*|*)';
+                query[config.mastersParam] = '1';
             }
             if (this.accessible) {
                 query.mdcFestejoTemAcessibilidade = 'EQ(Sim)';

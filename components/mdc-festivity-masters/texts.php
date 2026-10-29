@@ -13,4 +13,5 @@ return [
     'removido' => i::__('%s saiu do festejo'),
     'carregando' => i::__('Carregando as mestras e os mestres do festejo...'),
     'falha' => i::__('Não foi possível carregar as mestras e os mestres do festejo. Recarregue a página antes de mudar este campo.'),
+    'falha busca' => i::__('Não foi possível buscar agora. Tente de novo.'),
 ];

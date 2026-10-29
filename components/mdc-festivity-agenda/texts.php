@@ -34,4 +34,6 @@ return [
     'falta local' => i::__('Escolha o local ou cadastre um novo.'),
     'falta endereco' => i::__('Informe o nome do local, o estado e o município.'),
     'falha' => i::__('Não foi possível adicionar o período. Tente de novo.'),
+    'local sem endereco' => i::__('Este local não tem estado e município. Edite o local e informe os dois antes de usá-lo.'),
+    'ultimo periodo' => i::__('Festejo publicado: adicione o novo período antes de remover este.'),
 ];

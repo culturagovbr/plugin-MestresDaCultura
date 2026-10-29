@@ -10,4 +10,6 @@ return [
     'trocar' => i::__('Trocar'),
     'escolhido' => i::__('Festejo escolhido: %s'),
     'resposta anterior' => i::__('Resposta anterior:'),
+    'saiu' => i::__('O festejo escolhido saiu do Calendário. Escolha outro.'),
+    'falha busca' => i::__('Não foi possível buscar agora. Tente de novo.'),
 ];

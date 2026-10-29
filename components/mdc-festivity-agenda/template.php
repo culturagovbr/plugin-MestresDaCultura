@@ -37,9 +37,10 @@ $this->import('
             <button v-if="canEditPlace(occurrence)" type="button" class="button button--text button--sm button--icon" @click="$refs.editor.open(occurrence.space.id)">
                 <mc-icon name="edit"></mc-icon> {{text('editar local')}}
             </button>
-            <mc-confirm-button @confirm="remove(occurrence)">
+            <small v-if="keepsTheLast && !isRemoved(occurrence)" class="mdc-festivity-agenda__keep">{{text('ultimo periodo')}}</small>
+            <mc-confirm-button v-else @confirm="remove(occurrence)">
                 <template #button="modal">
-                    <button type="button" class="button button--text button--sm button--icon" @click="modal.open()">
+                    <button type="button" :ref="'remove-' + occurrence.id" class="button button--text button--sm button--icon" @click="modal.open()">
                         <mc-icon name="trash"></mc-icon> {{text('remover')}}
                     </button>
                 </template>
@@ -93,7 +94,7 @@ $this->import('
             <button type="button" class="button button--primary button--sm" :disabled="saving" @click="add">{{text('adicionar')}}</button>
         </div>
     </div>
-    <button v-else-if="!loading && !failed" type="button" class="button button--primary-outline button--icon mdc-festivity-agenda__start" @click="start">
+    <button v-else-if="!loading && !failed" ref="start" type="button" class="button button--primary-outline button--icon mdc-festivity-agenda__start" @click="start">
         <mc-icon name="add"></mc-icon> {{text('novo periodo')}}
     </button>
 
