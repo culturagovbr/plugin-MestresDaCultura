@@ -39,7 +39,7 @@ $this->import('
         <mc-accordion v-for="(segment, index) in tree" :key="segment.id + (isChecked(segment) ? '-marcado' : '')" :open="isChecked(segment)" class="mdc-acting-field__segment">
             <template #title>
                 <label class="mdc-acting-field__segment-title" @click.stop>
-                    <input type="checkbox" :checked="isChecked(segment)" :disabled="disabled" @change="toggle(segment, $event.target.checked)">
+                    <input type="checkbox" :ref="'segment-' + segment.id" :checked="isChecked(segment)" :disabled="disabled" @change="toggleSegment(segment, $event.target.checked)">
                     {{index + 1}}. {{segment.name}}
                 </label>
             </template>

@@ -156,7 +156,12 @@ app.component('mdc-acting-field', {
             return this.checked.has(node.id);
         },
 
-        // Marcar traz os pais junto; desmarcar leva o que está abaixo e os "Outro" de dentro.
+        // Marcar traz os pais junto; desmarcar leva o que está abaixo e os "Outro" de dentro. O foco volta ao segmento.
+        toggleSegment(segment, on) {
+            this.toggle(segment, on);
+            this.$nextTick(() => this.$refs['segment-' + segment.id]?.[0]?.focus());
+        },
+
         toggle(node, on) {
             if (!on) {
                 this.uncheck(node.id);
