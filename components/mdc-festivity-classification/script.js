@@ -23,6 +23,8 @@ app.component('mdc-festivity-classification', {
         return {
             classification: config.classification,
             keys: config.classificationKeys,
+            // segmento => {typologies, other}: o que estava marcado em cada um, só na tela; grava-se só o segmento atual.
+            kept: {},
         };
     },
 
@@ -69,6 +71,21 @@ app.component('mdc-festivity-classification', {
             return this.text(key).replace('%s', value);
         },
 
+        // Pelo rádio (clique ou setas): guarda o que estava marcado, devolve o do segmento escolhido e o foco volta ao
+        // rádio.
+        chooseSegment(segment, index) {
+            if (this.segment) {
+                this.kept[this.segment] = { typologies: this.selected, other: this.entity[this.keys.other] || '' };
+            }
+
+            const kept = this.kept[segment] || { typologies: [], other: '' };
+            this.entity[this.keys.segment] = segment;
+            this.entity[this.keys.typologies] = kept.typologies;
+            this.entity[this.keys.other] = kept.other;
+            this.$nextTick(() => this.$refs['segment-' + index]?.[0]?.focus());
+        },
+
+        // Pelo x da etiqueta: desmarca de vez.
         changeSegment(segment) {
             this.entity[this.keys.segment] = segment;
             this.entity[this.keys.typologies] = [];

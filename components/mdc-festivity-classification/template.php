@@ -35,7 +35,7 @@ $this->import('
     <mc-accordion v-for="(item, index) in classification" :key="item.segmento + (segment === item.segmento ? '-marcado' : '')" :open="segment === item.segmento" class="mdc-festivity-choices__segment">
         <template #title>
             <label class="mdc-festivity-choices__segment-title" @click.stop>
-                <input type="radio" name="mdc-festivity-segment" :checked="segment === item.segmento" @change="changeSegment(item.segmento)">
+                <input type="radio" name="mdc-festivity-segment" :ref="'segment-' + index" :checked="segment === item.segmento" @change="chooseSegment(item.segmento, index)">
                 {{index + 1}}. {{item.segmento}}
             </label>
         </template>
