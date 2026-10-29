@@ -20,14 +20,14 @@ $this->import('
     <ul v-if="selected.length" class="mdc-festivity-masters__selected">
         <li v-for="master in selected" :key="master.id" class="mdc-festivity-masters__chip">
             <span>{{labelOf(master)}}</span>
-            <button type="button" class="mdc-festivity-masters__remove" :aria-label="text('remover') + ' ' + labelOf(master)" @click="remove(master.id)">
+            <button type="button" :ref="'remove-' + master.id" class="mdc-festivity-masters__remove" :aria-label="text('remover') + ' ' + labelOf(master)" @click="remove(master.id)">
                 <mc-icon name="close"></mc-icon>
             </button>
         </li>
     </ul>
 
     <!-- Só depois de ler os vínculos gravados. -->
-    <input v-if="!loading && !failed" id="mdc-festivity-masters-search" type="search" v-model="query" :placeholder="text('buscar')" autocomplete="off" @input="search">
+    <input v-if="!loading && !failed" ref="search" id="mdc-festivity-masters-search" type="search" v-model="query" :placeholder="text('buscar')" autocomplete="off" @input="search">
     <ul v-if="results.length" class="mdc-festivity-masters__results" :aria-label="text('resultados')">
         <li v-for="master in results" :key="master.id">
             <button type="button" class="mdc-festivity-masters__result" @click="add(master)">{{labelOf(master)}}</button>
@@ -36,4 +36,5 @@ $this->import('
     <p v-else-if="searched" class="mdc-festivity-masters__empty" role="status">{{text('nenhum')}}</p>
 
     <small v-for="error in errors" class="field__error">{{error}}</small>
+    <p class="sr-only" role="status">{{announcement}}</p>
 </div>

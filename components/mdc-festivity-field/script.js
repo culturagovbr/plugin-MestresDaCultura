@@ -37,6 +37,7 @@ app.component('mdc-festivity-field', {
             results: [],
             searched: false,
             timer: null,
+            announcement: '',
             formUrl: Utils.createUrl('mdc', 'festivity'),
         };
     },
@@ -86,11 +87,16 @@ app.component('mdc-festivity-field', {
             this.results = [];
             this.searched = false;
             this.$emit('change', String(festivity.id));
+            // O foco vai para o festejo escolhido, e o leitor de tela anuncia a escolha.
+            this.announcement = this.text('escolhido').replace('%s', festivity.name);
+            this.$nextTick(() => this.$refs.chosen?.focus());
         },
 
         clear() {
             this.chosen = null;
             this.$emit('change', '');
+            this.announcement = '';
+            this.$nextTick(() => this.$refs.search?.focus());
         },
     },
 });

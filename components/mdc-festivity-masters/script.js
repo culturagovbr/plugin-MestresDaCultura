@@ -24,6 +24,7 @@ app.component('mdc-festivity-masters', {
             timer: null,
             loading: false,
             failed: false,
+            announcement: '',
         };
     },
 
@@ -95,17 +96,27 @@ app.component('mdc-festivity-masters', {
             this.entity.mdcFestejoMestres = ids.length ? `|${ids.join('|')}|` : '';
         },
 
+        // O foco volta à busca, e o leitor de tela anuncia quem entrou.
         add(master) {
             this.selected.push(master);
             this.save();
             this.query = '';
             this.results = [];
             this.searched = false;
+            this.announcement = this.text('adicionado').replace('%s', this.labelOf(master));
+            this.$nextTick(() => this.$refs.search?.focus());
         },
 
+        // O foco vai para o remover vizinho (o seguinte, ou o anterior no fim da lista), ou para a busca na última.
         remove(id) {
+            const index = this.selected.findIndex((master) => master.id === id);
+            const removed = this.selected[index];
             this.selected = this.selected.filter((master) => master.id !== id);
             this.save();
+            this.announcement = this.text('removido').replace('%s', this.labelOf(removed));
+
+            const next = this.selected[Math.min(index, this.selected.length - 1)];
+            this.$nextTick(() => (next ? this.$refs['remove-' + next.id]?.[0] : this.$refs.search)?.focus());
         },
     },
 });

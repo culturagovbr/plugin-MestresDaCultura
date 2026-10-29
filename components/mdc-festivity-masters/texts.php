@@ -9,6 +9,8 @@ return [
     'resultados' => i::__('Mestras e mestres encontrados'),
     'nenhum' => i::__('Nenhuma mestra ou mestre da Rede com esse nome.'),
     'remover' => i::__('Remover'),
+    'adicionado' => i::__('%s entrou no festejo'),
+    'removido' => i::__('%s saiu do festejo'),
     'carregando' => i::__('Carregando as mestras e os mestres do festejo...'),
     'falha' => i::__('Não foi possível carregar as mestras e os mestres do festejo. Recarregue a página antes de mudar este campo.'),
 ];

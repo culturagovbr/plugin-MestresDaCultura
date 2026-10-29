@@ -8,5 +8,6 @@ return [
     'nenhum' => i::__('Nenhum festejo publicado com esse nome.'),
     'cadastre' => i::__('Cadastrar o festejo'),
     'trocar' => i::__('Trocar'),
+    'escolhido' => i::__('Festejo escolhido: %s'),
     'resposta anterior' => i::__('Resposta anterior:'),
 ];
