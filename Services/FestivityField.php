@@ -107,17 +107,22 @@ class FestivityField
     }
 
     /**
-     * Os festejos publicados da mestra: o que ela escolheu no cadastro aprovado e os que a marcaram.
+     * Os festejos do Calendário da mestra (publicados e com o selo dos festejos): o que ela escolheu no cadastro
+     * aprovado e os que a marcaram.
      *
      * @return list<array{id: int, name: string, url: string, place: string}>
      */
     static function festivitiesOf(Agent $agent, ?Registration $registration): array
     {
         $app = App::i();
-        $ids = $app->conn->fetchFirstColumn(
-            "SELECT e.id FROM event e JOIN event_meta m ON m.object_id = e.id AND m.key = :key WHERE e.status = :enabled AND m.value LIKE :agent",
-            ['key' => FestivityFields::MASTERS, 'enabled' => Event::STATUS_ENABLED, 'agent' => "%|{$agent->id}|%"]
-        );
+        $seal = (new FestivitySeal)->configuredId();
+        $ids = $seal ? $app->conn->fetchFirstColumn(
+            "SELECT e.id FROM event e
+               JOIN event_meta m ON m.object_id = e.id AND m.key = :key
+               JOIN seal_relation r ON r.object_id = e.id AND r.object_type = :type AND r.seal_id = :seal
+             WHERE e.status = :enabled AND m.value LIKE :agent",
+            ['key' => FestivityFields::MASTERS, 'type' => Event::class, 'seal' => $seal, 'enabled' => Event::STATUS_ENABLED, 'agent' => "%|{$agent->id}|%"]
+        ) : [];
 
         foreach ($registration ? self::keysOf($registration->opportunity->id) : [] as $key) {
             $value = (string) $registration->getMetadata($key);

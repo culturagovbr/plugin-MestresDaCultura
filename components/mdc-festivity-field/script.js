@@ -56,7 +56,7 @@ app.component('mdc-festivity-field', {
             return [festivity.mdcFestejoCidade, festivity.mdcFestejoUf].filter(Boolean).join(', ');
         },
 
-        // Só os publicados, como o servidor confere.
+        // Só os do Calendário (publicados e com o selo dos festejos), como o servidor confere (FestivityField::isValid).
         search() {
             clearTimeout(this.timer);
             this.searched = false;
@@ -70,6 +70,7 @@ app.component('mdc-festivity-field', {
                 this.results = await new API('event').find({
                     '@select': 'id,name,singleUrl,mdcFestejoCidade,mdcFestejoUf',
                     '@keyword': `%${this.query.trim()}%`,
+                    '@seals': String($MAPAS.config.mdcFestivityField?.sealId ?? 0),
                     status: 'EQ(1)',
                     '@order': 'name ASC',
                     '@limit': 10,
