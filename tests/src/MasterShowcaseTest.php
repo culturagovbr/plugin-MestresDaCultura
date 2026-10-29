@@ -16,6 +16,7 @@ use Tests\Builders\PhasePeriods\Open;
 use Tests\Builders\SealBuilder;
 use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\RegistrationDirector;
+use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
 // A vitrine da home mostra as mestras e os mestres com o selo do programa, os aprovados mais recentes primeiro,
@@ -25,6 +26,7 @@ class MasterShowcaseTest extends TestCase
     use CapturesLog;
     use OpportunityBuilder;
     use RegistrationDirector;
+    use RequestFactory;
     use UserDirector;
 
     private Opportunity $opportunity;
@@ -176,5 +178,21 @@ class MasterShowcaseTest extends TestCase
 
         $this->assertNotNull($avatar);
         $this->assertStringContainsString("/files/agent/{$master->id}/", $avatar);
+    }
+
+    // A home leva os dados da vitrine e o desenho dos estados do mapa da Rede (data/br-uf.json) no objeto da página.
+    function testTheHomeCarriesTheShowcaseAndTheMap()
+    {
+        $this->master('Maria da Silva', 'Mestra Maria', 'Olinda, PE', ['Artífice'], 1);
+        // Abre a home logado.
+        $this->login($this->userDirector->createUser());
+
+        $this->app->reset();
+        $this->app->run($this->requestFactory->GET('site', 'index'), false);
+        $showcase = $this->app->view->jsObject['config']['mdcShowcase'] ?? null;
+
+        $this->assertSame(200, $this->app->response->getStatusCode());
+        $this->assertSame('Mestra Maria', $showcase['highlights'][0]['knownAs'] ?? null);
+        $this->assertNotEmpty($showcase['map'] ?? null, 'O desenho dos estados chega ao mapa');
     }
 }
