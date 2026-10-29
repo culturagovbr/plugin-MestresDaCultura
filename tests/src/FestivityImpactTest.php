@@ -29,6 +29,7 @@ class FestivityImpactTest extends TestCase
         $this->app->enableAccessControl();
 
         $event = $this->draft();
+        $event->{FestivityFields::WITH_MASTERS} = 'Sim';
         $event->{FestivityFields::MASTERS} = "|{$master->id}|";
         $this->assertArrayNotHasKey(FestivityFields::MASTERS, $event->getValidationErrors());
 
@@ -56,6 +57,7 @@ class FestivityImpactTest extends TestCase
     function testLibrasAndAudiodescriptionMarkTheCoreFields()
     {
         $event = $this->draft();
+        $event->{FestivityFields::HAS_ACCESSIBILITY} = 'Sim';
         $event->{FestivityFields::ACCESSIBILITY} = ['Rampas', 'Intérprete de libras', 'Audiodescrição'];
         $event->save(true);
         $this->assertSame(['Sim', 'Sim'], [$event->traducaoLibras, $event->descricaoSonora]);

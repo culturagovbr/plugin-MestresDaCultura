@@ -62,13 +62,13 @@ class FestivitySealTest extends TestCase
     {
         $event = $this->draft();
         $event->publish(true);
-        $this->assertSame(Event::STATUS_ENABLED, $event->status);
-        $this->assertNull($this->relation($event), 'Publicado sem as 6 etapas, fica sem selo');
+        $this->assertSame(Event::STATUS_DRAFT, (int) $this->app->conn->fetchOne('SELECT status FROM event WHERE id = ?', [$event->id]), 'Sem as 6 etapas, não publica');
+        $this->assertNull($this->relation($event), 'Nem ganha o selo');
         $this->assertNull($this->storedFirstPublished($event), 'Nem a data: o certificado não conta de quando estava incompleto');
 
         $this->complete($event);
-        $this->app->repo('Event')->find($event->id)->save(true);
-        $this->assertNotNull($this->relation($event), 'Completo, ganha o selo na gravação seguinte');
+        $this->app->repo('Event')->find($event->id)->publish(true);
+        $this->assertNotNull($this->relation($event), 'Completo, publica e ganha o selo');
         $this->assertSame(substr($this->storedFirstPublished($event), 0, 10), $this->relation($event)->createTimestamp->format('Y-m-d'), 'E conta desde ela');
     }
 

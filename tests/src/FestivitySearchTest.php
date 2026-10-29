@@ -7,6 +7,8 @@ use MapasCulturais\Entities\Event;
 use MDC\Services\FestivityFields;
 use MDC\Services\FestivitySeal;
 use MDC\Services\FestivitySearch;
+use MDC\Services\ProgramSeal;
+use Tests\Builders\SealBuilder;
 use Tests\Abstract\TestCase;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
@@ -63,9 +65,51 @@ class FestivitySearchTest extends TestCase
         $this->period($event, $this->place($event), '2026-12-05');
         $this->app->em->refresh($event);
         $event->publish(true);
-        $this->assertSame(Event::STATUS_ENABLED, $event->status, 'Publicado, mas sem as 6 etapas: sem o selo');
+        $this->assertSame(Event::STATUS_DRAFT, (int) $this->app->conn->fetchOne('SELECT status FROM event WHERE id = ?', [$event->id]), 'Sem as 6 etapas, nem publica');
 
         $this->assertSame([$samba->id], FestivitySearch::idsInMonth(12));
+    }
+
+    // O festejo de janeiro a março também está em fevereiro, e não só nos meses do começo e do fim.
+    function testTheMonthCoversTheWholePeriod()
+    {
+        $event = $this->draft();
+        $this->complete($event, withPeriod: false);
+        $occurrence = $this->period($event, $this->place($event), '2027-01-10');
+        $occurrence->rule = ['startsOn' => '2027-01-10', 'until' => '2027-03-20', 'startsAt' => '18:00', 'duration' => 300, 'frequency' => 'daily'];
+        $occurrence->save(true);
+        $this->app->em->refresh($event);
+        $event->publish(true);
+
+        $this->assertContains($event->id, FestivitySearch::idsInMonth(2));
+        $this->assertNotContains($event->id, FestivitySearch::idsInMonth(4));
+    }
+
+    // "Com Mestras e Mestres da Rede" conta só as marcadas com o selo do programa.
+    function testWithMastersMeansMastersOfTheNetwork()
+    {
+        $admin = $this->userDirector->createUser('admin');
+        $this->login($admin);
+        $seal = (new SealBuilder)->reset($admin->profile)->fillRequiredProperties()->save()->getInstance();
+        $this->app->config[ProgramSeal::CONFIG_KEY] = $seal->id;
+        $master = $this->userDirector->createUser()->profile;
+        $this->app->disableAccessControl();
+        $master->createSealRelation($seal, true, true);
+        $this->app->enableAccessControl();
+        $outsider = $this->userDirector->createUser()->profile;
+
+        $with = $this->published('Samba de Roda de Santa Bárbara', ['Festas de Santos/Devocional'], '2026-12-03');
+        $without = $this->published('Quadrilha do Arraiá', ['Festas de Santos/Devocional'], '2026-06-20');
+        $this->app->disableAccessControl();
+        foreach ([[$with, $master], [$without, $outsider]] as [$event, $agent]) {
+            $event = $this->app->repo('Event')->find($event->id);
+            $event->{FestivityFields::WITH_MASTERS} = 'Sim';
+            $event->{FestivityFields::MASTERS} = "|{$agent->id}|";
+            $event->save(true);
+        }
+        $this->app->enableAccessControl();
+
+        $this->assertSame([$with->id], $this->find([FestivitySearch::MASTERS_PARAM => '1']));
     }
 
     function testTheHomeCounterCountsThePublishedFestivities()

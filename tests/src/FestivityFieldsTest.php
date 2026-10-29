@@ -81,14 +81,10 @@ class FestivityFieldsTest extends TestCase
 
     function testAVisitorSeesOnlyThePublicFields()
     {
-        $this->festivitySeal();
-        $user = $this->userDirector->createUser();
-        $this->login($user);
-        $event = new Event;
-        $event->name = 'Samba de Roda de Santa Bárbara';
-        $event->owner = $user->profile;
-        $event->{FestivityFields::SIZE} = 'Médio';
-        $event->{FestivityFields::CONSENT} = '2026-10-27 12:00:00';
+        // Festejo publicado, com as 6 etapas.
+        $event = $this->draft();
+        $this->complete($event);
+        $event->status = Event::STATUS_ENABLED;
         $event->save(true);
         $this->logout();
 
@@ -97,5 +93,23 @@ class FestivityFieldsTest extends TestCase
         $this->assertSame('Médio', $found[0][FestivityFields::SIZE] ?? null);
         // A API devolve a chave pedida com null quando o dado é privado.
         $this->assertNull($found[0][FestivityFields::CONSENT] ?? null, 'O aceite não sai para o visitante');
+    }
+
+    // O ano e as edições são conferidos também fora do formulário.
+    function testTheFirstYearAndTheEditionsAreChecked()
+    {
+        $event = $this->draft();
+        $event->{FestivityFields::FIRST_YEAR} = (int) date('Y') + 1000;
+        $event->{FestivityFields::EDITIONS} = 0;
+        $errors = $event->getValidationErrors();
+
+        $this->assertArrayHasKey(FestivityFields::FIRST_YEAR, $errors);
+        $this->assertArrayHasKey(FestivityFields::EDITIONS, $errors);
+
+        $event->{FestivityFields::FIRST_YEAR} = 1960;
+        $event->{FestivityFields::EDITIONS} = 60;
+        $errors = $event->getValidationErrors();
+        $this->assertArrayNotHasKey(FestivityFields::FIRST_YEAR, $errors);
+        $this->assertArrayNotHasKey(FestivityFields::EDITIONS, $errors);
     }
 }

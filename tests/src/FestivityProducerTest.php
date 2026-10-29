@@ -40,6 +40,7 @@ class FestivityProducerTest extends TestCase
     function testAVisitorSeesNoPersonalDataOfTheResponsible()
     {
         $event = $this->draft();
+        $this->complete($event);
         $owner = $event->owner;
         $owner->nomeCompleto = 'Celina Pereira dos Santos';
         $owner->dataDeNascimento = '1950-02-14';
@@ -133,6 +134,24 @@ class FestivityProducerTest extends TestCase
         $this->assertNull($other['data'], 'Sem o nome, o nascimento, o e-mail e o telefone da dona');
     }
 
+    // No festejo novo (`/cadastrar-festejo/` sem id), as etapas 4 e 5 já abrem com a pessoa de quem cadastra.
+    function testANewFestivityBringsThePersonOfWhoRegisters()
+    {
+        $this->festivitySeal();
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+        $user->profile->nomeCompleto = 'Celina Pereira dos Santos';
+        $user->profile->save(true);
+
+        $this->app->reset();
+        $this->app->run($this->requestFactory->GET('mdc', 'festivity'), false);
+        $person = $this->app->view->jsObject['config']['mdcFestivity']['person'] ?? null;
+
+        $this->assertSame($user->profile->id, $person['id'] ?? null);
+        $this->assertTrue($person['canEdit'] && $person['isOwn']);
+        $this->assertSame('Celina Pereira dos Santos', $person['data']['nomeCompleto'] ?? null);
+    }
+
     // Mudar o tipo de realizador apaga o que não vale mais para ele.
     function testChangingWhoRealizesClearsTheInstitution()
     {
@@ -152,5 +171,36 @@ class FestivityProducerTest extends TestCase
         $event->save(true);
         $this->assertEmpty($event->{FestivityFields::INSTITUTION});
         $this->assertEmpty($event->{FestivityFields::INSTITUTION_IS_POINT});
+    }
+
+    // O "Não" apaga o que dependia do "Sim": as mestras, a acessibilidade (com o Libras do core) e os anos de recurso.
+    function testANoClearsWhatDependedOnTheYes()
+    {
+        $event = $this->draft();
+        $funding = array_key_first(FestivityFields::fundingSources());
+        $event->{FestivityFields::WITH_MASTERS} = 'Sim';
+        $event->{FestivityFields::MASTERS} = '|1|';
+        $event->{FestivityFields::HAS_ACCESSIBILITY} = 'Sim';
+        $event->{FestivityFields::ACCESSIBILITY} = ['Intérprete de libras'];
+        $event->{FestivityFields::OTHER_ACCESSIBILITY} = 'Guia-intérprete';
+        $event->$funding = 'Sim';
+        $event->{"{$funding}Anos"} = '2023';
+        $event->save(true);
+        $this->assertSame('Sim', $event->traducaoLibras);
+
+        $event->{FestivityFields::WITH_MASTERS} = 'Não';
+        $event->{FestivityFields::HAS_ACCESSIBILITY} = 'Não';
+        $event->$funding = 'Não';
+        $event->save(true);
+        $this->app->em->refresh($event);
+
+        $this->assertEmpty($event->{FestivityFields::MASTERS});
+        $this->assertEmpty($event->{FestivityFields::ACCESSIBILITY});
+        $this->assertEmpty($event->{FestivityFields::OTHER_ACCESSIBILITY});
+        $this->assertEmpty($event->traducaoLibras, 'Nem o Libras do core');
+        $this->assertEmpty($event->{"{$funding}Anos"});
+
+        $event->{"{$funding}Anos"} = '2019 a 2021';
+        $this->assertArrayNotHasKey("{$funding}Anos", FestivityForm::invalid($event), 'Com a fonte em "Não", os anos não são conferidos');
     }
 }

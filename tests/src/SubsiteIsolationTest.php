@@ -45,12 +45,14 @@ class SubsiteIsolationTest extends TestCase
     function testOccurrencesOfDraftsAndOfOtherSubsitesStayOut()
     {
         $published = $this->draft();
+        $this->complete($published, false);
         $seen = $this->period($published, $this->place($published));
         $published->publish(true);
         $draft = $this->draft();
         $hidden = $this->period($draft, $this->place($draft));
         $owner = $draft->owner->user;
         $elsewhere = $this->draft();
+        $this->complete($elsewhere, false);
         $this->period($elsewhere, $this->place($elsewhere));
         $elsewhere->publish(true);
         $this->putInSubsite('event', $elsewhere->id, $this->other);
@@ -61,6 +63,10 @@ class SubsiteIsolationTest extends TestCase
         $this->login($owner);
         $agenda = (new ApiQuery(EventOccurrence::class, ['@select' => 'id', 'event' => "EQ({$draft->id})"]))->find();
         $this->assertSame([$hidden->id], array_column($agenda, 'id'), 'A agenda do rascunho segue para quem o edita');
+
+        // Outra conta, pelo mesmo filtro, não lê as datas e o local do rascunho alheio.
+        $this->login($this->userDirector->createUser());
+        $this->assertSame([], (new ApiQuery(EventOccurrence::class, ['@select' => 'id', 'event' => "EQ({$draft->id})"]))->find());
     }
 
     function testAnEventOfAnotherSubsiteGoesHome()

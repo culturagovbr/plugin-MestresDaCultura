@@ -106,6 +106,7 @@ class FestivityPlaceTest extends TestCase
         $this->assertSame(Space::STATUS_DRAFT, $status(), 'Nasce em rascunho');
 
         $event = $this->draft($this->app->repo('Space')->find($place->id)->owner->user);
+        $this->complete($event, false);
         $occurrence = $this->period($event, $this->app->repo('Space')->find($place->id));
         $this->assertSame(Space::STATUS_DRAFT, $status(), 'O festejo em rascunho não publica o local');
 
@@ -115,16 +116,20 @@ class FestivityPlaceTest extends TestCase
         $this->app->repo('Event')->find($event->id)->unpublish(true);
         $this->assertSame(Space::STATUS_DRAFT, $status(), 'Volta a rascunho com ele');
 
+        // O único período do festejo publicado não sai.
         $this->app->repo('Event')->find($event->id)->publish(true);
-        $this->app->repo('EventOccurrence')->find($occurrence->id)->delete(true);
-        $this->assertSame(Space::STATUS_DRAFT, $status(), 'Sem período nele, volta a rascunho');
+        $this->assertSame(Space::STATUS_ENABLED, $status(), 'Publicado de novo');
+        try {
+            $this->app->repo('EventOccurrence')->find($occurrence->id)->delete(true);
+            $this->fail('O último período do festejo publicado não sai');
+        } catch (\MapasCulturais\Exceptions\PermissionDenied) {
+        }
         // O festejo publicado na lixeira ou apagado de vez devolve o local a rascunho.
-        $this->period($this->app->repo('Event')->find($event->id), $this->app->repo('Space')->find($place->id));
-        $this->assertSame(Space::STATUS_ENABLED, $status(), 'Com período de novo, publicado');
         $this->app->repo('Event')->find($event->id)->delete(true);
         $this->assertSame(Space::STATUS_DRAFT, $status(), 'O festejo na lixeira devolve o local a rascunho');
 
         $other = $this->draft($this->app->repo('Space')->find($place->id)->owner->user);
+        $this->complete($other, false);
         $this->period($other, $this->app->repo('Space')->find($place->id));
         $this->app->repo('Event')->find($other->id)->publish(true);
         $this->assertSame(Space::STATUS_ENABLED, $status());

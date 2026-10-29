@@ -95,6 +95,10 @@ class FestivityLinkTest extends TestCase
         $this->assertTrue(FestivityField::isValid((string) $published->id));
         $this->assertFalse(FestivityField::isValid((string) $draft->id), 'O rascunho não');
         $this->assertTrue(FestivityField::isValid('samba de roda de santa barbara'), 'A resposta em texto, de antes da busca, segue');
+
+        // A ficha e a planilha só mostram o nome de festejo do Calendário.
+        $this->assertSame('Samba de Roda de Santa Bárbara', FestivityField::toText((string) $published->id));
+        $this->assertStringNotContainsString((string) $draft->name, FestivityField::toText((string) $draft->id));
     }
 
     function testTheMastersQuestionBecomesTheFestivityField()
@@ -114,11 +118,13 @@ class FestivityLinkTest extends TestCase
         $chosen = $this->published('Samba de Roda de Santa Bárbara');
         $master = $this->master((string) $chosen->id);
         $marking = $this->published('Roda de Coco de São João');
+        $marking->{FestivityFields::WITH_MASTERS} = 'Sim';
         $marking->{FestivityFields::MASTERS} = "|{$master->id}|";
         $marking->save(true);
 
         // Publicado sem o selo, não é festejo do Calendário.
         $unsealed = $this->draft();
+        $unsealed->{FestivityFields::WITH_MASTERS} = 'Sim';
         $unsealed->{FestivityFields::MASTERS} = "|{$master->id}|";
         $unsealed->save(true);
         $unsealed->publish(true);

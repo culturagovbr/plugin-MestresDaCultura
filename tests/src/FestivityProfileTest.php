@@ -93,6 +93,7 @@ class FestivityProfileTest extends TestCase
         $former = $this->master('Quem perdeu o selo', false);
         $event = $this->draft();
         // Grava direto uma mestra da Rede e uma que perdeu o selo.
+        $event->{FestivityFields::WITH_MASTERS} = 'Sim';
         $event->{FestivityFields::MASTERS} = "|{$master->id}|{$former->id}|";
         $event->save(true);
 
