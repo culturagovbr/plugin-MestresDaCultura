@@ -121,8 +121,7 @@ class FixedOpportunityStructureTest extends TestCase
 
         $this->assertFalse($this->phase()->canUser('remove', $this->manager), 'Nem exclui fase');
 
-        // Sem o tema dos Mestres, a recusa geral de criar oportunidade (blockOpportunityBrowsing) não vale: quem
-        // recusa a fase é a trava do programa.
+        // Fora do subsite dos Mestres, a trava do programa recusa a fase.
         $theme = $this->app->view;
         $this->app->view = (new \ReflectionClass(\MapasCulturais\Themes\BaseV2\Theme::class))->newInstanceWithoutConstructor();
         try {

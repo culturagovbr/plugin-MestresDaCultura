@@ -28,9 +28,6 @@ class Plugin extends \MapasCulturais\Plugin
     /** Telas do v1 que só exibem a inscrição; as que salvam não entram aqui. */
     private const V1_READING_ACTIONS = ['registrationview', 'registrationevaluationtionformview'];
 
-    /** Chave que marca, no arquivo exportado, a oportunidade do programa (ver completeOpportunityImport). */
-    private const IMPORT_MARK = 'mdcOpportunity';
-
     private ?Services\FixedOpportunity $fixedOpportunity = null;
 
     private ?Services\ProgramSeal $programSeal = null;
@@ -141,9 +138,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->addManagementShortcuts();
         $this->addModerationShortcut();
         $this->blockDisabledEntities();
-        $this->blockOpportunityBrowsing();
-        $this->protectFixedOpportunity();
-        $this->lockFixedOpportunityStructure();
+        Hooks\FixedOpportunityLock::register($this);
         $this->scopeRegistrationsToFixedOpportunity();
         $this->sendForeignRegistrationsHome();
         $this->keepTheProgramOnItsSite();
@@ -152,7 +147,6 @@ class Plugin extends \MapasCulturais\Plugin
         $this->leaveOutOtherProgramsNotifications();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
-        $this->completeOpportunityImport();
         $this->sendEachEvaluationOnce();
         $this->passOnTheDisabledModeratorsWork();
         $this->showRoleBlocksInThePanel();
@@ -1192,61 +1186,6 @@ class Plugin extends \MapasCulturais\Plugin
         ];
     }
 
-    // A oportunidade do programa sobe por importação, já configurada e com o resultado publicado. O importador do
-    // core descarta parte do que o exportador grava (a autoaplicação de resultados e os campos que o avaliador vê)
-    // e o exportador não leva o fluxo contínuo. Só a exportação da oportunidade fixa leva a marca, e só o arquivo
-    // com ela é completado: as outras importações seguem como no core. A comissão fica de fora: são pessoas de
-    // cada ambiente, e o gestor a monta depois de importar.
-    private function completeOpportunityImport(): void
-    {
-        $app = App::i();
-        $plugin = $this;
-
-        // A marca vai na fase de avaliação, a única parte do arquivo que os hooks do exportador alcançam.
-        $app->hook('evaluationMethod(<<*>>).export:after', function (&$result) use ($plugin) {
-            /** @var \MapasCulturais\Entities\EvaluationMethodConfiguration $this */
-            if ($plugin->fixedOpportunity()->matches($this->opportunity)) {
-                $result[self::IMPORT_MARK] = [
-                    'isContinuousFlow' => (bool) $this->opportunity->firstPhase->isContinuousFlow,
-                    'hasEndDate' => (bool) $this->opportunity->firstPhase->hasEndDate,
-                ];
-            }
-        });
-
-        // Chega com os campos já trocados pelos da oportunidade nova; o importador salva a fase em seguida.
-        $app->hook('evaluationMethod(<<*>>).import:after', function (&$data) {
-            /** @var \MapasCulturais\Entities\EvaluationMethodConfiguration $this */
-            $mark = $data[self::IMPORT_MARK] ?? null;
-
-            if (!$mark) {
-                return;
-            }
-
-            foreach (['autoApplicationAllowed', 'publishEvaluationDetails', 'publishValuerNames', 'infos'] as $prop) {
-                if (array_key_exists($prop, $data)) {
-                    $this->$prop = $data[$prop];
-                }
-            }
-
-            $opportunity = $this->opportunity;
-            $opportunity->avaliableEvaluationFields = $data['avaliableEvaluationFields'] ?? [];
-            $opportunity->save(true);
-
-            // A fase final já existe a esta altura; o core só copia o fluxo contínuo para fases criadas depois.
-            foreach ($opportunity->allPhases as $phase) {
-                $phase->isContinuousFlow = $mark['isContinuousFlow'];
-                $phase->hasEndDate = $mark['hasEndDate'];
-                $phase->save(true);
-            }
-
-            // O core só mostra o resultado ao inscrito depois da publicação, pensada para sair de uma vez no fim de
-            // um edital. No cadastro cada mestre é avaliado num momento: publicada desde o início, a oportunidade
-            // mostra cada resultado assim que é aplicado, como no Cultura Viva. Nasce sem inscrições, então
-            // publicar não aplica selo nem avisa ninguém.
-            $opportunity->publishRegistrations();
-        });
-    }
-
     // O `entity-field` não desenha tipos que não conhece; o componente devolve o valor como evento de input
     // para o salvamento automático do core seguir valendo. Vai em toda página com `entity-field`: o Vue
     // resolve o nome do componente mesmo dentro de `v-if` falso. O rótulo do core chega pelo id (o `<label for>` do
@@ -1528,192 +1467,6 @@ class Plugin extends \MapasCulturais\Plugin
     function festivitySeal(): Services\FestivitySeal
     {
         return $this->festivitySeal ??= new Services\FestivitySeal();
-    }
-
-    private function blockOpportunityBrowsing(): void
-    {
-        $app = \MapasCulturais\App::i();
-        $fixedOpportunity = $this->fixedOpportunity();
-
-        // O plugin roda na instalação inteira; a oportunidade do programa nasce em outro subsite. Só a oportunidade
-        // nova: o metadado novo pede "create" à oportunidade já gravada.
-        $app->hook('entity(Opportunity).canUser(create)', function ($user, &$result) {
-            /** @var Opportunity $this */
-            if (!$this->id && Plugin::isTheme() && !$user->is('saasSuperAdmin')) {
-                $result = false;
-            }
-        });
-
-        // O tema roda sobre uma oportunidade fixa: não há o que listar. Só o saasSuperAdmin, que configura a do programa,
-        // lista; o gestor do subsite chega a ela pela Gestão do cadastro (ver addManagementShortcuts).
-        $app->hook('GET(<<search|panel>>.opportunities):before', function () use ($app) {
-            if (Plugin::isTheme() && !$app->user->is('saasSuperAdmin')) {
-                $app->pass();
-            }
-        });
-
-        // Esconder o link não fecha a porta: sem isto, qualquer oportunidade da instalação
-        // abre por URL direta. Alcança toda ação do controlador, e não só a página. Vale também para o gestor do
-        // subsite; o saasSuperAdmin, que configura o programa, abre as oportunidades do subsite dos Mestres.
-        $app->hook('ALL(opportunity.<<*>>):before', function () use ($app, $fixedOpportunity) {
-            if (!Plugin::isTheme()) {
-                return;
-            }
-
-            $requested = $this->urlData['id'] ?? null;
-
-            if (!$requested) {
-                return;
-            }
-
-            $opportunity = $app->repo('Opportunity')->find((int) $requested);
-
-            if ($app->user->is('saasSuperAdmin')) {
-                if ($opportunity && $opportunity->subsite?->id !== $fixedOpportunity->subsiteId()) {
-                    $app->pass();
-                }
-
-                return;
-            }
-
-            // As fases são filhas da raiz e precisam passar junto: é delas que sai o resultado. A regra "é do programa"
-            // é a do FixedOpportunity, que sobe toda a cadeia de fases, e não só o pai.
-            if (!$fixedOpportunity->matches($opportunity)) {
-                $app->pass();
-            }
-        });
-    }
-
-    // A estrutura da oportunidade do programa só muda pelo saasSuperAdmin (ver Services\FixedOpportunityGuard).
-    private function protectFixedOpportunity(): void
-    {
-        $app = App::i();
-        $fixedOpportunity = $this->fixedOpportunity();
-        $guard = new Services\FixedOpportunityGuard($fixedOpportunity);
-
-        $app->hook('entity(Opportunity).canUser(<<archive|remove|destroy|unpublish>>)', function ($user, &$result) use ($guard) {
-            /** @var Opportunity $this */
-            if ($guard->locks($this, $user)) {
-                $result = false;
-            }
-        });
-
-        // A fase de moderação fica na raiz; excluí-la é remover a configuração de avaliação.
-        $app->hook('entity(EvaluationMethodConfiguration).canUser(<<remove|destroy>>)', function ($user, &$result) use ($guard) {
-            if ($guard->locks($this->opportunity, $user)) {
-                $result = false;
-            }
-        });
-
-        // Rascunho e desativada não pedem permissão no core e tiram a oportunidade do ar como arquivar. Só a raiz:
-        // as fases nascem fora do ar.
-        $app->hook('entity(Opportunity).setStatus(<<*>>)', function ($status) use ($app, $guard, $fixedOpportunity) {
-            /** @var Opportunity $this */
-            $isRoot = $this->id && $this->id === $fixedOpportunity->get()?->id;
-
-            if ($status <= 0 && $this->status > 0 && $isRoot && $app->isAccessControlEnabled() && $guard->locks($this, $app->user)) {
-                throw new PermissionDenied($app->user, $this, 'unpublish');
-            }
-        });
-
-        // Clonar a oportunidade só pede "modify" ou "@control" no core, e o gerar modelo do gestor quebrava no meio.
-        // Tornar modelo público abriria o clone a qualquer usuário. Sem login, segue para o core, que pede para entrar.
-        $app->hook('ALL(opportunity.<<duplicate|generatemodel|generateopportunity|modelpublic>>):before', function () use ($app, $guard) {
-            if (!$app->user->is('guest') && $guard->locks($this->requestedEntity, $app->user)) {
-                throw new PermissionDenied($app->user, $this->requestedEntity, $this->action);
-            }
-        });
-
-        // Os dois botões também só pedem "modify": a classe deixa o tema escondê-los (_entity-actions.scss), e também
-        // o que lockFixedOpportunityStructure recusa na configuração de fases e do formulário.
-        $app->hook('GET(opportunity.<<edit|single|formbuilder>>):before', function () use ($app, $guard) {
-            if ($guard->locks($this->requestedEntity, $app->user)) {
-                $app->view->bodyClasses[] = 'mdc-structure-locked';
-            }
-        });
-    }
-
-    // Fases, datas e formulário da oportunidade do programa vêm da importação e só o saasSuperAdmin os altera. Na
-    // comissão, o gestor inclui e desabilita moderadores; excluir apaga as avaliações do moderador e reabrir as
-    // devolve a ele. Importação e jobs gravam com o controle de acesso desligado e não passam por aqui.
-    private function lockFixedOpportunityStructure(): void
-    {
-        $app = App::i();
-        $guard = new Services\FixedOpportunityGuard($this->fixedOpportunity());
-
-        // Fase nova é oportunidade com o programa de pai, ou configuração de avaliação; excluir já é recusado em
-        // protectFixedOpportunity. Só a entidade nova: o metadado novo pede "create" à dona, já gravada, e o gestor
-        // segue gravando os dele (como a distribuição da comissão).
-        $app->hook('entity(<<Opportunity|EvaluationMethodConfiguration>>).canUser(create)', function ($user, &$result) use ($guard) {
-            $opportunity = $this instanceof Opportunity ? $this : $this->opportunity;
-
-            if (!$this->id && $guard->locks($opportunity, $user)) {
-                $result = false;
-            }
-        });
-
-        // Campos e anexos pedem "modifyRegistrationFields" à fase dona.
-        $app->hook('entity(Opportunity).canUser(modifyRegistrationFields)', function ($user, &$result) use ($guard) {
-            /** @var Opportunity $this */
-            if ($guard->locks($this, $user)) {
-                $result = false;
-            }
-        });
-
-        $app->hook('entity(RegistrationStep).canUser(<<create|modify|remove|destroy>>)', function ($user, &$result) use ($guard) {
-            if ($guard->locks($this->opportunity, $user)) {
-                $result = false;
-            }
-        });
-
-        $app->hook('entity(EvaluationMethodConfigurationAgentRelation).canUser(<<remove|destroy>>)', function ($user, &$result) use ($guard) {
-            if ($guard->locks($this->owner->opportunity, $user)) {
-                $result = false;
-            }
-        });
-
-        $app->hook('entity(EvaluationMethodConfigurationAgentRelation).reopen:before', function () use ($app, $guard) {
-            if ($app->isAccessControlEnabled() && $guard->locks($this->owner->opportunity, $app->user)) {
-                throw new PermissionDenied($app->user, $this, 'reopen');
-            }
-        });
-
-        // Reabrir pela oportunidade e importar campos não passam por uma permissão que dê para recusar. Cada uma lê o
-        // id de um lugar, como o core.
-        $app->hook('POST(opportunity.<<importfields|reopenevaluations>>):before', function () use ($app, $guard) {
-            $id = strtolower($this->action) === 'importfields' ? ($this->urlData['id'] ?? 0) : ($this->data['opportunityId'] ?? 0);
-            $opportunity = $app->repo('Opportunity')->find((int) $id);
-
-            if ($guard->locks($opportunity, $app->user)) {
-                throw new PermissionDenied($app->user, $opportunity, $this->action);
-            }
-        });
-
-        // A tela salva a fase inteira: a recusa é por data, comparada com o que está gravado. O erro de validação dá a
-        // mensagem na tela; a recusa ao salvar vale para o Force-Save, que grava mesmo com erro.
-        $lockedDates = function (Opportunity|EvaluationMethodConfiguration $entity) use ($app, $guard): array {
-            $opportunity = $entity instanceof Opportunity ? $entity : $entity->opportunity;
-
-            if (!$app->isAccessControlEnabled() || !$guard->locks($opportunity, $app->user)) {
-                return [];
-            }
-
-            return $guard->changedDates($entity);
-        };
-
-        $message = i::__('Só a administração da plataforma altera as datas do programa.');
-
-        $app->hook('entity(<<Opportunity|EvaluationMethodConfiguration>>).validationErrors', function (&$errors) use ($lockedDates, $message) {
-            foreach ($lockedDates($this) as $property) {
-                $errors[$property][] = $message;
-            }
-        });
-
-        $app->hook('entity(<<Opportunity|EvaluationMethodConfiguration>>).save:before', function () use ($app, $lockedDates, $message) {
-            if ($lockedDates($this)) {
-                throw new PermissionDenied($app->user, $this, 'modify', $message);
-            }
-        });
     }
 
     // Ver Services\RegistrationScope. Para todos no subsite dos Mestres, inclusive o gestor e o saasSuperAdmin: o core
