@@ -1705,6 +1705,7 @@ class Plugin extends \MapasCulturais\Plugin
     private function blockOpportunityBrowsing(): void
     {
         $app = \MapasCulturais\App::i();
+        $fixedOpportunity = $this->fixedOpportunity();
 
         // O plugin roda na instalação inteira; a oportunidade do programa nasce em outro subsite. Só a oportunidade
         // nova: o metadado novo pede "create" à oportunidade já gravada.
@@ -1726,7 +1727,7 @@ class Plugin extends \MapasCulturais\Plugin
         // Esconder o link não fecha a porta: sem isto, qualquer oportunidade da instalação
         // abre por URL direta. Alcança toda ação do controlador, e não só a página. Vale também para o gestor do
         // subsite; o saasSuperAdmin, que configura o programa, abre as oportunidades do subsite dos Mestres.
-        $app->hook('ALL(opportunity.<<*>>):before', function () use ($app) {
+        $app->hook('ALL(opportunity.<<*>>):before', function () use ($app, $fixedOpportunity) {
             if (!Plugin::isTheme()) {
                 return;
             }
@@ -1740,19 +1741,16 @@ class Plugin extends \MapasCulturais\Plugin
             $opportunity = $app->repo('Opportunity')->find((int) $requested);
 
             if ($app->user->is('saasSuperAdmin')) {
-                if ($opportunity && $opportunity->subsite?->id !== (new Services\FixedOpportunity)->subsiteId()) {
+                if ($opportunity && $opportunity->subsite?->id !== $fixedOpportunity->subsiteId()) {
                     $app->pass();
                 }
 
                 return;
             }
 
-            $fixed = (new Services\FixedOpportunity)->get();
-
-            // A fase é filha da raiz e precisa passar junto: é ela que publica o resultado.
-            $root = $opportunity?->parent ?: $opportunity;
-
-            if (!$fixed || !$root || $root->id !== $fixed->id) {
+            // As fases são filhas da raiz e precisam passar junto: é delas que sai o resultado. A regra "é do programa"
+            // é a do FixedOpportunity, que sobe toda a cadeia de fases, e não só o pai.
+            if (!$fixedOpportunity->matches($opportunity)) {
                 $app->pass();
             }
         });
