@@ -9,14 +9,14 @@ use MapasCulturais\i;
 use MDC\Entities\Node;
 
 /**
- * Quem faz a curadoria da Árvore de Atuação: hoje, o administrador do subsite. A página, as rotas, a
- * entidade e os serviços perguntam aqui, para um papel próprio de curador mudar num lugar só.
+ * Quem faz a curadoria da Árvore de Atuação: o administrador do subsite dos Mestres.
  */
 class Curators
 {
+    // Admin do subsite do programa, em qualquer domínio; o saasSuperAdmin também passa.
     static function includes(?User $user = null): bool
     {
-        return ($user ?? App::i()->user)->is('admin');
+        return ($user ?? App::i()->user)->is('admin', (new FixedOpportunity)->subsiteId());
     }
 
     // Exige a permissão de curador nas tabelas da curadoria que não são entidade.

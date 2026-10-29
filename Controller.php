@@ -342,9 +342,13 @@ class Controller extends \MapasCulturais\Controller
         $this->json(is_int($result) ? ['id' => $result] : true);
     }
 
-    // Curadoria é só para quem Curators inclui; visitante vai para a autenticação.
+    // Libera a curadoria só no subsite dos Mestres e a quem Curators inclui; visitante vai para a autenticação.
     private function requireCurator(): void
     {
+        if (!Plugin::isTheme()) {
+            App::i()->pass();
+        }
+
         $this->requireAuthentication();
 
         if (!Curators::includes()) {
