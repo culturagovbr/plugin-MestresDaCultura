@@ -2,11 +2,15 @@
 
 namespace Tests\MDC;
 
+use MapasCulturais\Entities\Subsite;
 use MDC\Entities\Node;
+use MDC\Services\FixedOpportunity;
 use MDC\Services\TreeCuration;
 use MDC\Services\TreeExport;
 use Psr\Http\Message\ServerRequestInterface;
 use Tests\Abstract\TestCase;
+use Tests\Builders\PhasePeriods\Open;
+use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
@@ -15,6 +19,7 @@ use Tests\Traits\UserDirector;
  */
 class CurationRoutesTest extends TestCase
 {
+    use OpportunityBuilder;
     use RequestFactory;
     use UserDirector;
 
@@ -113,6 +118,69 @@ class CurationRoutesTest extends TestCase
             'Nada foi gravado'
         );
         $this->assertSame(0, (int) $this->app->em->getConnection()->fetchOne('SELECT count(*) FROM mdc_tree_legit_repeat'));
+    }
+
+    // Vale o admin do subsite do programa, não o do subsite da requisição.
+    function testOnlyAdministratorsOfTheMestresSubsiteReachTheCuration()
+    {
+        $this->asAdmin();
+        [, $afoxe] = $this->tree();
+        $mestres = $this->programInItsOwnSubsite();
+
+        $this->asAdmin();
+        $routes = [
+            'GET curationTree' => $this->get('curationTree'),
+            'GET curationOthers' => $this->get('curationOthers'),
+            'GET curationExport' => $this->get('curationExport'),
+            'GET curationHistory' => $this->get('curationHistory', ['id' => $afoxe->id]),
+            'POST curationRename' => $this->post('curationRename', ['id' => $afoxe->id, 'name' => 'Afoxés']),
+            'POST curationDisable' => $this->post('curationDisable', ['id' => $afoxe->id]),
+        ];
+
+        foreach ($routes as $route => [$status]) {
+            $this->assertSame(403, $status, "{$route}: o admin do subsite da requisição não é o do programa");
+        }
+
+        $this->assertSame('Afoxé', $this->app->em->getConnection()->fetchOne('SELECT name FROM mdc_tree_node WHERE id = ?', [$afoxe->id]), 'Nada foi gravado');
+
+        $admin = $this->userDirector->createUser();
+        $this->app->disableAccessControl();
+        $admin->addRole('admin', $mestres->id);
+        $this->app->enableAccessControl();
+        $this->login($admin);
+        $this->assertSame(200, $this->get('curationTree')[0], 'O admin do subsite dos Mestres faz a curadoria de qualquer domínio');
+
+        $this->login($this->userDirector->createUser('saasSuperAdmin'));
+        $this->assertSame([200, true], $this->post('curationRename', ['id' => $afoxe->id, 'name' => 'Afoxés']), 'O saasSuperAdmin também');
+    }
+
+    /** A oportunidade do programa num subsite próprio, diferente do da requisição (o principal, nos testes). */
+    private function programInItsOwnSubsite(): Subsite
+    {
+        $manager = $this->userDirector->createUser('saasSuperAdmin');
+        $this->login($manager);
+        $opportunity = $this->opportunityBuilder
+            ->reset(owner: $manager->profile, owner_entity: $manager->profile)
+            ->fillRequiredProperties()
+            ->firstPhase()
+                ->setRegistrationPeriod(new Open)
+                ->done()
+            ->save()
+            ->getInstance();
+
+        $this->app->disableAccessControl();
+        $subsite = new Subsite;
+        $subsite->name = 'Mestres';
+        $subsite->url = 'mestres.localhost';
+        $subsite->namespace = 'MestresDaCultura';
+        $subsite->owner = $manager->profile;
+        $subsite->save(true);
+        $this->app->conn->executeStatement('UPDATE opportunity SET subsite_id = :subsite WHERE id = :id', ['subsite' => $subsite->id, 'id' => $opportunity->id]);
+        $this->app->enableAccessControl();
+
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $opportunity->id;
+
+        return $subsite;
     }
 
     function testChangesTheTreeThroughTheRoutesAndReadsItBack()
