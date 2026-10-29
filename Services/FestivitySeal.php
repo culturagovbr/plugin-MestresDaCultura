@@ -92,12 +92,6 @@ class FestivitySeal
         );
     }
 
-    // Só a chave: get() avisa no log quando falta, e há quem pergunte a cada consulta.
-    function configuredId(): ?int
-    {
-        return ((int) (App::i()->config[self::CONFIG_KEY] ?? 0)) ?: null;
-    }
-
     function isTheFestivitySeal(Seal $seal): bool
     {
         return $this->configuredId() === $seal->id;

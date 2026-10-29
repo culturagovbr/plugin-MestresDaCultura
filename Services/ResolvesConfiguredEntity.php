@@ -14,6 +14,12 @@ trait ResolvesConfiguredEntity
 
     private ?object $configured = null;
 
+    // O id da CONFIG_KEY de quem usa o trait, sem buscar a entidade nem registrar no log.
+    function configuredId(): ?int
+    {
+        return ((int) (App::i()->config[self::CONFIG_KEY] ?? 0)) ?: null;
+    }
+
     /**
      * @param string $missing o aviso no log quando não há id configurado
      * @param string $notFound o aviso quando o id não existe, com `%d` no lugar do id
