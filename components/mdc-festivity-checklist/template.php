@@ -32,13 +32,14 @@ $this->import('
     </div>
 
     <template v-for="(group, index) in groups" :key="group.label || index">
-        <!-- O grupo com nome é um acordeão numerado, como os segmentos da Atuação, aberto se já tem item marcado. -->
-        <mc-accordion v-if="group.label" :open="countIn(group) > 0" class="mdc-festivity-choices__segment">
+        <!-- O grupo com nome é um acordeão numerado, aberto se já tem item marcado; o título é um botão que abre o
+             grupo. -->
+        <mc-accordion v-if="group.label" :open="countIn(group) > 0" class="mdc-festivity-choices__segment" @open="opened.add(group.label)" @close="opened.delete(group.label)">
             <template #title>
-                <span class="mdc-festivity-choices__segment-title">
+                <button type="button" class="mdc-festivity-choices__segment-title" :aria-expanded="String(opened.has(group.label))">
                     {{index + 1}}. {{group.label}}
                     <span v-if="countIn(group)" class="mdc-festivity-choices__count">{{countIn(group)}}</span>
-                </span>
+                </button>
             </template>
             <template #content>
                 <div class="mdc-festivity-choices__list">

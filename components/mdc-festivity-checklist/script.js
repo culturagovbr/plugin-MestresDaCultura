@@ -39,6 +39,14 @@ app.component('mdc-festivity-checklist', {
         return { text };
     },
 
+    data() {
+        // Os grupos abertos, para o aria-expanded do título: nascem abertos os que já têm item marcado.
+        const checked = this.entity[this.prop] || [];
+        return {
+            opened: new Set(this.groups.filter((group) => group.label && group.items.some((item) => checked.includes(item.value))).map((group) => group.label)),
+        };
+    },
+
     computed: {
         checked() {
             return this.entity[this.prop] || [];
