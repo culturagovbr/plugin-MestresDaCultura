@@ -105,7 +105,7 @@ final class Masters
                     // Os festejos publicados entram nos contadores da Rede.
                     'counts' => $showcase->counts() + ['festivities' => (new Services\FestivitySeal)->countPublished()],
                     'states' => (object) $showcase->byState(),
-                    'map' => json_decode((string) file_get_contents(__DIR__ . '/data/br-uf.json'), true),
+                    'map' => json_decode((string) file_get_contents(dirname(__DIR__) . '/data/br-uf.json'), true),
                     'searchUrl' => App::i()->createUrl('mdc', 'masters'),
                 ];
             }
