@@ -123,5 +123,9 @@ class FestivityFormTest extends TestCase
         $this->assertSame(200, $code, 'O POST na entidade grava');
         $this->assertSame(Event::STATUS_DRAFT, $status(), 'Nem POST na entidade publica');
         $this->assertSame('Samba de Roda no POST', $this->app->conn->fetchOne('SELECT name FROM event WHERE id = ?', [$event->id]));
+
+        // A chave da situação em qualquer caixa de letra.
+        $this->call($this->requestFactory->PATCH_entity($event, ['Status' => Event::STATUS_ENABLED]));
+        $this->assertSame(Event::STATUS_DRAFT, $status(), 'Nem com a chave em outra caixa');
     }
 }

@@ -279,6 +279,9 @@ class FestivityPlaceTest extends TestCase
 
         $this->call($this->requestFactory->PATCH_entity($place, ['status' => Space::STATUS_ENABLED])->withMethod('PUT'));
         $this->assertSame(Space::STATUS_DRAFT, $status(), 'Nem pelo PUT');
+
+        $this->call($this->requestFactory->PATCH_entity($place, ['STATUS' => Space::STATUS_ENABLED]));
+        $this->assertSame(Space::STATUS_DRAFT, $status(), 'Nem com a chave em outra caixa');
         $this->assertSame('Praça nova', $this->app->conn->fetchOne('SELECT name FROM space WHERE id = ?', [$place->id]), 'O resto da edição segue');
     }
 }
