@@ -56,6 +56,18 @@ class FestivityStepsTest extends TestCase
         $place->save(true);
         $this->app->em->refresh($event);
         $this->assertSame('Ananindeua', $event->{FestivityFields::CITY}, 'Mudar o endereço do local muda o festejo');
+
+        // Só a UF e a cidade do local regravam o festejo; o nome não.
+        $saves = 0;
+        $this->app->hook('entity(Event).save:before', function () use (&$saves) {
+            $saves++;
+        });
+        // Recarrega o local como numa requisição nova.
+        $this->app->em->clear();
+        $place = $this->app->repo('Space')->find($place->id);
+        $place->name = 'Praça renomeada';
+        $place->save(true);
+        $this->assertSame(0, $saves, 'Renomear o local não regrava o festejo');
     }
 
     function testAPlaceWithoutStateOrCityAndALawWithoutFileAreMissing()
