@@ -40,8 +40,7 @@ final class FixedOpportunityLock
             }
         });
 
-        // O tema roda sobre uma oportunidade fixa: não há o que listar. Só o saasSuperAdmin, que configura a do programa,
-        // lista; o gestor do subsite chega a ela pela Gestão do cadastro (ver addManagementShortcuts).
+        // No subsite, só o saasSuperAdmin lista oportunidades.
         $app->hook('GET(<<search|panel>>.opportunities):before', function () use ($app) {
             if (Plugin::isTheme() && !$app->user->is('saasSuperAdmin')) {
                 $app->pass();

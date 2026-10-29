@@ -135,17 +135,13 @@ class Plugin extends \MapasCulturais\Plugin
         $this->renderPhotoViewer();
         $this->showActingFieldAsTextInPdf();
         Hooks\Management::register($this);
-        $this->addManagementShortcuts();
-        $this->addModerationShortcut();
+        Hooks\PanelMenu::register($this);
         Hooks\SubsiteIsolation::register($this);
         Hooks\FixedOpportunityLock::register($this);
-        $this->closeOtherPanelScreens();
         $this->limitToOneRegistrationPerUser();
         $this->addTraditionalCommunities();
         $this->sendEachEvaluationOnce();
         $this->passOnTheDisabledModeratorsWork();
-        $this->showRoleBlocksInThePanel();
-        $this->sendTheMasterToThePanel();
         $this->fixTheProgramBreadcrumbs();
         $this->nameTheOwnProfile();
         $this->feedTheHomeShowcase();
@@ -641,47 +637,6 @@ class Plugin extends \MapasCulturais\Plugin
             if ($isOwnProfile($this)) {
                 $texts['title agent-1'] = i::__('Edição do perfil');
             }
-        });
-    }
-
-    // A página da oportunidade do programa é do edital, e não da mestra: o core manda para ela quem sai do formulário
-    // ("Sair", "Salvar e sair"). Quem não controla o programa vai para o painel, "Meus cadastros"; o gestor e o
-    // saasSuperAdmin seguem vendo a página. Como o RCV leva as páginas do programa para o subsite dele.
-    private function sendTheMasterToThePanel(): void
-    {
-        $app = App::i();
-        $fixedOpportunity = $this->fixedOpportunity();
-
-        $app->hook('GET(opportunity.single):before', function () use ($app, $fixedOpportunity) {
-            $opportunity = $this->requestedEntity;
-
-            // Aberta em outro subsite, o redirecionamento para o subsite dos Mestres vem antes (ver Services\SubsiteRedirect).
-            // A oportunidade desta requisição, e não a guardada no serviço: é ela que diz o subsite e a permissão de agora.
-            if (Plugin::isTheme() && $fixedOpportunity->isConfigured() && $fixedOpportunity->matches($opportunity)
-                && Services\SubsiteRedirect::isCurrent($opportunity->subsite) && !$opportunity->canUser('@control')) {
-                $app->redirect($app->createUrl('panel', 'index'));
-            }
-        });
-    }
-
-    // Ver Services\PanelSummary. No ponto de gancho da view do painel do tema, antes de "Meus cadastros", como o aviso
-    // da moderação entra no acompanhamento do cadastro.
-    private function showRoleBlocksInThePanel(): void
-    {
-        $app = App::i();
-        $plugin = $this;
-
-        $app->hook('template(panel.index.mdc-role-blocks):before', function () use ($app, $plugin) {
-            $summary = (new Services\PanelSummary($plugin->fixedOpportunity()))->for($app->user);
-
-            if (!$summary['moderation'] && !$summary['management']) {
-                return;
-            }
-
-            $this->import('mdc-panel-summary');
-            $json = htmlspecialchars(json_encode($summary), ENT_QUOTES);
-
-            echo "<mdc-panel-summary :summary=\"{$json}\"></mdc-panel-summary>";
         });
     }
 
@@ -1269,63 +1224,6 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // Quem controla a oportunidade do programa (o gestor do subsite ou quem ela tem como administrador) ganha no menu
-    // do painel atalhos para os cadastros, as avaliações e a comissão. Depois do menu do tema (prioridade 1000).
-    private function addManagementShortcuts(): void
-    {
-        $app = App::i();
-        $fixedOpportunity = $this->fixedOpportunity();
-        $controls = fn (): bool => $fixedOpportunity->isConfigured() && (bool) $fixedOpportunity->get()?->canUser('@control');
-
-        $app->hook('panel.nav', function (&$nav) use ($controls, $fixedOpportunity) {
-            if (!Plugin::isTheme() || !$controls()) {
-                return;
-            }
-
-            $group = ['mdc-gestao' => ['label' => i::__('Gestão do cadastro'), 'column' => 'left', 'items' => Services\PanelSummary::shortcuts($fixedOpportunity->get())]];
-            // Depois dos festejos, o último grupo do programa no menu do tema.
-            $position = array_search('mdc-festejos', array_keys($nav), true);
-            $nav = $position === false ? $group + $nav : array_slice($nav, 0, $position + 1, true) + $group + $nav;
-        }, 1001);
-
-        // O menu do core não passa âncora ao link: a comissão fica na aba de fases da edição.
-        $app->hook('GET(panel.mdc-committee)', function () use ($app, $controls, $fixedOpportunity) {
-            /** @var \MapasCulturais\Controllers\Panel $this */
-            $this->requireAuthentication();
-
-            if (!Plugin::isTheme() || !$controls()) {
-                $app->pass();
-            }
-
-            $app->redirect($app->createUrl('opportunity', 'edit', [$fixedOpportunity->get()->id]) . '#config');
-        });
-    }
-
-    // "Minhas avaliações" do core lista as avaliações da instalação inteira. No subsite dos Mestres, o moderador ativo
-    // vai direto à lista da moderação e quem não é não vê o item; o saasSuperAdmin mantém o menu do core.
-    private function addModerationShortcut(): void
-    {
-        $app = App::i();
-        $fixedOpportunity = $this->fixedOpportunity();
-
-        $app->hook('panel.nav', function (&$nav) use ($app, $fixedOpportunity) {
-            if (!Plugin::isTheme() || $app->user->is('saasSuperAdmin')) {
-                return;
-            }
-
-            $phase = $fixedOpportunity->isConfigured() ? $fixedOpportunity->moderatedBy($app->user) : null;
-            $moderation = $phase ? ['route' => 'opportunity/userEvaluations', 'params' => [$phase->id], 'icon' => 'opportunity', 'label' => i::__('Moderação de cadastros')] : null;
-
-            foreach ($nav as &$group) {
-                if (isset($group['items'])) {
-                    $items = array_map(fn ($item) => ($item['route'] ?? '') === 'panel/evaluations' ? $moderation : $item, $group['items']);
-                    $group['items'] = array_values(array_filter($items));
-                }
-            }
-            unset($group);
-        }, 1001);
-    }
-
     // O limite do core conta por agente responsável, não por pessoa.
     private function limitToOneRegistrationPerUser(): void
     {
@@ -1396,35 +1294,6 @@ class Plugin extends \MapasCulturais\Plugin
     function festivitySeal(): Services\FestivitySeal
     {
         return $this->festivitySeal ??= new Services\FestivitySeal();
-    }
-
-    // O menu do subsite dos Mestres só mostra as telas do programa, mas as do Mapa genérico (eventos, aplicativos,
-    // validações, prestação de contas) abriam por URL. Para quem não é admin, só estas abrem; a curadoria confere
-    // sozinha quem é curador. Aplicativos e validações não são usados no subsite: não abrem para ninguém, nem a gravação
-    // de aplicativo (o controlador `app`).
-    private function closeOtherPanelScreens(): void
-    {
-        $app = App::i();
-        // "Meus eventos" é a lista dos festejos de quem cadastra (ver openTheFestivityForm).
-        $open = ['index', 'my-account', 'deleteaccount', 'terms', 'requireauth', 'registrations', 'evaluations', 'events', 'mdc-tree-curation', 'mdc-committee'];
-
-        $app->hook('GET(panel.<<*>>):before', function () use ($app, $open) {
-            $action = strtolower($this->action);
-
-            if (Plugin::isTheme() && in_array($action, Plugin::UNUSED_PANEL_SCREENS, true)) {
-                $app->pass();
-            }
-
-            if (Plugin::appliesToCurrentUser() && !in_array($action, $open, true)) {
-                $app->pass();
-            }
-        });
-
-        $app->hook('ALL(app.<<*>>):before', function () use ($app) {
-            if (Plugin::isTheme()) {
-                $app->pass();
-            }
-        });
     }
 
 }

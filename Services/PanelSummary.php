@@ -29,7 +29,7 @@ class PanelSummary
     }
 
     /**
-     * Os atalhos da Gestão do cadastro, os mesmos do menu do painel (MDC\Plugin::addManagementShortcuts).
+     * Os atalhos da Gestão do cadastro, os mesmos do menu do painel (MDC\Hooks\PanelMenu::addManagementShortcuts).
      *
      * @return array<array{route: string, params?: array, icon: string, label: string}>
      */
