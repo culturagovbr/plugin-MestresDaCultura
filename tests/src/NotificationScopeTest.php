@@ -102,9 +102,10 @@ class NotificationScopeTest extends TestCase
         $foreign = $this->registrationOf($master, $other);
         $plain = $this->notify($master, 'Sua senha foi alterada.');
 
-        // Os testes usam um cache que não guarda nada; aqui, um em memória, para o cálculo ficar guardado de fato.
-        $cache = $this->app->cache;
+        // Caches em memória, para o cálculo ficar guardado.
+        [$cache, $mscache] = [$this->app->cache, $this->app->mscache];
         $this->app->cache = new Cache(new ArrayAdapter());
+        $this->app->mscache = new Cache(new ArrayAdapter());
 
         try {
             $this->assertSame([[$plain], 1], $this->seenBy($master));
@@ -113,7 +114,33 @@ class NotificationScopeTest extends TestCase
 
             $this->assertSame([[$plain], 1], $this->seenBy($master), 'A que chegou depois também fica de fora');
         } finally {
-            $this->app->cache = $cache;
+            [$this->app->cache, $this->app->mscache] = [$cache, $mscache];
+        }
+    }
+
+    // Na mesma requisição, a notificação gravada invalida o cálculo guardado.
+    function testTheCalculationIsRedoneWhenANotificationArrives()
+    {
+        $fixed = $this->createOpportunity();
+        $other = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $master = $this->userDirector->createUser();
+        $foreign = $this->registrationOf($master, $other);
+        $this->notify($master, 'Sua senha foi alterada.');
+
+        [$cache, $mscache] = [$this->app->cache, $this->app->mscache];
+        $this->app->cache = new Cache(new ArrayAdapter());
+        $this->app->mscache = new Cache(new ArrayAdapter());
+
+        try {
+            $scope = new NotificationScope(new FixedOpportunity);
+            $this->assertSame([], $scope->hiddenFor($master));
+
+            $late = $this->notify($master, "Sua inscrição foi enviada. <a href=\"{$this->app->baseUrl}inscricao/{$foreign->id}/\">Ver</a>.");
+
+            $this->assertSame([$late], $scope->hiddenFor($master), 'A que chegou depois entra no cálculo');
+        } finally {
+            [$this->app->cache, $this->app->mscache] = [$cache, $mscache];
         }
     }
 
