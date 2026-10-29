@@ -100,4 +100,28 @@ class PanelRoutesTest extends TestCase
         $this->assertEquals(404, $this->statusOf($this->userDirector->createUser(), 'opportunities'), 'O mestre não abre');
         $this->assertSame(200, $this->statusOf($this->userDirector->createUser('saasSuperAdmin'), 'opportunities'), 'O saasSuperAdmin abre');
     }
+
+    // Toda tela do painel no menu da mestra está em Hooks\PanelMenu::OPEN_SCREENS e abre.
+    function testEveryPanelScreenInTheMastersMenuOpens()
+    {
+        $master = $this->userDirector->createUser();
+        $this->login($master);
+        $this->app->reset();
+        $this->app->run($this->requestFactory->GET('panel', 'index'), false);
+
+        $routes = [];
+        foreach ($this->app->view->jsObject['config']['panelNav'] ?? [] as $group) {
+            foreach ($group['items'] as $item) {
+                if (str_starts_with($item['route'] ?? '', 'panel/')) {
+                    $routes[] = substr($item['route'], strlen('panel/'));
+                }
+            }
+        }
+
+        $this->assertNotEmpty($routes, 'O menu da mestra foi montado');
+
+        foreach (array_unique($routes) as $action) {
+            $this->assertSame(200, $this->statusOf($master, $action), "panel/{$action} está no menu da mestra e precisa abrir");
+        }
+    }
 }
