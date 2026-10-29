@@ -7,6 +7,8 @@ return [
     'obrigatorio' => i::__('obrigatório'),
     'dica' => i::__('Os períodos em que o festejo acontece neste ano, cada um com o seu local. Atualize a cada ano. No festejo itinerante, o primeiro local é o que vale para o estado e a cidade.'),
     'vazia' => i::__('Nenhum período na agenda ainda.'),
+    'carregando' => i::__('Carregando a agenda...'),
+    'falha leitura' => i::__('Não foi possível carregar a agenda. Recarregue a página antes de mudar os períodos.'),
     'novo periodo' => i::__('Adicionar período'),
     'inicio' => i::__('Data de início'),
     'fim' => i::__('Data de fim (se durar mais de um dia)'),

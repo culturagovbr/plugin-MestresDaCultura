@@ -7,8 +7,10 @@
 $this->import('
     entity-field
     entity-location
+    mc-alert
     mc-confirm-button
     mc-icon
+    mc-loading
     mdc-place-editor
 ');
 ?>
@@ -20,6 +22,9 @@ $this->import('
         </span>
         <small class="field__description">{{text('dica')}}</small>
     </div>
+
+    <mc-loading :condition="loading">{{text('carregando')}}</mc-loading>
+    <mc-alert v-if="failed" type="danger">{{text('falha leitura')}}</mc-alert>
 
     <ul v-if="occurrences.length" class="mdc-festivity-agenda__list">
         <li v-for="occurrence in occurrences" :key="occurrence.id" class="mdc-festivity-agenda__item">
@@ -42,7 +47,8 @@ $this->import('
             </mc-confirm-button>
         </li>
     </ul>
-    <p v-else class="mdc-festivity-agenda__empty">{{text('vazia')}}</p>
+    <!-- "Vazia" só com a agenda lida. -->
+    <p v-else-if="!loading && !failed" class="mdc-festivity-agenda__empty">{{text('vazia')}}</p>
 
     <mdc-place-editor ref="editor" @saved="refresh"></mdc-place-editor>
 
@@ -87,7 +93,7 @@ $this->import('
             <button type="button" class="button button--primary button--sm" :disabled="saving" @click="add">{{text('adicionar')}}</button>
         </div>
     </div>
-    <button v-else type="button" class="button button--primary-outline button--icon mdc-festivity-agenda__start" @click="start">
+    <button v-else-if="!loading && !failed" type="button" class="button button--primary-outline button--icon mdc-festivity-agenda__start" @click="start">
         <mc-icon name="add"></mc-icon> {{text('novo periodo')}}
     </button>
 

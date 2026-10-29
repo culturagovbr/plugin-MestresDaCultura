@@ -22,7 +22,7 @@ app.component('mdc-place-editor', {
                 id: `EQ(${id})`,
                 status: 'GTE(0)',
                 '@select': 'id,name,status,location,endereco,En_CEP,En_Nome_Logradouro,En_Num,En_Complemento,En_Bairro,En_Municipio,En_Estado,currentUserPermissions',
-            });
+            }).catch(() => []);
 
             if (place) {
                 this.place = place;

@@ -33,6 +33,8 @@ app.component('mdc-festivity-agenda', {
             endsAt: '',
             error: '',
             saving: false,
+            loading: true,
+            failed: false,
         };
     },
 
@@ -44,9 +46,15 @@ app.component('mdc-festivity-agenda', {
         },
     },
 
-    created() {
-        this.load();
-        this.loadPlaces();
+    // Lê a agenda e os locais; se a leitura falhar, mostra o aviso.
+    async created() {
+        try {
+            await this.refresh();
+        } catch {
+            this.failed = true;
+        } finally {
+            this.loading = false;
+        }
     },
 
     methods: {
