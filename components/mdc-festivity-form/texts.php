@@ -52,4 +52,5 @@ return [
     'continuar editando' => i::__('Continuar editando'),
     'sair' => i::__('Sair'),
     'publicar' => i::__('Publicar festejo'),
+    'erro' => i::__('Não foi possível conferir a etapa. Recarregue a página e tente de novo.'),
 ];

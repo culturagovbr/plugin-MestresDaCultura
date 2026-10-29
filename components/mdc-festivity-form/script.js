@@ -3,7 +3,9 @@ app.component('mdc-festivity-form', {
 
     setup() {
         const text = Utils.getTexts('mdc-festivity-form');
-        return { text };
+        // O aviso do core; `messages` é o que a etapa cobra.
+        const notify = useMessages();
+        return { text, notify };
     },
 
     data() {
@@ -82,7 +84,11 @@ app.component('mdc-festivity-form', {
             const url = `${$MAPAS.config.mdcFestivity.checkUrl}${this.entity.id}/?step=${this.step}`;
             const response = await fetch(url, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
 
-            return response.ok ? response.json() : {};
+            if (!response.ok) {
+                throw new Error(response.status);
+            }
+
+            return response.json();
         },
 
         // O formulário só marca; a data do aceite é a do servidor (FestivityFields::stampConsent).
@@ -107,6 +113,14 @@ app.component('mdc-festivity-form', {
 
             try {
                 await this.save();
+            } catch (error) {
+                // O core já avisou e marcou os campos.
+                this.saving = false;
+                return;
+            }
+
+            try {
+                // Sem a conferência, a etapa não avança.
                 this.errors = await this.check();
                 this.entity.__validationErrors = { ...this.errors };
 
@@ -114,7 +128,7 @@ app.component('mdc-festivity-form', {
                     this.show(this.step + 1);
                 }
             } catch (error) {
-                // O core já avisou e marcou os campos.
+                this.notify.error(this.text('erro'));
             } finally {
                 this.saving = false;
             }
