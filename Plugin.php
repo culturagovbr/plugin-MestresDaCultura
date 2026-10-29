@@ -506,8 +506,14 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
+        // O festejo copia do local só a UF e a cidade (FestivityPlace::sync): o resto não regrava os festejos dele. Os
+        // metadados alterados seguem marcados até o fim da gravação.
         $app->hook('entity(Space).save:finish', function () use ($app) {
             if (!Plugin::isTheme() || !$this->id || Services\FestivityPlace::$syncing) {
+                return;
+            }
+
+            if (!array_intersect_key($this->changedMetadata, array_flip(['En_Estado', 'En_Municipio']))) {
                 return;
             }
 
