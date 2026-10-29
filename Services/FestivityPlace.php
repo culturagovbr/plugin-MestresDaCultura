@@ -96,17 +96,38 @@ class FestivityPlace
     }
 
     /**
+     * Antes de o festejo ser apagado de vez (destroy): os locais dele ficam como se ele já não existisse.
+     */
+    static function syncWithout(Event $event): void
+    {
+        self::syncSpaces(self::spacesOf($event), $event->id);
+    }
+
+    /**
      * O local segue o festejo: publicado se algum festejo publicado tem período nele, em rascunho se não. Na lixeira
      * ou arquivado, fica como está.
      */
     static function syncStatus(Event $event): void
     {
-        $app = App::i();
-        $ids = array_column($app->em->createQuery('SELECT DISTINCT IDENTITY(o.space) AS id FROM ' . EventOccurrence::class . ' o WHERE o.event = :event')
-            ->setParameter('event', $event)
-            ->getScalarResult(), 'id');
-        $ids = array_unique(array_merge(array_map('intval', $ids), array_values(self::$released)));
+        $ids = array_unique(array_merge(self::spacesOf($event), array_values(self::$released)));
         self::$released = [];
+        self::syncSpaces($ids);
+    }
+
+    /** @return list<int> os locais com período do festejo */
+    private static function spacesOf(Event $event): array
+    {
+        $ids = App::i()->em->createQuery('SELECT DISTINCT IDENTITY(o.space) AS id FROM ' . EventOccurrence::class . ' o WHERE o.event = :event')
+            ->setParameter('event', $event)
+            ->getScalarResult();
+
+        return array_map('intval', array_column($ids, 'id'));
+    }
+
+    /** @param list<int> $ids */
+    private static function syncSpaces(array $ids, ?int $without = null): void
+    {
+        $app = App::i();
 
         foreach ($ids as $id) {
             $space = $app->repo('Space')->find($id);
@@ -115,7 +136,8 @@ class FestivityPlace
                 continue;
             }
 
-            $status = self::eventsAt($id, Event::STATUS_ENABLED) ? Space::STATUS_ENABLED : Space::STATUS_DRAFT;
+            $published = array_filter(self::eventsAt($id, Event::STATUS_ENABLED), fn (Event $event) => $event->id !== $without);
+            $status = $published ? Space::STATUS_ENABLED : Space::STATUS_DRAFT;
 
             if ($space->status !== $status) {
                 $app->disableAccessControl();

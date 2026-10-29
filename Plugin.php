@@ -452,7 +452,14 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
-        // O festejo apagado leva os períodos sem gravar o festejo depois: os locais deles não ficam esperando.
+        // O festejo apagado de vez não é gravado depois (ver FestivityPlace::syncWithout). Senão, o local de um festejo
+        // publicado ficaria publicado no Mapa principal, com o endereço e sem festejo. Evento de outro subsite fica fora.
+        $app->hook('entity(Event).destroy:before', function () {
+            if (Plugin::isFestivity($this)) {
+                Services\FestivityPlace::syncWithout($this);
+            }
+        });
+
         $app->hook('entity(Event).remove:after', function () {
             Services\FestivityPlace::forgetReleased();
         });
