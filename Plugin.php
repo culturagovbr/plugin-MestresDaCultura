@@ -950,7 +950,9 @@ class Plugin extends \MapasCulturais\Plugin
             }, ARRAY_FILTER_USE_KEY);
         };
 
-        App::i()->hook('entity(Registration).<<validationErrors|sendValidationErrors>>', $onlyReopened);
+        // Depois das validações do plugin que acrescentam erros de campo no envio (validateActingFieldOnSend,
+        // validatePrizeIdOnSend): sem a prioridade, valeria a ordem das linhas do _init.
+        App::i()->hook('entity(Registration).<<validationErrors|sendValidationErrors>>', $onlyReopened, 100);
     }
 
     // Resultado da moderação para o mestre, acima das abas da inscrição: em análise, com o que acontece depois;
@@ -1013,11 +1015,14 @@ class Plugin extends \MapasCulturais\Plugin
 
         $isRegistrationPhase = fn (Registration $registration): bool => $registration->opportunity->id === $plugin->fixedOpportunity()->get()?->id;
 
+        // A aprovação, nesta ordem e num gancho só: o selo, os dados públicos e o aviso, que leva o link do certificado
+        // (o próprio selo). Só na fase de cadastro: a cópia para a fase final também passa por aqui e avisaria duas vezes.
         $app->hook('entity(Registration).status(approved)', function () use ($plugin, $isRegistrationPhase) {
             /** @var Registration $this */
             if ($isRegistrationPhase($this)) {
                 $plugin->programSeal()->apply($this);
                 (new Services\MasterPublicData)->publish($this);
+                (new Services\Moderation)->notifyApproved($this, $plugin->programSeal()->relationOf($this)?->singleUrl);
             }
         });
 
@@ -1263,23 +1268,13 @@ class Plugin extends \MapasCulturais\Plugin
         }
     }
 
+    // O e-mail de aprovação; ele sai no gancho da aprovação (applyProgramSeal), depois do selo.
     private function notifyApproval(): void
     {
-        $app = App::i();
-        $plugin = $this;
-
-        $app->config['mailer.templates'][Services\Moderation::MAIL_APPROVED] = [
+        App::i()->config['mailer.templates'][Services\Moderation::MAIL_APPROVED] = [
             'title' => i::__('[Rede de Mestras e Mestres] Seu cadastro foi aprovado'),
             'template' => Services\Moderation::MAIL_APPROVED . '.html',
         ];
-
-        // Só na fase de cadastro: a cópia para a fase final também passa por aqui e avisaria duas vezes.
-        $app->hook('entity(Registration).status(approved)', function () use ($plugin) {
-            /** @var Registration $this */
-            if ($this->opportunity->id === $plugin->fixedOpportunity()->get()?->id) {
-                (new Services\Moderation)->notifyApproved($this, $plugin->programSeal()->relationOf($this)?->singleUrl);
-            }
-        });
     }
 
     // A oportunidade do programa sobe por importação, já configurada e com o resultado publicado. O importador do
