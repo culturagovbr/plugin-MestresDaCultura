@@ -2,6 +2,7 @@
 
 namespace MDC\Services;
 
+use MapasCulturais\App;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\RegistrationFieldConfiguration;
 
@@ -40,7 +41,7 @@ class AgentMediaView
         $html = '';
 
         foreach ($photos as $photo) {
-            $url = self::linkable($photo['url'] ?? null);
+            $url = self::ownFile($photo['url'] ?? null);
 
             if ($url === null) {
                 continue;
@@ -89,7 +90,7 @@ class AgentMediaView
 
         foreach ($photos as $photo) {
             $photo = (array) $photo;
-            $url = self::linkable($photo['url'] ?? null);
+            $url = self::ownFile($photo['url'] ?? null);
 
             if ($url !== null) {
                 $cells[] = (($photo['description'] ?? null) ?: ($photo['name'] ?? '')) . ": {$url}";
@@ -121,6 +122,28 @@ class AgentMediaView
     private static function linkable(mixed $url): ?string
     {
         return is_string($url) && preg_match('#^https?://#i', $url) ? $url : null;
+    }
+
+    /**
+     * A foto da galeria é um arquivo da própria instalação (o Mapa ou um subsite, em /files/). O endereço vem do que o
+     * formulário gravou na resposta: um de fora viraria, na ficha de quem avalia, uma imagem carregada de outro site.
+     */
+    private static function ownFile(mixed $url): ?string
+    {
+        static $hosts = null;
+
+        if (!$url = self::linkable($url)) {
+            return null;
+        }
+
+        // O Mapa e os subsites (o endereço do subsite é gravado sem o protocolo).
+        $hosts ??= array_filter(array_map(
+            fn ($address) => parse_url(str_contains((string) $address, '://') ? $address : "http://{$address}", PHP_URL_HOST),
+            [App::i()->baseUrl, ...App::i()->conn->fetchFirstColumn('SELECT url FROM subsite UNION SELECT alias_url FROM subsite')]
+        ));
+        $ownHost = in_array(parse_url($url, PHP_URL_HOST), $hosts, true);
+
+        return $ownHost && str_starts_with((string) parse_url($url, PHP_URL_PATH), '/files/') ? $url : null;
     }
 
     private static function escape(string $text): string
