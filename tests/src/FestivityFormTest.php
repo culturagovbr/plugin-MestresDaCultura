@@ -28,28 +28,6 @@ class FestivityFormTest extends TestCase
         return [$this->app->response->getStatusCode(), json_decode($body, true) ?? $body, $this->app->response->getHeaderLine('Location')];
     }
 
-    // O que as 6 etapas cobram, como o formulário preencheria.
-    private function complete(Event $event): void
-    {
-        $event->longDescription = 'Todo 4 de dezembro, as sambadeiras do Recôncavo saem em louvor a Santa Bárbara.';
-        $event->{FestivityFields::SEGMENT} = 'Celebrações e Rituais';
-        $event->{FestivityFields::TYPOLOGIES} = ['Festas de Santos/Devocional'];
-        $event->{FestivityFields::SIZE} = 'Médio';
-        $event->{FestivityFields::VENUE} = 'Espaço público';
-        $event->{FestivityFields::TERRITORY} = 'Comunidade Quilombola';
-        $event->{FestivityFields::PRODUCER} = 'Grupo/Coletivo Cultural';
-        $event->{FestivityFields::INSTITUTION} = 'Samba de Roda Filhas do Recôncavo';
-        $event->{FestivityFields::CONSENT} = '2026-10-27 12:00:00';
-        $event->save(true);
-
-        $event->owner->nomeCompleto = 'Celina Pereira dos Santos';
-        $event->owner->save(true);
-
-        $this->period($event, $this->place($event));
-
-        $this->app->em->refresh($event);
-    }
-
     function testTheFormHasTheSixStepsOfThePrototype()
     {
         $this->assertSame(
@@ -124,5 +102,26 @@ class FestivityFormTest extends TestCase
         [$status] = $this->call($this->requestFactory->POST('event', 'publish', [$event->id]));
         $this->assertSame(200, $status, 'Completo, publica');
         $this->assertSame(Event::STATUS_ENABLED, $this->app->repo('Event')->find($event->id)->status);
+    }
+
+    // A situação do festejo muda só pelas rotas próprias (Publicar, que confere as 6 etapas).
+    function testTheStatusChangesOnlyThroughThePublishRoute()
+    {
+        $event = $this->draft();
+        $status = fn (): int => (int) $this->app->conn->fetchOne('SELECT status FROM event WHERE id = ?', [$event->id]);
+
+        $this->call($this->requestFactory->PATCH_entity($event, ['status' => Event::STATUS_ENABLED, 'name' => 'Samba de Roda']));
+        $this->assertSame(Event::STATUS_DRAFT, $status(), 'PATCH não publica');
+        $this->assertSame('Samba de Roda', $this->app->conn->fetchOne('SELECT name FROM event WHERE id = ?', [$event->id]), 'O resto da edição segue');
+
+        // O PUT, montado a partir do PATCH.
+        [$code] = $this->call($this->requestFactory->PATCH_entity($event, ['status' => Event::STATUS_ENABLED, 'name' => 'Samba de Roda no PUT'])->withMethod('PUT'));
+        $this->assertSame(200, $code, 'O PUT grava');
+        $this->assertSame(Event::STATUS_DRAFT, $status(), 'Nem PUT publica');
+
+        [$code] = $this->call($this->requestFactory->POST('event', 'single', [$event->id], ['status' => Event::STATUS_ENABLED, 'name' => 'Samba de Roda no POST']));
+        $this->assertSame(200, $code, 'O POST na entidade grava');
+        $this->assertSame(Event::STATUS_DRAFT, $status(), 'Nem POST na entidade publica');
+        $this->assertSame('Samba de Roda no POST', $this->app->conn->fetchOne('SELECT name FROM event WHERE id = ?', [$event->id]));
     }
 }

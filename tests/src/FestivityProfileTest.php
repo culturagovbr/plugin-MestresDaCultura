@@ -52,6 +52,7 @@ class FestivityProfileTest extends TestCase
     function testTheProfileCarriesOnlyPublicData()
     {
         $event = $this->draft();
+        $this->complete($event, withPeriod: false);
         $owner = $event->owner;
         $owner->nomeCompleto = 'Celina Pereira dos Santos';
         $owner->emailPrivado = 'celina.privado@example.com';
@@ -68,6 +69,7 @@ class FestivityProfileTest extends TestCase
         $event->save(true);
         $consent = $event->{FestivityFields::CONSENT};
         $this->period($event, $this->place($event));
+        $this->app->em->refresh($event);
         $event->publish(true);
         $this->logout();
 
@@ -100,6 +102,7 @@ class FestivityProfileTest extends TestCase
     function testTheEventPageShowsTheFestivity()
     {
         $event = $this->draft();
+        $this->complete($event);
         $event->publish(true);
         $this->logout();
 

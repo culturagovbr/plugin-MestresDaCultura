@@ -22,11 +22,13 @@ class FestivitySearchTest extends TestCase
     private function published(string $name, array $typologies, string $startsOn): Event
     {
         $event = $this->draft();
+        $this->complete($event, withPeriod: false);
         $event->name = $name;
         $event->{FestivityFields::SEGMENT} = 'Celebrações e Rituais';
         $event->{FestivityFields::TYPOLOGIES} = $typologies;
         $event->save(true);
         $this->period($event, $this->place($event), $startsOn);
+        $this->app->em->refresh($event);
         $event->publish(true);
 
         return $event;
@@ -55,7 +57,7 @@ class FestivitySearchTest extends TestCase
 
     function testTheHomeCounterCountsThePublishedFestivities()
     {
-        $this->published('Samba de Roda de Santa Bárbara', [], '2026-12-03');
+        $this->published('Samba de Roda de Santa Bárbara', ['Festas de Santos/Devocional'], '2026-12-03');
         $this->draft();
 
         $this->assertSame(1, (new FestivitySeal)->countPublished());

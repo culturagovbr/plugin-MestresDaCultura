@@ -63,6 +63,7 @@ class FestivityLinkTest extends TestCase
     private function published(string $name): Event
     {
         $event = $this->draft();
+        $this->complete($event);
         $event->name = $name;
         $event->save(true);
         $event->publish(true);

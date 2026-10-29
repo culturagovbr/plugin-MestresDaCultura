@@ -7,13 +7,14 @@ use MapasCulturais\Entities\EventOccurrence;
 use MapasCulturais\Entities\Seal;
 use MapasCulturais\Entities\Space;
 use MapasCulturais\Entities\User;
+use MDC\Services\FestivityFields;
 use MDC\Services\FestivityPlace;
 use MDC\Services\FestivitySeal;
 use Tests\Builders\SealBuilder;
 
 /**
- * O festejo nos testes da fase: o selo dos festejos configurado, o rascunho, um local e um período da agenda, como o
- * formulário grava. Quem usa precisa do UserDirector.
+ * Monta o festejo dos testes: o selo dos festejos configurado, o rascunho, as 6 etapas preenchidas, um local e um
+ * período da agenda. Requer o UserDirector.
  */
 trait BuildsFestivities
 {
@@ -69,5 +70,29 @@ trait BuildsFestivities
         $occurrence->save(true);
 
         return $occurrence;
+    }
+
+    // Preenche o que as 6 etapas cobram; com `$withPeriod`, também um local e um período.
+    private function complete(Event $event, bool $withPeriod = true): void
+    {
+        $event->longDescription = 'Todo 4 de dezembro, as sambadeiras do Recôncavo saem em louvor a Santa Bárbara.';
+        $event->{FestivityFields::SEGMENT} = 'Celebrações e Rituais';
+        $event->{FestivityFields::TYPOLOGIES} = ['Festas de Santos/Devocional'];
+        $event->{FestivityFields::SIZE} = 'Médio';
+        $event->{FestivityFields::VENUE} = 'Espaço público';
+        $event->{FestivityFields::TERRITORY} = 'Comunidade Quilombola';
+        $event->{FestivityFields::PRODUCER} = 'Grupo/Coletivo Cultural';
+        $event->{FestivityFields::INSTITUTION} = 'Samba de Roda Filhas do Recôncavo';
+        $event->{FestivityFields::CONSENT} = '2026-10-27 12:00:00';
+        $event->save(true);
+
+        $event->owner->nomeCompleto = 'Celina Pereira dos Santos';
+        $event->owner->save(true);
+
+        if ($withPeriod) {
+            $this->period($event, $this->place($event));
+        }
+
+        $this->app->em->refresh($event);
     }
 }
