@@ -39,8 +39,7 @@ class MasterProfile
         $app = App::i();
         $registration = $app->repo('Registration')->findOneBy(['opportunity' => $opportunity, 'owner' => $agent, 'status' => Registration::STATUS_APPROVED]);
 
-        // A inscrição e o nome artístico (gravado no `nomeSocial`) são privados no core; o perfil do mestre aprovado
-        // mostra só estes dados deles, como no protótipo.
+        // Lê da inscrição privada só os dados do perfil; o nome artístico é a cópia moderada (MasterPublicData).
         $app->disableAccessControl();
 
         try {
@@ -48,7 +47,7 @@ class MasterProfile
             $opportunity->registerRegistrationMetadata();
             $acting = $registration ? self::actingOf($registration) : null;
             $city = $registration ? self::cityOf($registration) : '';
-            $knownAs = (string) $agent->nomeSocial;
+            $knownAs = (string) $agent->{MasterPublicData::KNOWN_AS};
             $festivities = FestivityField::festivitiesOf($agent, $registration);
         } finally {
             $app->enableAccessControl();

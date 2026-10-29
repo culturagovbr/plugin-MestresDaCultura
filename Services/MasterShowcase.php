@@ -114,7 +114,7 @@ class MasterShowcase
 
         $sql = "FROM seal_relation sr
                 JOIN agent a ON a.id = sr.object_id AND a.status = :enabled
-                LEFT JOIN agent_meta social ON social.object_id = a.id AND social.key = 'nomeSocial'
+                LEFT JOIN agent_meta social ON social.object_id = a.id AND social.key = :knownAs
                 LEFT JOIN registration r ON r.agent_id = a.id AND r.opportunity_id = :opportunity AND r.status = :approved
                 LEFT JOIN registration_meta acting ON acting.object_id = r.id AND acting.key = :acting
                 LEFT JOIN registration_meta city ON city.object_id = r.id AND city.key = :city
@@ -128,6 +128,8 @@ class MasterShowcase
             'city' => $fields['city'],
             'seal' => $sealId,
             'agent' => Agent::class,
+            // A cópia moderada do nome artístico, feita na aprovação.
+            'knownAs' => MasterPublicData::KNOWN_AS,
         ]];
     }
 
