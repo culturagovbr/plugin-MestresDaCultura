@@ -23,6 +23,7 @@ use Tests\Traits\UserDirector;
 class FixedOpportunityStructureTest extends TestCase
 {
     use OpportunityBuilder;
+    use OutsideTheSubsite;
     use RequestFactory;
     use UserDirector;
 
@@ -122,15 +123,11 @@ class FixedOpportunityStructureTest extends TestCase
         $this->assertFalse($this->phase()->canUser('remove', $this->manager), 'Nem exclui fase');
 
         // Fora do subsite dos Mestres, a trava do programa recusa a fase.
-        $theme = $this->app->view;
-        $this->app->view = (new \ReflectionClass(\MapasCulturais\Themes\BaseV2\Theme::class))->newInstanceWithoutConstructor();
-        try {
+        $this->outsideTheSubsite(function () {
             $phase = new ($this->fixed->specializedClassName);
             $phase->parent = $this->fixed;
             $this->assertFalse($phase->canUser('create', $this->manager), 'Nem fora do subsite dos Mestres');
-        } finally {
-            $this->app->view = $theme;
-        }
+        });
 
         $this->login($this->superAdmin);
         $phases = count($this->fixed->allPhases);

@@ -172,6 +172,19 @@ class ModerationFlowTest extends TestCase
         $this->assertSame($relation->singleUrl, json_decode($approved[0], true)['params']['certificateLink'] ?? null, 'O e-mail leva o certificado');
     }
 
+    // Sem o selo do programa configurado, a aprovação segue e o aviso sai, sem o certificado.
+    function testWithoutTheSealTheApprovalMailHasNoCertificate()
+    {
+        unset($this->app->config[ProgramSeal::CONFIG_KEY]);
+
+        $this->moderate([$this->document => 'valid', $this->name => 'valid']);
+
+        $this->assertSame(Registration::STATUS_APPROVED, $this->registration()->status);
+        $approved = $this->jobs(SendMailNotification::SLUG, '%' . Moderation::MAIL_APPROVED . '%');
+        $this->assertCount(1, $approved, 'O aviso sai');
+        $this->assertNull(json_decode($approved[0], true)['params']['certificateLink'] ?? null, 'Sem o link do certificado');
+    }
+
     /** @return ?array o `:moderation` do aviso na ficha, como a página o entrega a quem a abre */
     private function noticeFor(User $user): ?array
     {
