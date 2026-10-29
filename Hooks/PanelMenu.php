@@ -14,9 +14,8 @@ use MapasCulturais\i;
 final class PanelMenu
 {
     /**
-     * As telas do painel que abrem para quem não é admin (closeOtherPanelScreens). Uma tela nova no menu da mestra
-     * entra aqui; PanelRoutesTest confere que todo item do menu dela abre. "Meus eventos" é a lista dos festejos de
-     * quem cadastra.
+     * Telas do painel que abrem para quem não é admin, com todo item do menu da mestra; as que não abrem para ninguém
+     * ficam em Plugin::UNUSED_PANEL_SCREENS.
      */
     const OPEN_SCREENS = [
         'index', 'my-account', 'deleteaccount', 'terms', 'requireauth', 'registrations', 'evaluations', 'events',
@@ -143,8 +142,7 @@ final class PanelMenu
         $app->hook('GET(opportunity.single):before', function () use ($app, $fixedOpportunity) {
             $opportunity = $this->requestedEntity;
 
-            // Aberta em outro subsite, o redirecionamento para o subsite dos Mestres vem antes (ver Services\SubsiteRedirect).
-            // A oportunidade desta requisição, e não a guardada no serviço: é ela que diz o subsite e a permissão de agora.
+            // Aberta em outro subsite, quem leva ao subsite dos Mestres é SubsiteIsolation::keepTheProgramOnItsSite.
             if (Plugin::isTheme() && $fixedOpportunity->isConfigured() && $fixedOpportunity->matches($opportunity)
                 && Services\SubsiteRedirect::isCurrent($opportunity->subsite) && !$opportunity->canUser('@control')) {
                 $app->redirect($app->createUrl('panel', 'index'));

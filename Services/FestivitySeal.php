@@ -46,8 +46,7 @@ class FestivitySeal
             return;
         }
 
-        // O selo é o certificado: só com as 6 etapas. A rota de publicar já confere, mas o Mapa principal e as gravações
-        // internas publicam sem conferir; a retirada não depende disso.
+        // O selo só entra com as 6 etapas; a retirada não depende delas.
         if ($published && FestivityForm::missing($event)) {
             return;
         }

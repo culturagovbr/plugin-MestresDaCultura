@@ -22,7 +22,7 @@ class Plugin extends \MapasCulturais\Plugin
     /** Povos e comunidades da planilha do programa que a lista do core não tem. */
     const TRADITIONAL_COMMUNITIES = ['Castanheiras', 'Isqueiros', 'Piaçaveiros', 'Seringueiros'];
 
-    /** Telas do painel que o subsite não usa: não abrem para ninguém, nem para o saasSuperAdmin (ver o menu do tema). */
+    /** Telas do painel que o subsite não usa: não abrem para ninguém, nem para o saasSuperAdmin. */
     const UNUSED_PANEL_SCREENS = ['spaces', 'apps', 'my-app', 'validations', 'accountability'];
 
     private ?Services\FixedOpportunity $fixedOpportunity = null;
