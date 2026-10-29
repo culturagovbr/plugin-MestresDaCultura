@@ -277,6 +277,7 @@ class Moderation
         }
     }
 
+    // Avisa quem avaliou por e-mail direto e no sino.
     private function notifyValuer(Registration $registration, User $valuer): void
     {
         $app = App::i();
@@ -344,6 +345,7 @@ class Moderation
             $registration->singleUrl
         );
 
+        // Grava o aviso mesmo sem usuário logado (o job da autoaplicação, a linha de comando).
         $app->disableAccessControl();
 
         try {
