@@ -35,14 +35,15 @@ final class Tree
 
         $app->hook('GET(panel.mdc-tree-curation)', function () use ($app) {
             /** @var \MapasCulturais\Controllers\Panel $this */
-            $this->requireAuthentication();
-
+            // Fora do subsite dos Mestres, a página não existe, nem pede login.
             if (!Plugin::isTheme()) {
                 $app->pass();
             }
 
+            $this->requireAuthentication();
+
             if (!Services\Curators::includes()) {
-                $app->halt(403, i::__('Acesso restrito.'));
+                $app->halt(403, Services\Curators::refusal());
             }
 
             $app->view->enqueueScript('app-v2', 'mdc-tree-curation', 'js/tree-curation.js');
