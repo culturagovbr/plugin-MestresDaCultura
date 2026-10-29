@@ -85,6 +85,30 @@ class ProgramSeal
         return $id && App::i()->repo('AgentSealRelation')->findOneBy(['seal' => $id, 'owner' => $agentId]) !== null;
     }
 
+    /**
+     * Quem tem o selo entre os agentes dados, numa consulta só e na ordem dada; sem o selo configurado, ninguém.
+     *
+     * @param int[] $agentIds
+     * @return list<int>
+     */
+    function givenAmong(array $agentIds): array
+    {
+        $id = $this->configuredId();
+        $agentIds = array_values(array_unique(array_map('intval', $agentIds)));
+
+        if (!$id || !$agentIds) {
+            return [];
+        }
+
+        $given = App::i()->conn->fetchFirstColumn(
+            'SELECT object_id FROM seal_relation WHERE seal_id = :seal AND object_type = :type AND object_id IN (:ids)',
+            ['seal' => $id, 'type' => Agent::class, 'ids' => $agentIds],
+            ['ids' => \Doctrine\DBAL\ArrayParameterType::INTEGER]
+        );
+
+        return array_values(array_intersect($agentIds, array_map('intval', $given)));
+    }
+
     /** O selo do mestre, que é também o endereço do certificado. */
     function relationOf(Registration $registration): ?AgentSealRelation
     {

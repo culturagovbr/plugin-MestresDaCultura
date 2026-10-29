@@ -103,7 +103,7 @@ class FestivityField
             ['keys' => \Doctrine\DBAL\ArrayParameterType::STRING]
         );
 
-        return array_values(array_filter(array_map('intval', $agents), fn ($id) => $seal->isGivenTo($id)));
+        return $seal->givenAmong($agents);
     }
 
     /**

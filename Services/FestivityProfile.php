@@ -2,6 +2,7 @@
 
 namespace MDC\Services;
 
+use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
 use MapasCulturais\Entities\Agent;
 use MapasCulturais\Entities\Event;
@@ -72,21 +73,34 @@ class FestivityProfile
      */
     private function masters(Event $event): array
     {
+        $ids = $this->programSeal->givenAmong([...FestivityFields::masters($event), ...FestivityField::mastersWhoChose($event, $this->programSeal)]);
+
+        if (!$ids) {
+            return [];
+        }
+
+        // Busca todas de uma vez, pela API do core.
+        $app = App::i();
+        $select = implode(',', ['id', 'name', MasterPublicData::KNOWN_AS, MasterPublicData::CITY, 'files.avatar']);
+        $found = array_column((new ApiQuery(Agent::class, ['@select' => $select, 'id' => 'IN(' . implode(',', $ids) . ')']))->find(), null, 'id');
         $masters = [];
-        $ids = array_unique([...FestivityFields::masters($event), ...FestivityField::mastersWhoChose($event, $this->programSeal)]);
 
         foreach ($ids as $id) {
-            $agent = $this->programSeal->isGivenTo($id) ? App::i()->repo(Agent::class)->find($id) : null;
-
-            if ($agent) {
-                $masters[] = [
-                    'id' => $agent->id,
-                    'name' => (string) ($agent->{MasterPublicData::KNOWN_AS} ?: $agent->name),
-                    'city' => (string) $agent->{MasterPublicData::CITY},
-                    'avatar' => $agent->avatar?->transform('avatarSmall')?->url,
-                    'url' => $agent->singleUrl,
-                ];
+            if (!$agent = $found[$id] ?? null) {
+                continue;
             }
+
+            // A miniatura, das transformações da foto.
+            $avatar = $agent['files']['avatar'] ?? null;
+            $small = is_object($avatar) ? ($avatar->transformations['avatarSmall'] ?? null) : null;
+
+            $masters[] = [
+                'id' => $id,
+                'name' => (string) (($agent[MasterPublicData::KNOWN_AS] ?? '') ?: $agent['name']),
+                'city' => (string) ($agent[MasterPublicData::CITY] ?? ''),
+                'avatar' => $small->url ?? null,
+                'url' => $app->createUrl('agent', 'single', [$id]),
+            ];
         }
 
         return $masters;
