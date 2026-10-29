@@ -88,30 +88,6 @@ class Plugin extends \MapasCulturais\Plugin
         ]);
     }
 
-    // O campo do formulário grava no perfil do agente: sem a opção na definição do metadado, o perfil não
-    // mostraria o que foi escolhido. Vale em todo o Mapa, porque o perfil é um só. Depois de todos os
-    // registros, porque outros plugins (SNIICDataStandard) registram de novo a lista, uma por tipo de agente.
-    private function addTraditionalCommunities(): void
-    {
-        $app = App::i();
-
-        $app->hook('app.register:after', function () use ($app) {
-            $definitions = [];
-
-            foreach ([null, ...$app->getRegisteredEntityTypes(Agent::class)] as $type) {
-                $definition = $app->getRegisteredMetadataByMetakey('comunidadesTradicional', Agent::class, $type?->id);
-
-                if ($definition) {
-                    $definitions[spl_object_id($definition)] = $definition;
-                }
-            }
-
-            foreach ($definitions as $definition) {
-                $definition->options = self::withTraditionalCommunities($definition->options);
-            }
-        });
-    }
-
     /** As opções de "não" (não pertence, não informado) ficam no topo; o resto, em ordem alfabética. */
     static function withTraditionalCommunities(array $options): array
     {
@@ -139,14 +115,10 @@ class Plugin extends \MapasCulturais\Plugin
         Hooks\SubsiteIsolation::register($this);
         Hooks\FixedOpportunityLock::register($this);
         $this->limitToOneRegistrationPerUser();
-        $this->addTraditionalCommunities();
+        Hooks\Masters::register($this);
         $this->sendEachEvaluationOnce();
         $this->passOnTheDisabledModeratorsWork();
         $this->fixTheProgramBreadcrumbs();
-        $this->nameTheOwnProfile();
-        $this->feedTheHomeShowcase();
-        $this->openTheMastersSearch();
-        $this->skipProfileFieldsTheProgramDoesNotAsk();
         Hooks\Festivities::register($this);
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
@@ -156,7 +128,6 @@ class Plugin extends \MapasCulturais\Plugin
         $this->validateOnlyTheReopenedFields();
         $this->showModerationToOwner();
         $this->applyProgramSeal();
-        $this->showMasterProfile();
         $this->markFormSections();
         $this->showAgeInForm();
         $this->notifyApproval();
@@ -254,35 +225,6 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // No subsite dos Mestres, a mini bio (descrição curta) e a área de atuação não são obrigatórias no agente, como na
-    // Pnab: o programa não as usa (a mini-biografia do formulário vai para a descrição longa, e a atuação é a árvore do
-    // programa). Na regra (validação e taxonomia), e não só na tela: valem para a criação de conta, para a edição do
-    // perfil e para o desvio do core para a edição do perfil (app.redirect_profile_validate). O limite de tamanho da
-    // descrição curta, o nome e o perfil em rascunho seguem como no core.
-    private function skipProfileFieldsTheProgramDoesNotAsk(): void
-    {
-        $app = App::i();
-
-        $app->hook('entity(Agent)::validations', function (array &$validations) {
-            if (Plugin::isTheme()) {
-                unset($validations['shortDescription']['required']);
-            }
-        });
-
-        $app->hook('app.register:after', function () use ($app) {
-            if (Plugin::isTheme() && ($area = $app->getRegisteredTaxonomies(\MapasCulturais\Entities\Agent::class)['area'] ?? null)) {
-                $area->required = false;
-            }
-        });
-
-        // A tela de criar conta exige as duas no próprio componente (create-account-optional.js).
-        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
-            if ($component === 'create-account' && Plugin::isTheme()) {
-                $this->enqueueScript('components', 'mdc-create-account-optional', 'js/create-account-optional.js', ['create-account']);
-            }
-        }, 1000);
-    }
-
     // Ver Services\ProgramBreadcrumb. As views do core montam o caminho no corpo; aqui, antes de ele ir para a tela,
     // como o Cultura Viva faz no dele (mapas.printJsObject:before). O componente já pode ter copiado o caminho.
     private function fixTheProgramBreadcrumbs(): void
@@ -312,96 +254,6 @@ class Plugin extends \MapasCulturais\Plugin
 
             if (isset($this->jsObject['breadcrumb'])) {
                 $this->jsObject['breadcrumb'] = $breadcrumb;
-            }
-        });
-    }
-
-    // A vitrine da home (Services\MasterShowcase): o tema mostra (home-mestres, home-banner); os dados vão no objeto
-    // da página, como os de "Meus cadastros". O mapa da Rede (mdc-network-map) recebe o desenho dos estados, da API de
-    // malhas do IBGE (data/br-uf.json), e quantos há em cada um.
-    private function feedTheHomeShowcase(): void
-    {
-        App::i()->hook('view.render(site/index):before', function () {
-            if (Plugin::isTheme()) {
-                $showcase = new Services\MasterShowcase;
-                $this->jsObject['config']['mdcShowcase'] = [
-                    'highlights' => $showcase->highlights(),
-                    // Os festejos publicados (FJ-09) junto dos contadores da Rede.
-                    'counts' => $showcase->counts() + ['festivities' => (new Services\FestivitySeal)->countPublished()],
-                    'states' => (object) $showcase->byState(),
-                    'map' => json_decode((string) file_get_contents(__DIR__ . '/data/br-uf.json'), true),
-                    'searchUrl' => App::i()->createUrl('mdc', 'masters'),
-                ];
-            }
-        });
-    }
-
-    // A busca de Mestras e Mestres (Controller::GET_masters, mdc-masters-search) em `/mestras-e-mestres/`, como o
-    // AldirBlanc registra as rotas dele. A busca por nome procura também o nome artístico, público, pelos ganchos
-    // que o core usa para os metadados do agente (módulo ApiKeywords).
-    private function openTheMastersSearch(): void
-    {
-        $app = App::i();
-        $app->config['routes']['shortcuts']['mestras-e-mestres'] = ['mdc', 'masters'];
-
-        $app->hook('repo(agent).getIdsByKeywordDQL.join', function (&$joins) {
-            if (Plugin::isTheme()) {
-                $joins .= "\n LEFT JOIN e.__metadata mdc_known_as WITH mdc_known_as.key = '" . Services\MasterPublicData::KNOWN_AS . "'";
-            }
-        });
-
-        $app->hook('repo(agent).getIdsByKeywordDQL.where', function (&$where, $keyword, $alias) {
-            if (Plugin::isTheme()) {
-                $where .= " OR unaccent(lower(mdc_known_as.value)) LIKE unaccent(lower(:{$alias}))";
-            }
-        });
-    }
-
-    // O agente da mestra e do moderador é o perfil deles (Meu perfil, no menu). O core o trata como um agente
-    // qualquer: o caminho passa por "Meus agentes", lista fechada no painel (404), o botão diz "Editar agente" e a
-    // edição, "Edição do agente individual". Para quem segue o vocabulário do programa (D5); o gestor fica com o core.
-    // O perfil público da mestra com o selo, para os demais, passa pela busca de Mestras e Mestres.
-    private function nameTheOwnProfile(): void
-    {
-        $app = App::i();
-        $plugin = $this;
-
-        $isOwnProfile = function ($view) use ($app): bool {
-            $agent = $view->controller->requestedEntity ?? null;
-
-            return Plugin::isTheme() && $view->controller->id === 'agent' && $agent instanceof Agent
-                && !$app->user->is('guest') && Services\ProgramVocabulary::appliesTo($app->user) && $agent->id === $app->user->profile?->id;
-        };
-
-        $app->hook('mapas.printJsObject:before', function () use ($isOwnProfile, $plugin) {
-            $agent = $this->controller->requestedEntity ?? null;
-
-            if ($isOwnProfile($this) && in_array($this->controller->action, ['single', 'edit'], true)) {
-                $breadcrumb = Services\ProgramBreadcrumb::profile($agent->singleUrl, $this->controller->action === 'edit');
-            } elseif (Plugin::isTheme() && $this->controller->id === 'agent' && $this->controller->action === 'single'
-                && $agent instanceof Agent && $agent->id && $plugin->programSeal()->isGivenTo($agent->id)) {
-                // O perfil público da mestra, para quem não é ela (ver ProgramBreadcrumb::master).
-                $breadcrumb = Services\ProgramBreadcrumb::master($agent->{Services\MasterPublicData::KNOWN_AS} ?: $agent->name);
-            } else {
-                return;
-            }
-
-            $this->breadcrumb = $breadcrumb;
-
-            if (isset($this->jsObject['breadcrumb'])) {
-                $this->jsObject['breadcrumb'] = $breadcrumb;
-            }
-        });
-
-        $app->hook('component(agent.single.entity-actions).texts', function (array &$texts) use ($isOwnProfile) {
-            if ($isOwnProfile($this)) {
-                $texts['Agente'] = i::__('perfil');
-            }
-        });
-
-        $app->hook('component(agent.edit.entity-header).texts', function (array &$texts) use ($isOwnProfile) {
-            if ($isOwnProfile($this)) {
-                $texts['title agent-1'] = i::__('Edição do perfil');
             }
         });
     }
@@ -704,51 +556,6 @@ class Plugin extends \MapasCulturais\Plugin
                 echo '<mdc-section-marks></mdc-section-marks>';
             }
         });
-    }
-
-    // Perfil público do mestre aprovado (tela 9 do protótipo) sobre a página de agente do core, só por ganchos: o
-    // cabeçalho ganha o nome artístico, a atuação, a cidade e desde quando integra a Rede; a coluna lateral, o
-    // certificado; a principal, a atuação cultural. Ver Services\MasterProfile.
-    private function showMasterProfile(): void
-    {
-        $app = App::i();
-        $plugin = $this;
-        $profile = false;
-
-        $render = function (string $part) use ($app, $plugin, &$profile) {
-            /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
-            $agent = $this->controller->requestedEntity;
-
-            if ($profile === false) {
-                $profile = $agent instanceof \MapasCulturais\Entities\Agent
-                    ? (new Services\MasterProfile($plugin->fixedOpportunity(), $plugin->programSeal()))->of($agent)
-                    : null;
-            }
-
-            if (!$profile) {
-                return;
-            }
-
-            $this->import('mdc-master-profile');
-            $json = htmlspecialchars(json_encode($profile), ENT_QUOTES);
-
-            echo "<mdc-master-profile part=\"{$part}\" :profile=\"{$json}\"></mdc-master-profile>";
-        };
-
-        // Os festejos da mestra (FJ-10) vêm logo depois da atuação.
-        $parts = [
-            'entity-header):end' => ['header'],
-            'single1-entity-info-taxonomie-area):before' => ['certificate'],
-            'entity-gallery-video):before' => ['acting', 'festivities'],
-        ];
-
-        foreach ($parts as $hook => $hookParts) {
-            $app->hook("template(agent.single.{$hook}", function () use ($render, $hookParts) {
-                foreach ($hookParts as $part) {
-                    $render->call($this, $part);
-                }
-            });
-        }
     }
 
 

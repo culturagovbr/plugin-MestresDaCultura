@@ -66,9 +66,7 @@ final class Festivities
         });
     }
 
-    // O local do festejo só pede o nome e o endereço (ver Services\FestivityPlace): o tipo vem sozinho (com o nome do
-    // tipo que o SNIIC pede no "Outros"), e a descrição
-    // curta não é obrigatória. A área de atuação já não é (skipProfileFieldsTheProgramDoesNotAsk: a taxonomia é a mesma).
+    // O local do festejo só pede o nome e o endereço: o tipo vem preenchido e a descrição curta não é obrigatória.
     private static function completeTheFestivityPlace(Plugin $plugin): void
     {
         $app = App::i();
@@ -283,8 +281,8 @@ final class Festivities
         });
     }
 
-    // A página do festejo (tela 2 do protótipo): as seções do programa nos ganchos da página de evento do core, como o
-    // perfil da mestra (showMasterProfile), com o que o servidor monta só do que é público (Services\FestivityProfile).
+    // Página do festejo: as seções do programa nos ganchos da página de evento, montadas só com o que é público
+    // (Services\FestivityProfile).
     private static function showFestivityProfile(Plugin $plugin): void
     {
         $app = App::i();

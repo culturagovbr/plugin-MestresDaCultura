@@ -1,7 +1,5 @@
-// No subsite dos Mestres, a mini bio e a área de atuação não são obrigatórias (ver Plugin::skipProfileFieldsTheProgramDoesNotAsk,
-// como na Pnab), mas o componente de criar conta (MultipleLocalAuth) as exige no próprio método validateAgent, sem ler
-// a regra do agente. Envolve o método, como o Cultura Viva envolve os do componente dele: os dois, vazios, entram só
-// durante a checagem; o nome e as demais taxonomias obrigatórias seguem pela regra do core.
+// No subsite dos Mestres, o criar conta aceita a mini bio e a área de atuação vazias; o nome e as demais taxonomias
+// obrigatórias seguem a regra do core.
 (function () {
     const component = app.component('create-account');
     const validateAgent = component?.methods?.validateAgent;
