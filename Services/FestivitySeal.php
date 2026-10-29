@@ -48,8 +48,8 @@ class FestivitySeal
     }
 
     /**
-     * Publicado, com o selo; fora disso (rascunho, arquivado, lixeira), sem. O certificado conta desde a primeira
-     * publicação: publicar de novo mantém a data (FestivityFields::FIRST_PUBLISHED). Emitido em nome do dono do selo.
+     * Publicado e com as 6 etapas, com o selo; fora disso, sem. O certificado conta desde a primeira publicação
+     * (FestivityFields::FIRST_PUBLISHED) e é emitido em nome do dono do selo.
      */
     function sync(Event $event): void
     {
@@ -63,6 +63,12 @@ class FestivitySeal
         $relation = $this->relationOf($event);
 
         if ($published === (bool) $relation) {
+            return;
+        }
+
+        // O selo é o certificado: só com as 6 etapas. A rota de publicar já confere, mas o Mapa principal e as gravações
+        // internas publicam sem conferir; a retirada não depende disso.
+        if ($published && FestivityForm::missing($event)) {
             return;
         }
 

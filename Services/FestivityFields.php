@@ -200,11 +200,18 @@ class FestivityFields
         }
     }
 
-    // A primeira publicação guarda a data, uma vez só.
+    // A primeira publicação com as 6 etapas guarda a data, uma vez só, pelo relógio do servidor; um valor vindo de fora
+    // volta ao gravado.
     static function markFirstPublished(\MapasCulturais\Entities\Event $event): void
     {
-        if ($event->status === \MapasCulturais\Entities\Event::STATUS_ENABLED && !$event->{self::FIRST_PUBLISHED}) {
-            $event->{self::FIRST_PUBLISHED} = date('Y-m-d H:i:s');
+        $stored = $event->id
+            ? (App::i()->conn->fetchOne('SELECT value FROM event_meta WHERE object_id = :id AND key = :key', ['id' => $event->id, 'key' => self::FIRST_PUBLISHED]) ?: null)
+            : null;
+        $certified = $event->status === \MapasCulturais\Entities\Event::STATUS_ENABLED && !FestivityForm::missing($event);
+        $date = $stored ?? ($certified ? date('Y-m-d H:i:s') : null);
+
+        if ($event->{self::FIRST_PUBLISHED} != $date) {
+            $event->{self::FIRST_PUBLISHED} = $date;
         }
     }
 

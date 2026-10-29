@@ -471,6 +471,18 @@ class Plugin extends \MapasCulturais\Plugin
             }
         });
 
+        // O festejo também: o core valida no PATCH só o que foi enviado, e o selo sairia sem as 6 etapas. Publicar é pela
+        // rota própria. A data da primeira publicação é do servidor em qualquer subsite (FestivityFields::markFirstPublished).
+        $app->hook('<<PATCH|PUT>>(event.single):data', function (&$data) {
+            if (Plugin::isTheme()) {
+                unset($data['status']);
+            }
+        });
+
+        $app->hook('<<PATCH|PUT>>(event.single):data, POST(event.index):data', function (&$data) {
+            unset($data[Services\FestivityFields::FIRST_PUBLISHED]);
+        });
+
         // A exclusão de "Meus locais" não leva o local de um festejo; o erro diz quais o usam. A permissão é a do core,
         // conferida antes para não mostrar a outra pessoa os festejos do local.
         $app->hook('DELETE(space.single):before', function () {
