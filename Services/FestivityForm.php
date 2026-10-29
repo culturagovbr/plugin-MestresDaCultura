@@ -185,13 +185,14 @@ class FestivityForm
             }
         }
 
-        // Só mestras e mestres da Rede, com o selo do programa (item 17).
-        $seal = new ProgramSeal;
-        foreach (FestivityFields::masters($event) as $id) {
-            if (!$seal->isGivenTo($id)) {
-                $invalid[FestivityFields::MASTERS] = [i::__('Escolha só mestras e mestres da Rede')];
-                break;
-            }
+        // Só mestras e mestres da Rede, com o selo do programa, entre os que entram agora; os já ligados ficam.
+        $stored = $event->id
+            ? (string) App::i()->conn->fetchOne('SELECT value FROM event_meta WHERE object_id = :id AND key = :key', ['id' => $event->id, 'key' => FestivityFields::MASTERS])
+            : '';
+        $newcomers = array_values(array_diff(FestivityFields::masters($event), array_map('intval', explode('|', $stored))));
+
+        if ($newcomers && count((new ProgramSeal)->givenAmong($newcomers)) < count($newcomers)) {
+            $invalid[FestivityFields::MASTERS] = [i::__('Escolha só mestras e mestres da Rede')];
         }
 
         return $invalid;
