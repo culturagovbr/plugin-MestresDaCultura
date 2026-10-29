@@ -141,14 +141,14 @@ final class Festivities
 
         $app->hook('<<PATCH|PUT>>(space.single):data', function (&$data) {
             if (Plugin::isTheme()) {
-                unset($data['status']);
+                self::dropStatus($data);
             }
         });
 
         // O PATCH e o PUT do festejo também não mudam a situação; a data da primeira publicação nunca vem da requisição.
         $app->hook('<<PATCH|PUT>>(event.single):data', function (&$data) {
             if (Plugin::isTheme()) {
-                unset($data['status']);
+                self::dropStatus($data);
             }
         });
 
@@ -199,6 +199,16 @@ final class Festivities
     // No subsite dos Mestres todo evento é festejo: a criação e a edição do core levam ao formulário, e publicar, pelo
     // formulário ou pelo painel ("Meus eventos"), cobra as 6 etapas; o festejo publicado também não perde o que elas
     // cobram. O rascunho salva sem cobrar.
+    // Tira a situação dos dados, em qualquer caixa de letra.
+    private static function dropStatus(array &$data): void
+    {
+        foreach (array_keys($data) as $key) {
+            if (is_string($key) && strcasecmp($key, 'status') === 0) {
+                unset($data[$key]);
+            }
+        }
+    }
+
     private static function openTheFestivityForm(Plugin $plugin): void
     {
         $app = App::i();
