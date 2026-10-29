@@ -46,6 +46,7 @@ class RegistrationPdfTest extends TestCase
                     ->createField('lgpd', 'checkbox', title: 'Declaro que as informações são verdadeiras.', required: true)
                 ->createStep('Etapa sem resposta', 2)
                     ->createField('ignorado', 'text', title: 'Ignorado')
+                    ->createField('fotos', 'agent-owner-field', title: 'Fotos', config: ['entityField' => '@gallery'])
                 ->done()
             ->save()
             ->refresh()
@@ -172,5 +173,51 @@ class RegistrationPdfTest extends TestCase
 
         $this->assertStringContainsString('Anexo 2, no fim deste documento', $items['Comprovante:'] ?? '', 'Campos de mesmo título: vale o último, o anexo 2');
         $this->assertStringContainsString('não incluído neste PDF', $items['Foto avulsa:'] ?? '', 'O que não é PDF fica de fora do arquivo, e o PDF diz isso');
+    }
+
+    private function photo(\MapasCulturais\Entities\Agent $owner): \MapasCulturais\Entities\AgentFile
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'foto') . '.jpg';
+        imagejpeg(imagecreatetruecolor(300, 300), $tmp);
+
+        $this->app->disableAccessControl();
+        $photo = new \MapasCulturais\Entities\AgentFile(['error' => UPLOAD_ERR_OK, 'name' => 'foto.jpg', 'type' => 'image/jpeg', 'tmp_name' => $tmp, 'size' => filesize($tmp)]);
+        $photo->group = 'gallery';
+        $photo->owner = $owner;
+        $photo->save(true);
+        $this->app->enableAccessControl();
+
+        return $photo;
+    }
+
+    // O PDF só embute a foto da galeria de quem se inscreveu; a de outra pessoa fica só com a legenda.
+    function testThePhotosAreOnlyTheOwnersGallery()
+    {
+        $registration = $this->registration();
+        $theirs = $this->photo($this->userDirector->createUser()->profile);
+        $mine = $this->photo($registration->owner);
+
+        $this->login($registration->owner->user);
+        $registration = $this->answer($registration, ['lgpd' => true, 'fotos' => [
+            ['id' => $theirs->id, 'description' => 'De outra pessoa'],
+            ['id' => $mine->id, 'description' => 'Roda de samba'],
+        ]]);
+        $stored = json_decode((string) $this->app->conn->fetchOne('SELECT value FROM registration_meta WHERE object_id = ? AND key = ?', [$registration->id, $this->opportunityBuilder->getFieldName('fotos')]), true);
+        $this->assertContains($theirs->id, array_column((array) $stored, 'id'), 'O formulário grava o id que vier');
+
+        $photos = fn (Registration $registration): array => array_column((array) $registration->{$this->opportunityBuilder->getFieldName('fotos')}, 'id');
+        $this->assertSame([$mine->id], $photos($registration), 'No rascunho, só a galeria de quem se inscreveu');
+        $this->assertSame(1, substr_count($this->items(new RegistrationPdf($registration))['Fotos:'], 'data:image'));
+
+        $registration->send();
+        $this->app->em->clear();
+        $sent = $this->app->repo('Registration')->find($registration->id);
+        $sent->opportunity->registerRegistrationMetadata();
+        $sent->registerFieldsMetadata();
+        $this->assertContains($theirs->id, $photos($sent), 'Enviada, a resposta traz o id alheio');
+
+        $html = $this->items(new RegistrationPdf($sent))['Fotos:'];
+        $this->assertSame(1, substr_count($html, 'data:image'), 'Só a foto da galeria da inscrita entra no PDF');
+        $this->assertStringContainsString('<div class="photo">De outra pessoa</div>', $html, 'A de outra pessoa fica só com a legenda');
     }
 }
