@@ -138,7 +138,7 @@ final class RegistrationForm
 
             foreach (Services\AgentMediaView::fieldsOf($this) as $field) {
                 if (is_array($result[$field->fieldName] ?? null)) {
-                    $result[$field->fieldName] = Services\AgentMediaView::toHtml($field, $result[$field->fieldName]);
+                    $result[$field->fieldName] = Services\AgentMediaView::toHtml($field, $result[$field->fieldName], $this->owner);
                 }
             }
         });

@@ -3,6 +3,8 @@
 namespace MDC\Services;
 
 use MapasCulturais\App;
+use MapasCulturais\Entities\Agent;
+use MapasCulturais\Entities\AgentFile;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\RegistrationFieldConfiguration;
 
@@ -27,25 +29,29 @@ class AgentMediaView
         );
     }
 
-    static function toHtml(RegistrationFieldConfiguration $field, array $items): string
+    // Fotos ou vídeos em HTML; as fotos, só as da galeria de quem se inscreveu (`$owner`).
+    static function toHtml(RegistrationFieldConfiguration $field, array $items, ?Agent $owner = null): string
     {
         // Converte cada item em array.
         $items = array_map(fn ($item) => (array) $item, $items);
 
-        return $field->config['entityField'] === self::GALLERY ? self::gallery($items) : self::videos($items);
+        return $field->config['entityField'] === self::GALLERY ? self::gallery($items, $owner) : self::videos($items);
     }
 
     // Miniaturas lado a lado; cada uma abre a foto inteira.
-    private static function gallery(array $photos): string
+    private static function gallery(array $photos, ?Agent $owner): string
     {
         $html = '';
+        $files = self::galleryFiles($photos);
 
         foreach ($photos as $photo) {
-            $url = self::ownFile($photo['url'] ?? null);
+            $file = $files[(int) ($photo['id'] ?? 0)] ?? null;
 
-            if ($url === null) {
+            if (!$owner || $file?->owner?->id !== $owner->id) {
                 continue;
             }
+
+            $url = $file->url;
 
             $html .= sprintf(
                 '<a class="mdc-media-view__photo" href="%1$s" target="_blank" rel="noopener noreferrer"><img src="%1$s" alt="%2$s"></a>',
@@ -87,13 +93,12 @@ class AgentMediaView
     static function photosAsCell(array $photos): string
     {
         $cells = [];
+        $photos = array_map(fn ($photo) => (array) $photo, $photos);
+        $files = self::galleryFiles($photos);
 
         foreach ($photos as $photo) {
-            $photo = (array) $photo;
-            $url = self::ownFile($photo['url'] ?? null);
-
-            if ($url !== null) {
-                $cells[] = (($photo['description'] ?? null) ?: ($photo['name'] ?? '')) . ": {$url}";
+            if ($file = $files[(int) ($photo['id'] ?? 0)] ?? null) {
+                $cells[] = (($photo['description'] ?? null) ?: ($photo['name'] ?? '')) . ": {$file->url}";
             }
         }
 
@@ -125,25 +130,16 @@ class AgentMediaView
     }
 
     /**
-     * A foto da galeria é um arquivo da própria instalação (o Mapa ou um subsite, em /files/). O endereço vem do que o
-     * formulário gravou na resposta: um de fora viraria, na ficha de quem avalia, uma imagem carregada de outro site.
+     * As fotos pelo id: só arquivo da galeria de um agente, com o endereço que o core monta.
+     *
+     * @return array<int,AgentFile> id => arquivo
      */
-    private static function ownFile(mixed $url): ?string
+    private static function galleryFiles(array $photos): array
     {
-        static $hosts = null;
+        $ids = array_filter(array_map(fn ($photo) => (int) ($photo['id'] ?? 0), $photos));
+        $files = $ids ? App::i()->repo('AgentFile')->findBy(['id' => array_values($ids), 'group' => 'gallery']) : [];
 
-        if (!$url = self::linkable($url)) {
-            return null;
-        }
-
-        // O Mapa e os subsites (o endereço do subsite é gravado sem o protocolo).
-        $hosts ??= array_filter(array_map(
-            fn ($address) => parse_url(str_contains((string) $address, '://') ? $address : "http://{$address}", PHP_URL_HOST),
-            [App::i()->baseUrl, ...App::i()->conn->fetchFirstColumn('SELECT url FROM subsite UNION SELECT alias_url FROM subsite')]
-        ));
-        $ownHost = in_array(parse_url($url, PHP_URL_HOST), $hosts, true);
-
-        return $ownHost && str_starts_with((string) parse_url($url, PHP_URL_PATH), '/files/') ? $url : null;
+        return array_column(array_map(fn ($file) => [$file->id, $file], $files), 1, 0);
     }
 
     private static function escape(string $text): string
