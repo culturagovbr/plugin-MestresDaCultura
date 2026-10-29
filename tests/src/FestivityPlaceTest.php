@@ -4,6 +4,7 @@ namespace Tests\MDC;
 
 use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\Space;
+use MapasCulturais\Entities\Subsite;
 use MDC\Services\FestivityPlace;
 use Psr\Http\Message\ServerRequestInterface;
 use Tests\Abstract\TestCase;
@@ -117,6 +118,46 @@ class FestivityPlaceTest extends TestCase
         $this->app->repo('Event')->find($event->id)->publish(true);
         $this->app->repo('EventOccurrence')->find($occurrence->id)->delete(true);
         $this->assertSame(Space::STATUS_DRAFT, $status(), 'Sem período nele, volta a rascunho');
+        // O festejo publicado na lixeira ou apagado de vez devolve o local a rascunho.
+        $this->period($this->app->repo('Event')->find($event->id), $this->app->repo('Space')->find($place->id));
+        $this->assertSame(Space::STATUS_ENABLED, $status(), 'Com período de novo, publicado');
+        $this->app->repo('Event')->find($event->id)->delete(true);
+        $this->assertSame(Space::STATUS_DRAFT, $status(), 'O festejo na lixeira devolve o local a rascunho');
+
+        $other = $this->draft($this->app->repo('Space')->find($place->id)->owner->user);
+        $this->period($other, $this->app->repo('Space')->find($place->id));
+        $this->app->repo('Event')->find($other->id)->publish(true);
+        $this->assertSame(Space::STATUS_ENABLED, $status());
+        $this->app->repo('Event')->find($other->id)->destroy(true);
+        $this->assertSame(Space::STATUS_DRAFT, $status(), 'O festejo apagado de vez também: o endereço não fica no Mapa sem festejo');
+    }
+
+    // O espaço de um evento de outro subsite não segue a regra dos locais, nem quando o evento é apagado pelo domínio
+    // dos Mestres.
+    function testAnEventOfAnotherSubsiteDoesNotMoveItsSpace()
+    {
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+        $space = $this->createPlace();
+        $event = $this->draft($user);
+        $this->period($event, $this->app->repo('Space')->find($space->id));
+
+        $this->app->disableAccessControl();
+        $subsite = new Subsite;
+        $subsite->name = 'Outro site';
+        $subsite->url = 'outro.localhost';
+        $subsite->namespace = 'BaseV2';
+        $subsite->owner = $user->profile;
+        $subsite->save(true);
+        $this->app->enableAccessControl();
+        $this->app->conn->executeStatement('UPDATE event SET subsite_id = ?, status = ? WHERE id = ?', [$subsite->id, Event::STATUS_ENABLED, $event->id]);
+        $this->app->conn->executeStatement('UPDATE space SET status = ? WHERE id = ?', [Space::STATUS_ENABLED, $space->id]);
+        $this->app->em->clear();
+
+        $this->login($this->app->repo('User')->find($user->id));
+        $this->app->repo('Event')->find($event->id)->destroy(true);
+
+        $this->assertSame(Space::STATUS_ENABLED, (int) $this->app->conn->fetchOne('SELECT status FROM space WHERE id = ?', [$space->id]), 'O espaço segue publicado');
     }
 
     function testAPlaceInUseIsNotDeleted()
@@ -235,6 +276,9 @@ class FestivityPlaceTest extends TestCase
 
         $this->call($this->requestFactory->PATCH_entity($place, ['status' => Space::STATUS_ENABLED, 'name' => 'Praça nova']));
         $this->assertSame(Space::STATUS_DRAFT, $status(), 'Nem o publica sem festejo');
+
+        $this->call($this->requestFactory->PATCH_entity($place, ['status' => Space::STATUS_ENABLED])->withMethod('PUT'));
+        $this->assertSame(Space::STATUS_DRAFT, $status(), 'Nem pelo PUT');
         $this->assertSame('Praça nova', $this->app->conn->fetchOne('SELECT name FROM space WHERE id = ?', [$place->id]), 'O resto da edição segue');
     }
 }

@@ -122,6 +122,15 @@ class FestivityProducerTest extends TestCase
         $this->login($this->userDirector->createUser('admin'));
         $admin = $person();
         $this->assertFalse($admin['isOwn'], 'O suporte não autoriza em nome da pessoa');
+        // Quem edita o festejo (agente com controle) e não edita a dona não recebe os dados dela.
+        $editor = $this->userDirector->createUser();
+        $this->app->disableAccessControl();
+        $this->app->repo('Event')->find($event->id)->createAgentRelation($editor->profile, 'group-admin', true, true);
+        $this->app->enableAccessControl();
+        $this->login($editor);
+        $other = $person();
+        $this->assertFalse($other['canEdit']);
+        $this->assertNull($other['data'], 'Sem o nome, o nascimento, o e-mail e o telefone da dona');
     }
 
     // Mudar o tipo de realizador apaga o que não vale mais para ele.
