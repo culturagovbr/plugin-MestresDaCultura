@@ -10,6 +10,7 @@ use MDC\Services\ActingField;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\MasterPublicData;
 use MDC\Services\ProgramSeal;
+use Psr\Http\Message\ServerRequestInterface;
 use Tests\Abstract\TestCase;
 use Tests\Builders\PhasePeriods\Open;
 use Tests\Builders\SealBuilder;
@@ -90,6 +91,12 @@ class MasterPublicDataTest extends TestCase
         return $this->app->repo('Agent')->find($id);
     }
 
+    private function call(ServerRequestInterface $request): void
+    {
+        $this->app->reset();
+        $this->app->run($request, false);
+    }
+
     private function setStatus(Registration $registration, string $method): void
     {
         $this->app->disableAccessControl();
@@ -137,6 +144,29 @@ class MasterPublicDataTest extends TestCase
         foreach ([MasterPublicData::KNOWN_AS, MasterPublicData::UF, MasterPublicData::CITY, MasterPublicData::ACTIVITIES, MasterPublicData::ACTING] as $key) {
             $this->assertEmpty($agent->$key, "{$key} sai com a aprovação");
         }
+    }
+
+    // A mestra não reescreve os dados públicos pelo PATCH, PUT ou POST do próprio agente; o resto da edição segue.
+    function testTheOwnerCannotRewriteThePublicData()
+    {
+        $registration = $this->registration();
+        $agentId = $registration->owner->id;
+        $this->setStatus($registration, 'setStatusToApproved');
+        $this->login($registration->owner->user);
+
+        $forged = [MasterPublicData::KNOWN_AS => 'Outro Nome', MasterPublicData::CITY => 'Salvador, BA', MasterPublicData::UF => 'BA',
+            MasterPublicData::ACTIVITIES => 'Outra', MasterPublicData::ACTING => '|1|'];
+        $this->call($this->requestFactory->PATCH_entity($this->agent($agentId), $forged + ['shortDescription' => 'Editado no PATCH']));
+        $this->call($this->requestFactory->PATCH_entity($this->agent($agentId), $forged)->withMethod('PUT'));
+        $this->call($this->requestFactory->POST('agent', 'single', [$agentId], $forged));
+        $agent = $this->agent($agentId);
+
+        $this->assertSame('Mestra Maria', $agent->{MasterPublicData::KNOWN_AS});
+        $this->assertSame('Olinda, PE', $agent->{MasterPublicData::CITY});
+        $this->assertSame('PE', $agent->{MasterPublicData::UF});
+        $this->assertSame('Carnaval, Folia de Reis', $agent->{MasterPublicData::ACTIVITIES});
+        $this->assertNotSame('|1|', $agent->{MasterPublicData::ACTING});
+        $this->assertSame('Editado no PATCH', $agent->shortDescription, 'O resto da edição segue');
     }
 
     // A busca por nome da página de Mestras e Mestres procura também o nome artístico.
