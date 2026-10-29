@@ -33,7 +33,7 @@ class ActingField
             'configTemplate' => 'registration-field-types/' . self::SLUG . '-config',
             'serialize' => [self::class, 'serialize'],
             'unserialize' => [self::class, 'unserialize'],
-            // Roda ao salvar; no envio, quem valida é o gancho de `Plugin::validateActingFieldOnSend`.
+            // Valida ao salvar; o envio é validado em `Hooks\RegistrationForm::validateActingFieldOnSend`.
             'validations' => [
                 '\MDC\Services\ActingField::isValid($value)' => self::invalidMessage(),
             ],

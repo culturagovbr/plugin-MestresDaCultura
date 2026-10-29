@@ -25,9 +25,6 @@ class Plugin extends \MapasCulturais\Plugin
     /** Telas do painel que o subsite não usa: não abrem para ninguém, nem para o saasSuperAdmin (ver o menu do tema). */
     const UNUSED_PANEL_SCREENS = ['spaces', 'apps', 'my-app', 'validations', 'accountability'];
 
-    /** Telas do v1 que só exibem a inscrição; as que salvam não entram aqui. */
-    private const V1_READING_ACTIONS = ['registrationview', 'registrationevaluationtionformview'];
-
     private ?Services\FixedOpportunity $fixedOpportunity = null;
 
     private ?Services\ProgramSeal $programSeal = null;
@@ -103,22 +100,14 @@ class Plugin extends \MapasCulturais\Plugin
     function _init()
     {
         Hooks\Tree::register($this);
-        $this->renderActingField();
-        $this->validateActingFieldOnSend();
-        $this->validatePrizeIdOnSend();
-        $this->freezeActingFieldOnSend();
-        $this->showFieldsOnV1Reading();
-        $this->renderPhotoViewer();
-        $this->showActingFieldAsTextInPdf();
+        Hooks\RegistrationForm::register($this);
         Hooks\Management::register($this);
         Hooks\PanelMenu::register($this);
         Hooks\SubsiteIsolation::register($this);
         Hooks\FixedOpportunityLock::register($this);
-        $this->limitToOneRegistrationPerUser();
         Hooks\Masters::register($this);
         $this->sendEachEvaluationOnce();
         $this->passOnTheDisabledModeratorsWork();
-        $this->fixTheProgramBreadcrumbs();
         Hooks\Festivities::register($this);
         $this->speakOfCadastro();
         $this->sendTheNetworkMails();
@@ -128,8 +117,6 @@ class Plugin extends \MapasCulturais\Plugin
         $this->validateOnlyTheReopenedFields();
         $this->showModerationToOwner();
         $this->applyProgramSeal();
-        $this->markFormSections();
-        $this->showAgeInForm();
         $this->notifyApproval();
         $this->allowFinalPhaseSync();
     }
@@ -221,39 +208,6 @@ class Plugin extends \MapasCulturais\Plugin
 
             if (Services\ProgramVocabulary::appliesTo($app->user)) {
                 Services\ProgramVocabulary::apply();
-            }
-        });
-    }
-
-    // Ver Services\ProgramBreadcrumb. As views do core montam o caminho no corpo; aqui, antes de ele ir para a tela,
-    // como o Cultura Viva faz no dele (mapas.printJsObject:before). O componente já pode ter copiado o caminho.
-    private function fixTheProgramBreadcrumbs(): void
-    {
-        $app = App::i();
-        $fixedOpportunity = $this->fixedOpportunity();
-
-        $app->hook('mapas.printJsObject:before', function () use ($fixedOpportunity) {
-            $controller = $this->controller;
-            $registration = $controller->requestedEntity ?? null;
-            // Propriedade mágica do tema: o `empty()` direto nela não a enxerga.
-            $current = array_values((array) $this->breadcrumb);
-
-            if (!Plugin::isTheme() || $controller->id !== 'registration' || !$registration instanceof Registration || !$current
-                || !$fixedOpportunity->isConfigured() || !$fixedOpportunity->includes($registration)) {
-                return;
-            }
-
-            if ($controller->action === 'evaluation') {
-                $breadcrumb = Services\ProgramBreadcrumb::evaluation($current);
-            } else {
-                $isForm = $controller->action === 'registrationEdit' || (end($current)['label'] ?? null) === i::__('Formulário');
-                $breadcrumb = Services\ProgramBreadcrumb::registration($registration->singleUrl, $isForm);
-            }
-
-            $this->breadcrumb = $breadcrumb;
-
-            if (isset($this->jsObject['breadcrumb'])) {
-                $this->jsObject['breadcrumb'] = $breadcrumb;
             }
         });
     }
@@ -426,8 +380,8 @@ class Plugin extends \MapasCulturais\Plugin
             }, ARRAY_FILTER_USE_KEY);
         };
 
-        // Depois das validações do plugin que acrescentam erros de campo no envio (validateActingFieldOnSend,
-        // validatePrizeIdOnSend): sem a prioridade, valeria a ordem das linhas do _init.
+        // Depois das validações do plugin que acrescentam erros de campo no envio (validateActingFieldOnSend e
+        // validatePrizeIdOnSend, em Hooks\RegistrationForm): sem a prioridade, valeria a ordem de registro dos ganchos.
         App::i()->hook('entity(Registration).<<validationErrors|sendValidationErrors>>', $onlyReopened, 100);
     }
 
@@ -531,33 +485,6 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // A idade calculada da data de nascimento, abaixo do campo do formulário que grava nela (ver o componente mdc-age).
-    private function showAgeInForm(): void
-    {
-        $app = App::i();
-
-        $app->hook('template(<<*>>.<<*>>.entity-field):end', function () use ($app) {
-            if (Plugin::isTheme()) {
-                $this->import('mdc-age');
-                echo '<mdc-age v-if="description?.registrationFieldConfiguration?.config?.entityField === \'dataDeNascimento\'" :value="entity[prop]"></mdc-age>';
-            }
-        });
-    }
-
-    // As seções do formulário ganham o nome delas como marca, para o tema pôr o ícone de cada uma (ver o componente
-    // mdc-section-marks). Só no subsite: nos outros, o formulário segue como no core.
-    private function markFormSections(): void
-    {
-        $app = App::i();
-
-        $app->hook('component(registration-form):end', function () use ($app) {
-            if (Plugin::isTheme()) {
-                $this->import('mdc-section-marks');
-                echo '<mdc-section-marks></mdc-section-marks>';
-            }
-        });
-    }
-
 
     // O e-mail de aprovação; ele sai no gancho da aprovação (applyProgramSeal), depois do selo.
     private function notifyApproval(): void
@@ -566,169 +493,6 @@ class Plugin extends \MapasCulturais\Plugin
             'title' => i::__('[Rede de Mestras e Mestres] Seu cadastro foi aprovado'),
             'template' => Services\Moderation::MAIL_APPROVED . '.html',
         ];
-    }
-
-    // O `entity-field` não desenha tipos que não conhece; o componente devolve o valor como evento de input
-    // para o salvamento automático do core seguir valendo. Vai em toda página com `entity-field`: o Vue
-    // resolve o nome do componente mesmo dentro de `v-if` falso. O rótulo do core chega pelo id (o `<label for>` do
-    // campo do festejo) ou pelo texto (o grupo da Atuação), como o core repassa o id ao entity-field-datepicker.
-    private function renderActingField(): void
-    {
-        App::i()->hook('template(<<*>>.<<*>>.entity-field-label):after', function () {
-            $this->import('mdc-acting-field mdc-festivity-field');
-
-            $slug = Services\ActingField::SLUG;
-            $festivity = Services\FestivityField::SLUG;
-
-            // O festejo do Calendário (item 24.4 da V3) entra do mesmo jeito: componente próprio dentro do campo do core.
-            echo <<<HTML
-                <mdc-acting-field v-if="is('{$slug}')" :entity="entity" :prop="prop" :disabled="readonly || disabled"
-                    :field-label="label || description.label" @change="change({ target: { value: \$event } }, true)"></mdc-acting-field>
-                <mdc-festivity-field v-if="is('{$festivity}')" :entity="entity" :prop="prop" :disabled="readonly || disabled"
-                    :field-id="propId" @change="change({ target: { value: \$event } }, true)"></mdc-festivity-field>
-            HTML;
-        });
-    }
-
-    // No envio o core só roda as validações `v::` do tipo; a da árvore entra por aqui. Também recusa o
-    // rascunho que tem item tirado da lista depois da última gravação: a pessoa recarrega e vê o que saiu.
-    private function validateActingFieldOnSend(): void
-    {
-        App::i()->hook('entity(Registration).sendValidationErrors', function (&$errors) {
-            /** @var Registration $this */
-            foreach (Services\ActingField::fieldsOf($this) as $field) {
-                $value = $this->{$field->fieldName};
-
-                if ($value === null) {
-                    continue;
-                }
-
-                if (!Services\ActingField::isValid($value)) {
-                    $errors[$field->fieldName][] = Services\ActingField::invalidMessage();
-                } elseif ($this->status === Registration::STATUS_DRAFT && $removed = Services\ActingField::removedFromTree($value)) {
-                    $errors[$field->fieldName][] = Services\ActingField::staleMessage($removed);
-                }
-            }
-        });
-    }
-
-    // Premiado pelo MinC: o ID do painel ou a marca de que não o localizou (ver Services\PrizeId).
-    private function validatePrizeIdOnSend(): void
-    {
-        App::i()->hook('entity(Registration).sendValidationErrors', function (&$errors) {
-            /** @var Registration $this */
-            $fields = Services\PrizeId::fieldsOf($this);
-
-            if ($fields && Services\PrizeId::isMissing($this->{$fields['id']->fieldName}, $this->{$fields['notFound']->fieldName})) {
-                $errors[$fields['id']->fieldName][] = Services\PrizeId::message();
-            }
-        });
-    }
-
-    // Regrava o espelho com os nomes do momento do envio; daí em diante, ele não muda mais.
-    private function freezeActingFieldOnSend(): void
-    {
-        App::i()->hook('entity(Registration).send:before', function () {
-            /** @var Registration $this */
-            $this->registerFieldsMetadata();
-
-            foreach (Services\ActingField::fieldsOf($this) as $field) {
-                $this->{$field->fieldName} = $this->{$field->fieldName};
-            }
-        });
-    }
-
-    // A ficha do v1 não sabe exibir alguns campos do formulário; nas telas de leitura, eles já vão montados
-    // em HTML, com o CSS e o JS do plugin.
-    private function showFieldsOnV1Reading(): void
-    {
-        $app = App::i();
-        $plugin = $this;
-
-        $isV1Reading = function () use ($app): bool {
-            $controller = $app->view->controller ?? null;
-
-            return $controller?->id === 'embedtools' && in_array($controller->action, self::V1_READING_ACTIONS, true);
-        };
-
-        $app->hook('view.render(<<*>>):before', function () use ($app, $isV1Reading) {
-            if ($isV1Reading()) {
-                $app->view->enqueueStyle('app', 'mdc-v1-reading', 'css/plugin-MDC.css', ['main']);
-                $app->view->enqueueScript('app', 'mdc-v1-reading', 'js/plugin-MDC.js');
-            }
-        });
-
-        $app->hook('entity(Registration).jsonSerialize', function (&$result) use ($isV1Reading, $plugin) {
-            /** @var Registration $this */
-            if (!$isV1Reading()) {
-                return;
-            }
-
-            // A atuação, que o v1 mostraria como texto cru, vai em cartões, a partir do espelho gravado.
-            foreach (Services\ActingField::fieldsOf($this) as $field) {
-                if (is_array($result[$field->fieldName] ?? null)) {
-                    $result[$field->fieldName] = Services\ActingField::toHtml($result[$field->fieldName]);
-                }
-            }
-
-            // Paliativo para fotos e vídeos do agente (ver AgentMediaView), só na oportunidade do programa.
-            if (!$plugin->fixedOpportunity()->includes($this)) {
-                return;
-            }
-
-            foreach (Services\AgentMediaView::fieldsOf($this) as $field) {
-                if (is_array($result[$field->fieldName] ?? null)) {
-                    $result[$field->fieldName] = Services\AgentMediaView::toHtml($field, $result[$field->fieldName]);
-                }
-            }
-        });
-    }
-
-    // A foto clicada na ficha do v1 abre aqui, na página de cima: o iframe da ficha cresce com o conteúdo.
-    private function renderPhotoViewer(): void
-    {
-        App::i()->hook('template(<<*>>.<<*>>.main-header):after', function () {
-            $this->import('mdc-photo-viewer');
-
-            echo '<mdc-photo-viewer></mdc-photo-viewer>';
-        });
-    }
-
-    // O PDF da ficha formata os campos pelo core, que não conhece o tipo; na rota dele, o campo é lido
-    // como texto em trilhas, que o formatador já sabe quebrar em linhas.
-    private function showActingFieldAsTextInPdf(): void
-    {
-        $app = App::i();
-
-        $app->hook('entity(Opportunity).registrationMetadata', function () use ($app) {
-            /** @var Opportunity $this */
-            $controller = $app->view->controller ?? null;
-
-            if ($controller?->id !== 'registration' || $controller->action !== 'exportPDF') {
-                return;
-            }
-
-            $definitions = $app->getRegisteredMetadata(Registration::class);
-
-            foreach ($this->registrationFieldConfigurations as $field) {
-                if ($field->fieldType === Services\ActingField::SLUG && isset($definitions[$field->fieldName])) {
-                    $definitions[$field->fieldName]->unserialize = [Services\ActingField::class, 'unserializeAsText'];
-                }
-                // O festejo pelo nome, e não pelo id.
-                if ($field->fieldType === Services\FestivityField::SLUG && isset($definitions[$field->fieldName])) {
-                    $definitions[$field->fieldName]->unserialize = [Services\FestivityField::class, 'toText'];
-                }
-            }
-        });
-    }
-
-    // O limite do core conta por agente responsável, não por pessoa.
-    private function limitToOneRegistrationPerUser(): void
-    {
-        App::i()->hook('entity(Registration).validations', function (&$validations) {
-            $validations['owner']['\MDC\Plugin::isTheOnlyRegistrationOfTheUser($this)'] =
-                i::__('Você já tem um cadastro nesta oportunidade.');
-        });
     }
 
     static function isTheOnlyRegistrationOfTheUser(Registration $registration): bool
