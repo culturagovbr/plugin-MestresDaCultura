@@ -134,8 +134,8 @@ app.component('mdc-tree-curation', {
         },
 
         /**
-         * Envia uma ação de curadoria (rotas `mdc/curation*`) e relê a árvore; a seleção e os ramos abertos
-         * continuam. A recusa vem com a mensagem da regra, mostrada como está.
+         * Envia uma ação de curadoria (rotas `mdc/curation*`) e relê a árvore, mantendo a seleção e os ramos abertos.
+         * A recusa vem com a mensagem da regra; as mensagens vão escapadas.
          *
          * @return a resposta da rota, ou null quando a ação não foi feita
          */
@@ -147,12 +147,12 @@ app.component('mdc-tree-curation', {
                 const result = await response.json().catch(() => null);
 
                 if (!response.ok) {
-                    this.messages.error(result?.data || this.text('erro'));
+                    this.messages.error(MdcTreeText.escape(result?.data || this.text('erro')));
                     return null;
                 }
 
                 await this.load();
-                this.messages.success(success);
+                this.messages.success(MdcTreeText.escape(success));
 
                 return result;
             } catch {

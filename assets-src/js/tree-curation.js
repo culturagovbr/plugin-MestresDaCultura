@@ -14,4 +14,6 @@ globalThis.MdcTreeText = {
     comparable: text => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(),
     // Troca cada `%s` do texto pelo próximo valor.
     format: (template, ...values) => values.reduce((s, v) => s.replace('%s', v), template),
+    // Escapa o HTML do texto, para as mensagens do `mc-messages`.
+    escape: text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]),
 };
