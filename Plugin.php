@@ -137,7 +137,7 @@ class Plugin extends \MapasCulturais\Plugin
         $this->showFieldsOnV1Reading();
         $this->renderPhotoViewer();
         $this->showActingFieldAsTextInPdf();
-        $this->adjustRegistrationsSpreadsheet();
+        Hooks\Management::register($this);
         $this->addManagementShortcuts();
         $this->addModerationShortcut();
         $this->blockDisabledEntities();
@@ -155,8 +155,6 @@ class Plugin extends \MapasCulturais\Plugin
         $this->completeOpportunityImport();
         $this->sendEachEvaluationOnce();
         $this->passOnTheDisabledModeratorsWork();
-        $this->adjustTheRegistrationsList();
-        $this->showEvaluationSentDate();
         $this->showRoleBlocksInThePanel();
         $this->sendTheMasterToThePanel();
         $this->fixTheProgramBreadcrumbs();
@@ -232,52 +230,6 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
             if ($component === 'opportunity-evaluation-committee' && Plugin::isTheme()) {
                 $this->enqueueScript('components', 'mdc-committee-duplicate-guard', 'js/committee-duplicate-guard.js', ['opportunity-evaluation-committee']);
-            }
-        }, 1000);
-    }
-
-    // Ver Services\RegistrationsTable. Só na lista de cadastros do programa; nas outras oportunidades, como no core.
-    private function adjustTheRegistrationsList(): void
-    {
-        $app = App::i();
-        $plugin = $this;
-        $isProgram = fn (?Opportunity $opportunity): bool => Plugin::isTheme() && $plugin->fixedOpportunity()->isConfigured() && $plugin->fixedOpportunity()->matches($opportunity);
-
-        $app->hook('entity(Registration).propertiesMetadata', function (&$result) {
-            if (Plugin::isTheme()) {
-                $result[Services\RegistrationsTable::MODERATION] = Services\RegistrationsTable::property();
-            }
-        });
-
-        $app->hook('component(opportunity-registrations-table).additionalHeaders', function (&$headers, &$select) use ($app, $isProgram) {
-            if ($isProgram($app->view->controller->requestedEntity ?? null)) {
-                Services\RegistrationsTable::adjust($headers, $select);
-                $app->view->jsObject['config']['mdcRegistrationsTable'] = ['after' => Services\RegistrationsTable::PLACED_AFTER, 'hidden' => Services\RegistrationsTable::UNUSED];
-            }
-        });
-
-        // A situação de cada linha da lista, como o Cultura Viva acrescenta a data de envio na lista de avaliações.
-        $app->hook('ApiQuery(Registration).findResult', function (&$result) use ($app, $isProgram) {
-            $request = $app->request;
-
-            if (!$request || $request->controllerId !== 'opportunity' || $request->action !== 'findRegistrations') {
-                return;
-            }
-
-            if ($isProgram($app->repo('Opportunity')->find((int) $request->get('@opportunity')))) {
-                foreach ($result as &$row) {
-                    if (is_array($row) && array_key_exists('status', $row)) {
-                        $row[Services\RegistrationsTable::MODERATION] = Services\RegistrationsTable::label($row);
-                    }
-                }
-                unset($row);
-            }
-        });
-
-        // O padrão de colunas do programa (registrations-table.js), junto do script do componente.
-        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
-            if ($component === 'opportunity-registrations-table' && Plugin::isTheme()) {
-                $this->enqueueScript('components', 'mdc-registrations-table', 'js/registrations-table.js', ['opportunity-registrations-table']);
             }
         }, 1000);
     }
@@ -743,48 +695,6 @@ class Plugin extends \MapasCulturais\Plugin
 
             echo "<mdc-panel-summary :summary=\"{$json}\"></mdc-panel-summary>";
         });
-    }
-
-    // Ver Services\EvaluationsTable. Como no Cultura Viva: a data entra na consulta e sai formatada só na lista de
-    // avaliações, aqui só na do programa.
-    private function showEvaluationSentDate(): void
-    {
-        $app = App::i();
-        $plugin = $this;
-        $isProgramList = function () use ($app, $plugin): bool {
-            $request = $app->request;
-
-            return Plugin::isTheme() && $request && $request->controllerId === 'opportunity' && $request->action === 'findEvaluations'
-                && $plugin->fixedOpportunity()->isConfigured()
-                && $plugin->fixedOpportunity()->matches($app->repo('Opportunity')->find((int) $request->get('@opportunity')));
-        };
-
-        $app->hook('ApiQuery(RegistrationEvaluation).params', function (&$params) use ($isProgramList) {
-            if (!empty($params['@select']) && !str_contains($params['@select'], 'sentTimestamp') && $isProgramList()) {
-                $params['@select'] .= ',sentTimestamp';
-            }
-        });
-
-        $app->hook('ApiQuery(RegistrationEvaluation).findResult', function (&$result) use ($isProgramList) {
-            if ($isProgramList()) {
-                Services\EvaluationsTable::format($result);
-            }
-        });
-
-        $app->hook('component(opportunity-evaluations-table).additionalHeaders', function (&$headers) use ($app, $plugin) {
-            $phase = $app->view->controller->requestedEntity ?? null;
-
-            if (Plugin::isTheme() && $plugin->fixedOpportunity()->isConfigured() && $plugin->fixedOpportunity()->matches($phase)) {
-                Services\EvaluationsTable::adjust($headers, $app->view->controller->action === 'userEvaluations');
-                $app->view->jsObject['config']['mdcEvaluationsTable'] = ['opportunity' => $phase->id, 'visible' => [Services\EvaluationsTable::SLUG], 'tables' => Services\EvaluationsTable::TABLES, 'hidden' => Services\EvaluationsTable::UNUSED];
-            }
-        });
-
-        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
-            if ($component === 'opportunity-evaluations-table' && Plugin::isTheme()) {
-                $this->enqueueScript('components', 'mdc-evaluations-table', 'js/evaluations-table.js', ['opportunity-evaluations-table']);
-            }
-        }, 1000);
     }
 
     // Ver Services\ModerationQueue. O reenvio da correção com o moderador desabilitado fica em Services\Moderation.
@@ -1488,34 +1398,6 @@ class Plugin extends \MapasCulturais\Plugin
                     $definitions[$field->fieldName]->unserialize = [Services\FestivityField::class, 'toText'];
                 }
             }
-        });
-    }
-
-    // A planilha de inscrições não conhece a atuação e escreve mal fotos, vídeos e seções; os ajustes
-    // estão em Services\RegistrationsSpreadsheet.
-    private function adjustRegistrationsSpreadsheet(): void
-    {
-        $app = App::i();
-        $spreadsheet = new Services\RegistrationsSpreadsheet($this->fixedOpportunity());
-        $job = 'SpreadsheetJob(' . Services\RegistrationsSpreadsheet::JOB . ')';
-
-        $app->hook("{$job}.getHeader:after", function ($job, &$header) use ($spreadsheet) {
-            $spreadsheet->removeEmptyColumns($job->owner, $header);
-            $spreadsheet->addAgeColumn($job->owner, $header);
-        });
-
-        $app->hook("{$job}.getBatch:before", function ($job, &$query) use ($spreadsheet) {
-            $spreadsheet->startBatch($job->owner, $query);
-        });
-
-        $app->hook('entity(Opportunity).registrationMetadata', function () use ($spreadsheet) {
-            /** @var Opportunity $this */
-            $spreadsheet->readAsCells($this);
-        });
-
-        $app->hook("{$job}.getBatch:after", function ($job, &$rows) use ($spreadsheet) {
-            $spreadsheet->fillAge($rows);
-            $spreadsheet->finishBatch();
         });
     }
 
