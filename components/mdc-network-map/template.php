@@ -35,7 +35,7 @@ use MapasCulturais\i;
             <button v-if="listed.length > top" type="button" class="button button--text mdc-network-map__toggle" aria-controls="mdc-network-map-list" :aria-expanded="showAll ? 'true' : 'false'" @click="showAll = !showAll">
                 {{ showAll ? text('ver menos') : text('ver todos') }}
             </button>
-            <p v-else class="mdc-network-map__empty"><?php i::_e('Ainda não há mestras e mestres na Rede.') ?></p>
+            <p v-if="!listed.length" class="mdc-network-map__empty"><?php i::_e('Ainda não há mestras e mestres na Rede.') ?></p>
 
             <div class="mdc-network-map__legend" aria-hidden="true">
                 <span class="mdc-network-map__legend-item mdc-network-map__state--0"><?php i::_e('Nenhum') ?></span>
