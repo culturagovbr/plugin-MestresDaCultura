@@ -16,6 +16,11 @@ app.component('mdc-festivity-field', {
             type: Boolean,
             default: false,
         },
+        // O id que o `<label for>` do entity-field usa.
+        fieldId: {
+            type: String,
+            default: '',
+        },
     },
 
     setup() {

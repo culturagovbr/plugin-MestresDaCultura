@@ -17,7 +17,8 @@
         <p v-if="legacy" class="mdc-festivity-field__legacy">{{ text('resposta anterior') }} <strong>{{ legacy }}</strong></p>
 
         <template v-if="!disabled">
-            <input type="search" v-model="query" :placeholder="text('buscar')" :aria-label="text('buscar')" autocomplete="off" @input="search">
+            <!-- O nome vem do `<label>` do entity-field (field-id); a dica fica no placeholder. -->
+            <input type="search" :id="fieldId || undefined" v-model="query" :placeholder="text('buscar')" autocomplete="off" @input="search">
             <ul v-if="results.length" class="mdc-festivity-field__results" :aria-label="text('resultados')">
                 <li v-for="festivity in results" :key="festivity.id">
                     <button type="button" class="mdc-festivity-field__result" @click="choose(festivity)">

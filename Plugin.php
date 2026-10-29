@@ -1342,7 +1342,8 @@ class Plugin extends \MapasCulturais\Plugin
 
     // O `entity-field` não desenha tipos que não conhece; o componente devolve o valor como evento de input
     // para o salvamento automático do core seguir valendo. Vai em toda página com `entity-field`: o Vue
-    // resolve o nome do componente mesmo dentro de `v-if` falso.
+    // resolve o nome do componente mesmo dentro de `v-if` falso. O rótulo do core chega pelo id (o `<label for>` do
+    // campo do festejo) ou pelo texto (o grupo da Atuação), como o core repassa o id ao entity-field-datepicker.
     private function renderActingField(): void
     {
         App::i()->hook('template(<<*>>.<<*>>.entity-field-label):after', function () {
@@ -1354,9 +1355,9 @@ class Plugin extends \MapasCulturais\Plugin
             // O festejo do Calendário (item 24.4 da V3) entra do mesmo jeito: componente próprio dentro do campo do core.
             echo <<<HTML
                 <mdc-acting-field v-if="is('{$slug}')" :entity="entity" :prop="prop" :disabled="readonly || disabled"
-                    @change="change({ target: { value: \$event } }, true)"></mdc-acting-field>
+                    :field-label="label || description.label" @change="change({ target: { value: \$event } }, true)"></mdc-acting-field>
                 <mdc-festivity-field v-if="is('{$festivity}')" :entity="entity" :prop="prop" :disabled="readonly || disabled"
-                    @change="change({ target: { value: \$event } }, true)"></mdc-festivity-field>
+                    :field-id="propId" @change="change({ target: { value: \$event } }, true)"></mdc-festivity-field>
             HTML;
         });
     }

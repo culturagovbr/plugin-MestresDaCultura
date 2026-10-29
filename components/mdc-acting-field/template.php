@@ -12,7 +12,7 @@ $this->import('
     mdc-acting-list
 ');
 ?>
-<div class="mdc-acting-field">
+<div class="mdc-acting-field" role="group" :aria-label="fieldLabel || undefined">
     <p class="mdc-acting-field__hint">{{text('como')}}</p>
 
     <mc-loading :condition="loading">{{text('carregando')}}</mc-loading>

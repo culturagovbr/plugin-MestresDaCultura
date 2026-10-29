@@ -18,6 +18,11 @@ app.component('mdc-acting-field', {
             type: Boolean,
             default: false,
         },
+        // O rótulo do `entity-field`, que nomeia o grupo.
+        fieldLabel: {
+            type: String,
+            default: '',
+        },
     },
 
     setup() {
