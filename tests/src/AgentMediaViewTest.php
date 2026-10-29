@@ -5,9 +5,13 @@ namespace Tests\MDC;
 use MapasCulturais\Entities\RegistrationFieldConfiguration;
 use MDC\Services\AgentMediaView;
 use Tests\Abstract\TestCase;
+use Tests\Traits\UserDirector;
 
 class AgentMediaViewTest extends TestCase
 {
+    use GalleryPhotos,
+        UserDirector;
+
     private function field(string $entity_field): RegistrationFieldConfiguration
     {
         $field = new RegistrationFieldConfiguration();
@@ -19,17 +23,19 @@ class AgentMediaViewTest extends TestCase
 
     function testShowsThePhotosAsThumbnailsThatOpenTheFullImage()
     {
+        $owner = $this->userDirector->createUser()->profile;
+        [$roda, $renda] = [$this->galleryPhoto($owner), $this->galleryPhoto($owner)];
         $photos = [
-            ['id' => 1, 'name' => 'roda.jpg', 'url' => 'http://localhost/files/agent/1/roda.jpg', 'description' => 'Roda de coco'],
-            ['id' => 2, 'name' => 'renda.jpg', 'url' => 'http://localhost/files/agent/1/renda.jpg', 'description' => null],
+            ['id' => $roda->id, 'name' => 'roda.jpg', 'url' => $roda->url, 'description' => 'Roda de coco'],
+            ['id' => $renda->id, 'name' => 'renda.jpg', 'url' => $renda->url, 'description' => null],
         ];
 
         $this->assertSame(
             '<div class="mdc-media-view mdc-media-view--gallery">'
-            . '<a class="mdc-media-view__photo" href="http://localhost/files/agent/1/roda.jpg" target="_blank" rel="noopener noreferrer"><img src="http://localhost/files/agent/1/roda.jpg" alt="Roda de coco"></a>'
-            . '<a class="mdc-media-view__photo" href="http://localhost/files/agent/1/renda.jpg" target="_blank" rel="noopener noreferrer"><img src="http://localhost/files/agent/1/renda.jpg" alt="renda.jpg"></a>'
+            . "<a class=\"mdc-media-view__photo\" href=\"{$roda->url}\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"{$roda->url}\" alt=\"Roda de coco\"></a>"
+            . "<a class=\"mdc-media-view__photo\" href=\"{$renda->url}\" target=\"_blank\" rel=\"noopener noreferrer\"><img src=\"{$renda->url}\" alt=\"renda.jpg\"></a>"
             . '</div>',
-            AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), $photos),
+            AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), $photos, $owner),
             'Sem descrição, o texto alternativo da foto é o nome do arquivo'
         );
     }
@@ -54,6 +60,7 @@ class AgentMediaViewTest extends TestCase
     {
         $videos = [['title' => '<b>"x"</b>', 'value' => 'javascript:alert(1)']];
         $photos = [['name' => 'x.jpg', 'url' => 'javascript:alert(1)', 'description' => null]];
+        $owner = $this->userDirector->createUser()->profile;
 
         $this->assertSame(
             '<div class="mdc-media-view"><div><b>&lt;b&gt;&quot;x&quot;&lt;/b&gt;:</b> javascript:alert(1)</div></div>',
@@ -61,34 +68,37 @@ class AgentMediaViewTest extends TestCase
             'Endereço que não é http(s) aparece como texto, sem link'
         );
 
-        $this->assertSame('', AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), $photos));
+        $this->assertSame('', AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), $photos, $owner));
     }
 
     function testReadsTheItemsAsObjectsTheWayTheCoreDeliversThem()
     {
-        $photos = [(object) ['id' => 1, 'name' => 'roda.jpg', 'url' => 'http://localhost/files/agent/1/roda.jpg', 'description' => null]];
+        $owner = $this->userDirector->createUser()->profile;
+        $roda = $this->galleryPhoto($owner);
+        $photos = [(object) ['id' => $roda->id, 'name' => 'roda.jpg', 'url' => $roda->url, 'description' => null]];
         $videos = [(object) ['title' => 'Minha história', 'value' => 'https://vimeo.com/123']];
 
-        $this->assertStringContainsString('<img src="http://localhost/files/agent/1/roda.jpg" alt="roda.jpg">', AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), $photos));
+        $this->assertStringContainsString("<img src=\"{$roda->url}\" alt=\"roda.jpg\">", AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), $photos, $owner));
         $this->assertStringContainsString('<b>Minha história:</b>', AgentMediaView::toHtml($this->field(AgentMediaView::VIDEOS), $videos));
     }
 
     function testShowsNothingWhenThereIsNothingToShow()
     {
-        $this->assertSame('', AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), []));
+        $this->assertSame('', AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), [], null));
         $this->assertSame('', AgentMediaView::toHtml($this->field(AgentMediaView::VIDEOS), [['title' => 'x', 'value' => '  ']]));
     }
 
     function testListsThePhotosForTheSpreadsheetByNameAndAddress()
     {
+        $owner = $this->userDirector->createUser()->profile;
+        [$roda, $renda] = [$this->galleryPhoto($owner), $this->galleryPhoto($owner)];
         $photos = [
-            (object) ['name' => 'roda.jpg', 'url' => 'http://localhost/files/agent/1/roda.jpg'],
-            ['name' => 'renda.jpg', 'url' => 'http://localhost/files/agent/1/renda.jpg'],
-            ['name' => 'sem-endereco.jpg', 'url' => 'javascript:alert(1)'],
-            ['name' => 'de-fora.jpg', 'url' => 'https://exemplo.org/files/rastreio.gif'],
+            (object) ['id' => $roda->id, 'name' => 'roda.jpg', 'url' => $roda->url],
+            ['id' => $renda->id, 'name' => 'renda.jpg', 'url' => $renda->url],
+            ['name' => 'sem-id.jpg', 'url' => 'javascript:alert(1)'],
         ];
 
-        $this->assertSame('roda.jpg: http://localhost/files/agent/1/roda.jpg | renda.jpg: http://localhost/files/agent/1/renda.jpg', AgentMediaView::photosAsCell($photos));
+        $this->assertSame("roda.jpg: {$roda->url} | renda.jpg: {$renda->url}", AgentMediaView::photosAsCell($photos));
     }
 
     function testWritesTheVideosAndLinksForTheSpreadsheetWithTheirTitles()
@@ -102,21 +112,26 @@ class AgentMediaViewTest extends TestCase
         $this->assertSame('Minha história: https://vimeo.com/123 | https://youtu.be/abc', AgentMediaView::linksAsCell($videos));
     }
 
-    // O endereço da foto vem do que o formulário gravou: um de fora viraria, na ficha de quem avalia, uma imagem
-    // carregada de outro site (e o aviso a ele de quem abriu e quando). Só arquivos da própria instalação.
-    function testShowsOnlyPhotosThatAreFilesOfTheInstallation()
+    // A foto sai pelo id, com o endereço que o core monta, e só da galeria de quem se inscreveu.
+    function testShowsOnlyTheOwnersGalleryPhotosWithTheAddressTheCoreBuilds()
     {
+        $owner = $this->userDirector->createUser()->profile;
+        $mine = $this->galleryPhoto($owner);
+        $theirs = $this->galleryPhoto($this->userDirector->createUser()->profile);
+        $avatar = $this->galleryPhoto($owner, 'avatar');
         $photos = [
-            ['name' => 'roda.jpg', 'url' => 'http://localhost/files/agent/1/roda.jpg'],
-            ['name' => 'rastreio.gif', 'url' => 'https://exemplo.org/files/rastreio.gif'],
-            ['name' => 'fora-de-files.jpg', 'url' => 'http://localhost/outra/pasta.jpg'],
+            ['id' => $mine->id, 'name' => 'minha.jpg', 'url' => 'http://evil\\@localhost/files/rastreio.gif'],
+            ['id' => $theirs->id, 'name' => 'alheia.jpg', 'url' => $theirs->url],
+            ['id' => $avatar->id, 'name' => 'avatar.jpg', 'url' => $avatar->url],
+            ['name' => 'sem-id.jpg', 'url' => 'http://localhost/files/../painel/'],
         ];
 
-        $html = AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), $photos);
+        $html = AgentMediaView::toHtml($this->field(AgentMediaView::GALLERY), $photos, $owner);
 
-        $this->assertStringContainsString('roda.jpg', $html);
-        $this->assertStringNotContainsString('exemplo.org', $html, 'A de outro site não entra');
-        $this->assertStringNotContainsString('outra/pasta', $html, 'Nem o que não é arquivo');
-        $this->assertSame('roda.jpg: http://localhost/files/agent/1/roda.jpg', AgentMediaView::photosAsCell($photos), 'Na planilha também');
+        $this->assertSame(1, substr_count($html, '<img '), 'Só a foto da galeria de quem se inscreveu');
+        $this->assertStringContainsString("src=\"{$mine->url}\"", $html, 'Com o endereço do arquivo, e não o gravado');
+        $this->assertStringNotContainsString('evil', $html);
+        $this->assertStringNotContainsString('painel', $html);
+        $this->assertSame("minha.jpg: {$mine->url} | alheia.jpg: {$theirs->url}", AgentMediaView::photosAsCell($photos), 'Na planilha, a galeria de um agente, também pelo id');
     }
 }

@@ -15,7 +15,8 @@ use Tests\Traits\UserDirector;
 // O PDF da ficha do tema MestresDaCultura: etapas, seções, respostas e anexos.
 class RegistrationPdfTest extends TestCase
 {
-    use OpportunityBuilder,
+    use GalleryPhotos,
+        OpportunityBuilder,
         RegistrationDirector,
         UserDirector;
 
@@ -175,27 +176,12 @@ class RegistrationPdfTest extends TestCase
         $this->assertStringContainsString('não incluído neste PDF', $items['Foto avulsa:'] ?? '', 'O que não é PDF fica de fora do arquivo, e o PDF diz isso');
     }
 
-    private function photo(\MapasCulturais\Entities\Agent $owner): \MapasCulturais\Entities\AgentFile
-    {
-        $tmp = tempnam(sys_get_temp_dir(), 'foto') . '.jpg';
-        imagejpeg(imagecreatetruecolor(300, 300), $tmp);
-
-        $this->app->disableAccessControl();
-        $photo = new \MapasCulturais\Entities\AgentFile(['error' => UPLOAD_ERR_OK, 'name' => 'foto.jpg', 'type' => 'image/jpeg', 'tmp_name' => $tmp, 'size' => filesize($tmp)]);
-        $photo->group = 'gallery';
-        $photo->owner = $owner;
-        $photo->save(true);
-        $this->app->enableAccessControl();
-
-        return $photo;
-    }
-
     // O PDF só embute a foto da galeria de quem se inscreveu; a de outra pessoa fica só com a legenda.
     function testThePhotosAreOnlyTheOwnersGallery()
     {
         $registration = $this->registration();
-        $theirs = $this->photo($this->userDirector->createUser()->profile);
-        $mine = $this->photo($registration->owner);
+        $theirs = $this->galleryPhoto($this->userDirector->createUser()->profile);
+        $mine = $this->galleryPhoto($registration->owner);
 
         $this->login($registration->owner->user);
         $registration = $this->answer($registration, ['lgpd' => true, 'fotos' => [
