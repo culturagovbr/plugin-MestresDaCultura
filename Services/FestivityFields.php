@@ -207,8 +207,8 @@ class FestivityFields
         $stored = $event->id
             ? (App::i()->conn->fetchOne('SELECT value FROM event_meta WHERE object_id = :id AND key = :key', ['id' => $event->id, 'key' => self::FIRST_PUBLISHED]) ?: null)
             : null;
-        $certified = $event->status === \MapasCulturais\Entities\Event::STATUS_ENABLED && !FestivityForm::missing($event);
-        $date = $stored ?? ($certified ? date('Y-m-d H:i:s') : null);
+        // As 6 etapas só se conferem enquanto não há data.
+        $date = $stored ?? (($event->status === \MapasCulturais\Entities\Event::STATUS_ENABLED && !FestivityForm::missing($event)) ? date('Y-m-d H:i:s') : null);
 
         if ($event->{self::FIRST_PUBLISHED} != $date) {
             $event->{self::FIRST_PUBLISHED} = $date;
