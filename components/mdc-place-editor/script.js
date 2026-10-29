@@ -5,7 +5,8 @@ app.component('mdc-place-editor', {
 
     setup() {
         const text = Utils.getTexts('mdc-place-editor');
-        return { text };
+        const messages = useMessages();
+        return { text, messages };
     },
 
     data() {
@@ -28,7 +29,7 @@ app.component('mdc-place-editor', {
                 this.place = place;
                 this.$refs.modal.open();
             } else {
-                messages.error(this.text('falha'));
+                this.messages.error(this.text('falha'));
             }
         },
 
