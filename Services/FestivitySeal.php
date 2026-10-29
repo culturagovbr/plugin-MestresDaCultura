@@ -15,36 +15,16 @@ class FestivitySeal
 {
     const CONFIG_KEY = 'mdc.festivitySealId';
 
-    private bool $resolved = false;
-
-    private ?Seal $seal = null;
+    use ResolvesConfiguredEntity;
 
     function get(): ?Seal
     {
-        if ($this->resolved) {
-            return $this->seal;
-        }
-
-        $this->resolved = true;
-
-        $app = App::i();
-        $id = $this->configuredId();
-
-        if (!$id) {
-            $app->log->error('MDC: o selo dos festejos não está configurado. Defina MDC_FESTIVITY_SEAL_ID no ambiente.');
-
-            return null;
-        }
-
-        $seal = $app->repo('Seal')->find($id);
-
-        if (!$seal) {
-            $app->log->error("MDC: o selo {$id} não existe nesta instalação. Confira MDC_FESTIVITY_SEAL_ID.");
-
-            return null;
-        }
-
-        return $this->seal = $seal;
+        return $this->resolveConfigured(
+            self::CONFIG_KEY,
+            'Seal',
+            'MDC: o selo dos festejos não está configurado. Defina MDC_FESTIVITY_SEAL_ID no ambiente.',
+            'MDC: o selo %d não existe nesta instalação. Confira MDC_FESTIVITY_SEAL_ID.'
+        );
     }
 
     /**

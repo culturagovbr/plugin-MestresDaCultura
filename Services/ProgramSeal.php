@@ -16,36 +16,16 @@ class ProgramSeal
 {
     const CONFIG_KEY = 'mdc.sealId';
 
-    private bool $resolved = false;
-
-    private ?Seal $seal = null;
+    use ResolvesConfiguredEntity;
 
     function get(): ?Seal
     {
-        if ($this->resolved) {
-            return $this->seal;
-        }
-
-        $this->resolved = true;
-
-        $app = App::i();
-        $id = $app->config[self::CONFIG_KEY] ?? null;
-
-        if (!$id) {
-            $app->log->error('MDC: o selo do programa não está configurado. Defina MDC_SEAL_ID no ambiente.');
-
-            return null;
-        }
-
-        $seal = $app->repo('Seal')->find((int) $id);
-
-        if (!$seal) {
-            $app->log->error("MDC: o selo {$id} não existe nesta instalação. Confira MDC_SEAL_ID.");
-
-            return null;
-        }
-
-        return $this->seal = $seal;
+        return $this->resolveConfigured(
+            self::CONFIG_KEY,
+            'Seal',
+            'MDC: o selo do programa não está configurado. Defina MDC_SEAL_ID no ambiente.',
+            'MDC: o selo %d não existe nesta instalação. Confira MDC_SEAL_ID.'
+        );
     }
 
     // Emite o selo em nome do dono do selo.
@@ -94,16 +74,15 @@ class ProgramSeal
     // Compara com o id configurado, sem registrar erro.
     function isTheProgramSeal(Seal $seal): bool
     {
-        return (int) (App::i()->config[self::CONFIG_KEY] ?? 0) === $seal->id;
+        return $this->configuredId() === $seal->id;
     }
 
     // Sem o selo configurado, false, sem registrar erro.
     function isGivenTo(int $agentId): bool
     {
-        $app = App::i();
-        $id = $app->config[self::CONFIG_KEY] ?? null;
+        $id = $this->configuredId();
 
-        return $id && $app->repo('AgentSealRelation')->findOneBy(['seal' => (int) $id, 'owner' => $agentId]) !== null;
+        return $id && App::i()->repo('AgentSealRelation')->findOneBy(['seal' => $id, 'owner' => $agentId]) !== null;
     }
 
     /** O selo do mestre, que é também o endereço do certificado. */
