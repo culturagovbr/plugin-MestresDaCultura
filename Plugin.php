@@ -129,7 +129,7 @@ class Plugin extends \MapasCulturais\Plugin
 
     function _init()
     {
-        $this->registerTreeNodeObjectType();
+        Hooks\Tree::register($this);
         $this->renderActingField();
         $this->validateActingFieldOnSend();
         $this->validatePrizeIdOnSend();
@@ -138,7 +138,6 @@ class Plugin extends \MapasCulturais\Plugin
         $this->renderPhotoViewer();
         $this->showActingFieldAsTextInPdf();
         $this->adjustRegistrationsSpreadsheet();
-        $this->addTreeCurationPage();
         $this->addManagementShortcuts();
         $this->addModerationShortcut();
         $this->blockDisabledEntities();
@@ -1338,14 +1337,6 @@ class Plugin extends \MapasCulturais\Plugin
         });
     }
 
-    // `object_type` é enum do Postgres e também lista fixa em PHP; o db-update cobre uma ponta, este hook a outra.
-    private function registerTreeNodeObjectType(): void
-    {
-        App::i()->hook('doctrine.emum(object_type).values', function (&$values) {
-            $values['TreeNode'] = Entities\Node::class;
-        });
-    }
-
     // O `entity-field` não desenha tipos que não conhece; o componente devolve o valor como evento de input
     // para o salvamento automático do core seguir valendo. Vai em toda página com `entity-field`: o Vue
     // resolve o nome do componente mesmo dentro de `v-if` falso. O rótulo do core chega pelo id (o `<label for>` do
@@ -1525,51 +1516,6 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook("{$job}.getBatch:after", function ($job, &$rows) use ($spreadsheet) {
             $spreadsheet->fillAge($rows);
             $spreadsheet->finishBatch();
-        });
-    }
-
-    // Curadoria da árvore: página no painel e item no grupo de administração, só para administradores e
-    // só no subsite do programa.
-    private function addTreeCurationPage(): void
-    {
-        $app = App::i();
-
-        $app->hook('GET(panel.mdc-tree-curation)', function () use ($app) {
-            /** @var \MapasCulturais\Controllers\Panel $this */
-            $this->requireAuthentication();
-
-            if (!Plugin::isTheme()) {
-                $app->pass();
-            }
-
-            if (!Services\Curators::includes()) {
-                $app->halt(403, i::__('Acesso restrito.'));
-            }
-
-            $app->view->enqueueScript('app-v2', 'mdc-tree-curation', 'js/tree-curation.js');
-
-            $this->render('mdc-tree-curation');
-        });
-
-        $app->hook('panel.nav', function (&$nav) use ($app) {
-            if (!Plugin::isTheme() || !isset($nav['admin'])) {
-                return;
-            }
-
-            $nav['admin']['items'][] = [
-                'route' => 'panel/mdc-tree-curation',
-                'icon' => 'mdc-tree',
-                'label' => i::__('Curadoria da Árvore de Atuação'),
-                'condition' => fn () => Services\Curators::includes(),
-            ];
-        });
-
-        $app->hook('component(mc-icon).iconset', function (&$iconset) {
-            $iconset['mdc-tree'] = 'mdi:file-tree-outline';
-            $iconset['mdc-zoom-in'] = 'mdi:plus';
-            $iconset['mdc-zoom-out'] = 'mdi:minus';
-            $iconset['mdc-not-proven'] = 'mdi:close-circle';
-            $iconset['mdc-certificate'] = 'mdi:certificate';
         });
     }
 
