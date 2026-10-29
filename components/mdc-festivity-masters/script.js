@@ -18,8 +18,12 @@ app.component('mdc-festivity-masters', {
             query: '',
             results: [],
             selected: [],
+            // Vínculos gravados que a busca não traz (quem perdeu o selo): seguem gravados, sem aparecer.
+            hidden: [],
             searched: false,
             timer: null,
+            loading: false,
+            failed: false,
         };
     },
 
@@ -29,11 +33,24 @@ app.component('mdc-festivity-masters', {
         },
     },
 
+    // Lê os vínculos gravados antes de deixar adicionar ou remover.
     async created() {
-        const ids = (this.entity.mdcFestejoMestres || '').split('|').filter(Boolean);
+        const ids = (this.entity.mdcFestejoMestres || '').split('|').filter(Boolean).map(Number);
 
-        if (ids.length) {
+        if (!ids.length) {
+            return;
+        }
+
+        this.loading = true;
+
+        try {
             this.selected = await this.find({ id: `IN(${ids.join(',')})` });
+            const found = this.selected.map((master) => master.id);
+            this.hidden = ids.filter((id) => !found.includes(id));
+        } catch {
+            this.failed = true;
+        } finally {
+            this.loading = false;
         }
     },
 
@@ -70,7 +87,11 @@ app.component('mdc-festivity-masters', {
         },
 
         save() {
-            const ids = this.selected.map((master) => master.id);
+            if (this.loading || this.failed) {
+                return;
+            }
+
+            const ids = [...this.selected.map((master) => master.id), ...this.hidden];
             this.entity.mdcFestejoMestres = ids.length ? `|${ids.join('|')}|` : '';
         },
 
