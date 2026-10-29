@@ -1,0 +1,350 @@
+<?php
+
+namespace MDC\Hooks;
+
+use MDC\Plugin;
+use MDC\Services;
+use MapasCulturais\API;
+use MapasCulturais\ApiQuery;
+use MapasCulturais\App;
+use MapasCulturais\Entities\Agent;
+use MapasCulturais\Entities\Event;
+use MapasCulturais\Entities\Opportunity;
+use MapasCulturais\Entities\Registration;
+use MapasCulturais\i;
+
+/**
+ * Subsite dos Mestres isolado do resto da instalação: entidades desligadas, inscrições e notificações só do
+ * programa, o programa no seu subsite e os selos que cada papel vê.
+ */
+final class SubsiteIsolation
+{
+    static function register(Plugin $plugin): void
+    {
+        self::blockDisabledEntities($plugin);
+        self::scopeRegistrationsToFixedOpportunity($plugin);
+        self::sendForeignRegistrationsHome($plugin);
+        self::keepTheProgramOnItsSite($plugin);
+        self::showOnlyTheProgramSeal($plugin);
+        self::leaveOutOtherProgramsNotifications($plugin);
+        self::keepEntitiesInTheSubsite($plugin);
+    }
+
+    // Entidades desligadas no tema (config.php): agentes só para admins, projetos só para o saasSuperAdmin e espaços
+    // para ninguém.
+    private static function blockDisabledEntities(Plugin $plugin): void
+    {
+        $app = \MapasCulturais\App::i();
+
+        $isAllowed = fn (string $entity): bool => $app->isEnabled($entity) || match ($entity) {
+            'agents' => $app->user->is('admin'),
+            'projects' => $app->user->is('saasSuperAdmin'),
+            default => false,
+        };
+
+        $isOwnProfile = function (mixed $id) use ($app): bool {
+            $profile = $app->user->profile ?? null;
+
+            return $id && $profile && (int) $id === $profile->id;
+        };
+
+        // A página do agente com o selo do programa abre para todos.
+        $isPublicMaster = fn (string $action, mixed $id): bool => $action === 'single' && $id && $plugin->programSeal()->isGivenTo((int) $id);
+
+        // O próprio perfil também abre.
+        $app->hook('GET(agent.<<*>>):before', function () use ($app, $isAllowed, $isOwnProfile, $isPublicMaster) {
+            if ($isAllowed('agents') || $isOwnProfile($this->urlData['id'] ?? null) || $isPublicMaster($this->action, $this->urlData['id'] ?? null)) {
+                return;
+            }
+
+            $app->pass();
+        });
+
+        // Quem tem conta grava o próprio local de festejo (Services\FestivityPlace).
+        $isFestivityPlace = fn (string $controller, string $action): bool => $controller === 'space'
+            && !$app->user->is('guest') && Services\FestivityPlace::isWrite($app->request->getMethod(), $action);
+
+        // Fecha as rotas de espaço e de projeto em qualquer método HTTP; a API fica de fora.
+        foreach (['space' => 'spaces', 'project' => 'projects'] as $controller => $entity) {
+            $app->hook("ALL({$controller}.<<*>>):before", function () use ($app, $controller, $entity, $isAllowed, $isFestivityPlace) {
+                if (!$isAllowed($entity) && !$isFestivityPlace($controller, $this->action)) {
+                    $app->pass();
+                }
+            });
+        }
+
+        $app->hook('GET(<<search|panel>>.<<agents|spaces|projects>>):before', function () use ($app, $isAllowed) {
+            if (!$isAllowed($this->action)) {
+                $app->pass();
+            }
+        });
+    }
+
+    // No subsite dos Mestres, a API de inscrições só traz as da oportunidade do programa, para todos
+    // (Services\RegistrationScope).
+    private static function scopeRegistrationsToFixedOpportunity(Plugin $plugin): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $plugin->fixedOpportunity();
+
+        $app->hook('ApiQuery(Registration).params', function (&$params) use ($app, $fixedOpportunity) {
+            /** @var ApiQuery $this */
+            if ($this->parentQuery || !Plugin::isTheme()) {
+                return;
+            }
+
+            // Sem oportunidade configurada, a consulta segue sem filtro.
+            if (!$fixedOpportunity->isConfigured()) {
+                return;
+            }
+
+            $allowed = $fixedOpportunity->ids();
+
+            if ($allowed) {
+                $params['opportunity'] = API::IN(Services\RegistrationScope::narrow($params['opportunity'] ?? null, $allowed));
+            }
+        });
+    }
+
+    // No subsite dos Mestres, a inscrição de outro edital abre no subsite dele; se for este mesmo, não abre.
+    private static function sendForeignRegistrationsHome(Plugin $plugin): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $plugin->fixedOpportunity();
+
+        $app->hook('GET(registration.<<*>>):before', function () use ($app, $fixedOpportunity) {
+            /** @var \MapasCulturais\Controllers\Registration $this */
+            if (!Plugin::isTheme() || !$fixedOpportunity->isConfigured()) {
+                return;
+            }
+
+            $registration = $this->requestedEntity;
+
+            if (!$registration instanceof Registration || $fixedOpportunity->includes($registration)) {
+                return;
+            }
+
+            $origin = $registration->opportunity?->subsite;
+
+            if (!$registration->opportunity || Services\SubsiteRedirect::isCurrent($origin)) {
+                $app->pass();
+            }
+
+            $app->redirect(Services\SubsiteRedirect::urlOn($origin, $this));
+        });
+    }
+
+    // Fora do subsite dos Mestres, a oportunidade do programa sai da busca e da home, e as páginas dela e das inscrições
+    // dela vão para o subsite dos Mestres.
+    private static function keepTheProgramOnItsSite(Plugin $plugin): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $plugin->fixedOpportunity();
+        $elsewhere = fn (): bool => $fixedOpportunity->isConfigured()
+            && ($fixed = $fixedOpportunity->get())
+            && !Services\SubsiteRedirect::isCurrent($fixed->subsite);
+
+        $app->hook('ApiQuery(Opportunity).params', function (&$params) use ($app, $fixedOpportunity, $elsewhere) {
+            /** @var ApiQuery $this */
+            if ($this->parentQuery || !$app->request?->isAjax() || !$elsewhere()) {
+                return;
+            }
+
+            $referer = $app->request->getReferer();
+            $referer = strtok(is_array($referer) ? ($referer[0] ?? '') : (string) $referer, '?#');
+
+            if (!in_array($referer, [$app->createUrl('site', 'index'), $app->createUrl('search', 'opportunities')], true)) {
+                return;
+            }
+
+            $hidden = API::NOT_IN($fixedOpportunity->ids());
+            $params['id'] = isset($params['id']) ? API::AND($params['id'], $hidden) : $hidden;
+        });
+
+        $app->hook('GET(<<opportunity|registration>>.<<*>>):before', function () use ($app, $fixedOpportunity, $elsewhere) {
+            $entity = $this->requestedEntity;
+            $opportunity = $entity instanceof Registration ? $entity->opportunity : $entity;
+
+            if (!$opportunity instanceof Opportunity || !$fixedOpportunity->matches($opportunity) || !$elsewhere()) {
+                return;
+            }
+
+            $app->redirect(Services\SubsiteRedirect::urlOn($fixedOpportunity->get()->subsite, $this));
+        });
+    }
+
+    // No subsite dos Mestres, quem não é admin só vê o selo do programa, e o gestor e o saasSuperAdmin só os selos do
+    // subsite (o do programa e os que criarem nele): na API de selos, nos selos que a API de agentes devolve e nas
+    // páginas de selo e de certificado. Os selos do agente vêm da consulta do agente, não da API de selos, e são
+    // filtrados na saída da API, depois do cache dela, que não separa usuários. O perfil público do mestre já esconde o
+    // bloco de selos do core (_mdc-master-profile.scss) e mostra o do programa no cabeçalho.
+    private static function showOnlyTheProgramSeal(Plugin $plugin): void
+    {
+        $app = App::i();
+        $programSeal = $plugin->programSeal();
+        $festivitySeal = $plugin->festivitySeal();
+        $fixedOpportunity = $plugin->fixedOpportunity();
+
+        // Os ids que a pessoa vê; null, sem filtro (fora do subsite, ou sem o selo do programa configurado). Quem não é
+        // admin vê o selo dos mestres e o dos festejos.
+        $visible = function () use ($app, $programSeal, $festivitySeal, $fixedOpportunity): ?array {
+            if (!Plugin::isTheme()) {
+                return null;
+            }
+
+            if (!$app->user->is('admin')) {
+                return $programSeal->configuredId() ? array_values(array_filter([$programSeal->configuredId(), $festivitySeal->configuredId()])) : null;
+            }
+
+            $subsite = $fixedOpportunity->subsiteId();
+            $sql = $subsite === null ? 'SELECT id FROM seal WHERE subsite_id IS NULL' : 'SELECT id FROM seal WHERE subsite_id = :subsite';
+
+            return array_map('intval', $app->conn->fetchFirstColumn($sql, ['subsite' => $subsite]));
+        };
+
+        $keepVisibleSeals = function (array &$agents, array $ids): void {
+            foreach ($agents as &$agent) {
+                foreach (['seals', 'verifiedSeals'] as $key) {
+                    if (is_array($agent[$key] ?? null)) {
+                        $agent[$key] = array_values(array_filter($agent[$key], fn ($seal) => in_array((int) ($seal['sealId'] ?? 0), $ids, true)));
+                    }
+                }
+            }
+        };
+
+        $app->hook('ApiQuery(Seal).params', function (&$params) use ($visible) {
+            /** @var ApiQuery $this */
+            if ($this->parentQuery || ($ids = $visible()) === null) {
+                return;
+            }
+
+            $only = API::IN($ids ?: [0]);
+            $params['id'] = isset($params['id']) ? API::AND($params['id'], $only) : $only;
+        });
+
+        $app->hook('API.<<find|findOne>>(agent).result', function ($params, &$result) use ($visible, $keepVisibleSeals) {
+            if (!is_array($result) || ($ids = $visible()) === null) {
+                return;
+            }
+
+            if (isset($result['id'])) {
+                $one = [&$result];
+                $keepVisibleSeals($one, $ids);
+            } else {
+                $keepVisibleSeals($result, $ids);
+            }
+        });
+
+        // Os selos do agente também saem filtrados do JSON da página do perfil.
+        $app->hook('view.requestedEntity(Agent).result', function (&$entity) use ($visible, $keepVisibleSeals) {
+            if (($ids = $visible()) !== null) {
+                $one = [&$entity];
+                $keepVisibleSeals($one, $ids);
+            }
+        });
+
+        $app->hook('GET(seal.<<single|sealRelation|printsealrelation>>):before', function () use ($app, $visible) {
+            if (($ids = $visible()) === null) {
+                return;
+            }
+
+            $id = (int) ($this->data['id'] ?? 0);
+            $seal = $this->action === 'single' ? $app->repo('Seal')->find($id) : $app->repo('SealRelation')->find($id)?->seal;
+
+            if (!$seal || !in_array($seal->id, $ids, true)) {
+                $app->pass();
+            }
+        });
+    }
+
+    // No subsite dos Mestres, as notificações de outros programas ficam fora da consulta, para todos
+    // (Services\NotificationScope).
+    private static function leaveOutOtherProgramsNotifications(Plugin $plugin): void
+    {
+        $app = App::i();
+        $fixedOpportunity = $plugin->fixedOpportunity();
+        $scope = new Services\NotificationScope($fixedOpportunity);
+
+        // Em qualquer subsite e nos jobs, gravar uma notificação refaz as escondidas de quem a recebe.
+        $app->hook('entity(Notification).save:finish', function () {
+            if ($this->user?->id) {
+                Services\NotificationScope::changed($this->user->id);
+            }
+        });
+
+        $app->hook('ApiQuery(Notification).params', function (&$params) use ($app, $fixedOpportunity, $scope) {
+            /** @var ApiQuery $this */
+            if ($this->parentQuery || !Plugin::isTheme() || $app->user->is('guest') || !$fixedOpportunity->isConfigured()) {
+                return;
+            }
+
+            if ($hidden = $scope->hiddenFor($app->user)) {
+                $outside = API::NOT_IN($hidden);
+                $params['id'] = isset($params['id']) ? API::AND($params['id'], $outside) : $outside;
+            }
+        });
+    }
+
+    // No subsite dos Mestres, espaços e períodos da agenda só vêm do subsite atual; os eventos de outro subsite abrem
+    // no subsite deles.
+    private static function keepEntitiesInTheSubsite(Plugin $plugin): void
+    {
+        $app = App::i();
+        $current = fn () => $app->subsite?->id ? API::EQ($app->subsite->id) : API::NULL();
+
+        $app->hook('ApiQuery(space).params', function (&$params) use ($current) {
+            if (Plugin::isTheme()) {
+                $params['_subsiteId'] = $current();
+            }
+        });
+
+        // A agenda de um festejo que a pessoa pode ver (event: EQ(id)) vem inteira, rascunho incluído; fora isso, só a
+        // dos festejos publicados do subsite.
+        $app->hook('ApiQuery(eventoccurrence).params', function (&$params) use ($app, $current) {
+            /** @var ApiQuery $this */
+            if (!Plugin::isTheme() || $this->parentQuery) {
+                return;
+            }
+
+            if (preg_match('/^EQ\((\d+)\)$/', (string) ($params['event'] ?? ''), $match)) {
+                $event = $app->repo('Event')->find((int) $match[1]);
+
+                if ($event && Plugin::isFestivity($event) && $event->canUser('view')) {
+                    return;
+                }
+            }
+
+            $this->addFilterByApiQuery(new ApiQuery(Event::class, ['_subsiteId' => $current(), 'status' => API::EQ(Event::STATUS_ENABLED)]), 'id', 'event');
+        });
+
+        // O evento de outro subsite abre no subsite dele.
+        $app->hook('GET(event.<<single|edit>>):before', function () use ($app) {
+            $event = $this->requestedEntity;
+
+            if (Plugin::isTheme() && $event instanceof Event && $event->id && !Services\SubsiteRedirect::isCurrent($event->subsite)) {
+                $app->redirect(Services\SubsiteRedirect::urlOn($event->subsite, $this));
+            }
+        });
+
+        // A busca de eventos leva à de festejos.
+        $app->hook('GET(search.events):before', function () use ($app) {
+            if (Plugin::isTheme()) {
+                $app->redirect($app->createUrl('mdc', 'festivities'));
+            }
+        });
+
+        // Só os próprios locais do subsite. Sem permissão no local, o core gravaria o período como pendente
+        // (EventOccurrence::save), e ele apareceria em "Meus locais" da dona do local (revisão do FJ-13).
+        $app->hook('entity(EventOccurrence).validationErrors', function (array &$errors) {
+            if (!$this->event || !$this->space || !Plugin::isFestivity($this->event)) {
+                return;
+            }
+
+            if (!Services\SubsiteRedirect::isCurrent($this->space->subsite)) {
+                $errors['space'] = [i::__('Escolha um local cadastrado no subsite dos Mestres.')];
+            } elseif (!$this->space->canUser('modify')) {
+                $errors['space'] = [i::__('Escolha um dos seus locais ou cadastre um novo.')];
+            }
+        });
+    }
+}
