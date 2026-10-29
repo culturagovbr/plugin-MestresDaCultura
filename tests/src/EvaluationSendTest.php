@@ -188,13 +188,19 @@ class EvaluationSendTest extends TestCase
     function testAFailureInTheMiddleLeavesNoTransactionOpen()
     {
         $level = $this->transactionLevel();
-        $this->app->hook('entity(RegistrationEvaluation).save:after', function () {
-            throw new \RuntimeException('falha simulada');
+        // O gancho segue registrado no app; a flag o desarma no fim.
+        $armed = true;
+        $this->app->hook('entity(RegistrationEvaluation).save:after', function () use (&$armed) {
+            if ($armed) {
+                throw new \RuntimeException('falha simulada');
+            }
         });
 
         try {
             $this->send($this->evaluation());
         } catch (\RuntimeException $e) {
+        } finally {
+            $armed = false;
         }
 
         $this->assertSame($level, $this->transactionLevel());
