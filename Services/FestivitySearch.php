@@ -6,9 +6,9 @@ use MapasCulturais\App;
 use MapasCulturais\Entities\Event;
 
 /**
- * A busca de festejos (Controller::GET_festivities, mdc-festivities-search), como a de Mestras e Mestres: a API de
- * eventos do core só com quem tem o selo dos festejos, filtrando pelos campos do festejo. O mês da agenda não é um
- * campo: vira a lista dos festejos com algum período naquele mês (Plugin::openTheFestivitySearch).
+ * A busca de festejos (Controller::GET_festivities, mdc-festivities-search): a API de eventos do core só com o selo
+ * dos festejos, filtrando pelos campos do festejo. O mês da agenda vira a lista dos festejos com algum período naquele
+ * mês (Hooks\Festivities::openTheFestivitySearch).
  */
 class FestivitySearch
 {

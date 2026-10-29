@@ -40,8 +40,7 @@ class ProgramVocabulary
         'Data da inscrição' => 'Data do cadastro',
     ];
 
-    // No subsite todo evento é festejo (Plugin::openTheFestivityForm), para qualquer pessoa, inclusive a administração:
-    // "Meus eventos" do painel e o botão de criar.
+    // Frases do festejo, para qualquer pessoa no subsite, inclusive a administração.
     const FESTIVITY_PHRASES = [
         'Meus eventos' => 'Meus festejos',
         'Nesta seção você pode adicionar e gerenciar seus eventos culturais' => 'Nesta seção você acompanha e continua os festejos que cadastrou',

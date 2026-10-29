@@ -8,9 +8,8 @@ use MapasCulturais\Entities\EventOccurrence;
 use MapasCulturais\i;
 
 /**
- * O cadastro do festejo em 6 etapas, como o protótipo oficial (decisão FJD2), e o que cada uma cobra. O rascunho salva
- * sem cobrar nada; "Salvar e avançar" confere a etapa (Controller::GET_festivityCheck), e a publicação confere todas,
- * também pelo Publicar do painel (Plugin::openTheFestivityForm). Os erros saem no formato do core, campo => mensagens.
+ * O cadastro do festejo em 6 etapas e o que cada uma cobra. O rascunho salva sem cobrar nada; "Salvar e avançar"
+ * confere a etapa (Controller::GET_festivityCheck), e a publicação confere todas. Os erros saem campo => mensagens.
  */
 class FestivityForm
 {
