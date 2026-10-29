@@ -34,6 +34,23 @@ class FestivityImpactTest extends TestCase
 
         $event->{FestivityFields::MASTERS} = "|{$master->id}|{$other->id}|";
         $this->assertArrayHasKey(FestivityFields::MASTERS, $event->getValidationErrors(), 'Quem não tem o selo do programa não entra');
+
+        // A mestra já ligada que sai da Rede segue gravada sem travar o festejo; quem entra agora precisa do selo.
+        $event->{FestivityFields::MASTERS} = "|{$master->id}|";
+        $event->save(true);
+        $this->app->disableAccessControl();
+        $master->removeSealRelation($seal);
+        $this->app->enableAccessControl();
+        $newcomer = $this->userDirector->createUser()->profile;
+        $this->app->disableAccessControl();
+        $newcomer->createSealRelation($seal, true, true);
+        $this->app->enableAccessControl();
+
+        $event->{FestivityFields::MASTERS} = "|{$master->id}|{$newcomer->id}|";
+        $this->assertArrayNotHasKey(FestivityFields::MASTERS, $event->getValidationErrors(), 'A que já estava ligada não trava a gravação');
+
+        $event->{FestivityFields::MASTERS} = "|{$master->id}|{$newcomer->id}|{$other->id}|";
+        $this->assertArrayHasKey(FestivityFields::MASTERS, $event->getValidationErrors(), 'Quem entra agora precisa do selo');
     }
 
     function testLibrasAndAudiodescriptionMarkTheCoreFields()
