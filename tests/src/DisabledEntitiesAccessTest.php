@@ -2,12 +2,15 @@
 
 namespace Tests\MDC;
 
+use MDC\Services\ProgramSeal;
 use Tests\Abstract\TestCase;
+use Tests\Builders\SealBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
 class DisabledEntitiesAccessTest extends TestCase
 {
+    use CapturesLog;
     use RequestFactory;
     use UserDirector;
 
@@ -126,6 +129,29 @@ class DisabledEntitiesAccessTest extends TestCase
             $this->requestFactory->GET('agent', 'single', [$other->profile->id]),
             'A página de agente de terceiro deve recusar usuário comum'
         );
+    }
+
+    // Só a página (single) do agente com o selo do programa abre para quem não é admin.
+    function testOnlyThePageOfAMasterWithTheProgramSealIsPublic()
+    {
+        // Guarda o aviso de log da página sem a oportunidade do programa.
+        $this->captureLog();
+        $admin = $this->userDirector->createUser('admin');
+        $this->login($admin);
+        $seal = (new SealBuilder)->reset($admin->profile)->fillRequiredProperties()->save()->getInstance();
+        $this->app->config[ProgramSeal::CONFIG_KEY] = $seal->id;
+
+        $master = $this->userDirector->createUser()->profile;
+        $other = $this->userDirector->createUser()->profile;
+        $this->app->disableAccessControl();
+        $master->createSealRelation($seal, true, true);
+        $this->app->enableAccessControl();
+        // O usuário comum segue a mesma regra do visitante.
+        $this->login($this->userDirector->createUser());
+
+        $this->assertStatus200($this->requestFactory->GET('agent', 'single', [$master->id]), 'A página do mestre com o selo abre para todos');
+        $this->assertStatus404($this->requestFactory->GET('agent', 'edit', [$master->id]), 'A edição não');
+        $this->assertStatus404($this->requestFactory->GET('agent', 'single', [$other->id]), 'Nem a página de quem não tem o selo');
     }
 
     function testOwnProfileRemainsAccessible()

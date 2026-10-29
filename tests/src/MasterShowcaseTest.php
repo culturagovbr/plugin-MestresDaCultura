@@ -7,6 +7,8 @@ use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Seal;
 use MDC\Services\ActingField;
 use MDC\Services\FixedOpportunity;
+use MDC\Services\MasterProfile;
+use MDC\Services\MasterPublicData;
 use MDC\Services\MasterShowcase;
 use MDC\Services\ProgramSeal;
 use Tests\Abstract\TestCase;
@@ -66,7 +68,9 @@ class MasterShowcaseTest extends TestCase
         $nodes = $this->nodes($activities);
         $this->app->disableAccessControl();
         $agent->name = $name;
-        $agent->nomeSocial = $knownAs;
+        // O nome artístico público vem da cópia da aprovação (MasterPublicData), não do `nomeSocial` do core.
+        $agent->nomeSocial = 'Nome social privado';
+        $agent->{MasterPublicData::KNOWN_AS} = $knownAs;
         $agent->emailPrivado = 'privado@example.com';
         $agent->longDescription = "Aprendeu com a avó.\n\n" . str_repeat('Ensina na comunidade. ', 20);
         $agent->save(true);
@@ -116,6 +120,10 @@ class MasterShowcaseTest extends TestCase
         $this->assertLessThanOrEqual(160, mb_strlen($highlights[0]['summary']));
         $this->assertSame(['id', 'name', 'knownAs', 'activities', 'city', 'summary', 'avatar', 'url'], array_keys($highlights[0]), 'Só dados públicos');
         $this->assertStringNotContainsString('privado@example.com', json_encode($highlights));
+        $this->assertStringNotContainsString('Nome social privado', json_encode($highlights), 'O nome social do core é privado');
+
+        $profile = (new MasterProfile(new FixedOpportunity, new ProgramSeal))->of($newer);
+        $this->assertSame('Mestre João', $profile['knownAs'], 'O perfil público também usa a cópia moderada');
 
         $this->assertCount(1, (new MasterShowcase)->highlights(1), 'No máximo o pedido');
     }
