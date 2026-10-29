@@ -4,9 +4,9 @@ use MapasCulturais\i;
 
 return [
     'no calendario' => i::__('Festejo no Calendário de Festejos Populares do Brasil'),
-    'porte' => i::__('Porte {0}'),
-    'desde' => i::__('Desde {0}'),
-    'edicoes' => i::__('{0} edições'),
+    'porte' => i::__('Porte %s'),
+    'desde' => i::__('Desde %s'),
+    'edicoes' => i::__('%s edições'),
     'quando e onde' => i::__('Quando e onde acontece'),
     'costuma acontecer' => i::__('Costuma acontecer'),
     'onde' => i::__('Onde é realizado'),
@@ -18,7 +18,7 @@ return [
     'economia' => i::__('Economia da cultura envolvida'),
     'ponto' => i::__('Ponto ou Pontão de Cultura parceiro'),
     'certificado' => i::__('Certificado'),
-    'certifica desde' => i::__('Certifica que o festejo está no Calendário de Festejos Populares do Brasil desde {0}.'),
+    'certifica desde' => i::__('Certifica que o festejo está no Calendário de Festejos Populares do Brasil desde %s.'),
     'ver certificado' => i::__('Ver certificado'),
     'quem realiza' => i::__('Quem realiza'),
     'e ponto' => i::__('Ponto de Cultura'),
@@ -27,5 +27,5 @@ return [
     'lei propria' => i::__('Reconhecido por lei própria.'),
     'ver lei' => i::__('Ver a lei'),
     'recursos' => i::__('Recursos públicos'),
-    'fonte anos' => i::__('{0} ({1})'),
+    'fonte anos' => i::__('%s (%s)'),
 ];

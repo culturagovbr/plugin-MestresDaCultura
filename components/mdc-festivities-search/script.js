@@ -9,6 +9,13 @@ app.component('mdc-festivities-search', {
         },
     },
 
+    setup() {
+        const text = Utils.getTexts('mdc-festivities-search');
+        // Troca cada `%s` do texto pelo próximo valor.
+        const format = (key, ...values) => values.reduce((s, v) => s.replace('%s', v), text(key));
+        return { text, format };
+    },
+
     data() {
         const config = $MAPAS.config.mdcFestivities;
 
@@ -24,7 +31,7 @@ app.component('mdc-festivities-search', {
             classification: config.classification,
             sizes: config.sizes,
             formUrl: config.formUrl,
-            months: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
+            months: this.text('meses'),
             ufs: ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'],
             select: 'id,name,singleUrl,files.avatar,mdcFestejoSegmento,mdcFestejoTipologias,mdcFestejoCidade,mdcFestejoUf,mdcFestejoPorte,mdcFestejoPrimeiroAno,mdcFestejoAgenda',
         };
@@ -88,7 +95,7 @@ app.component('mdc-festivities-search', {
                 // Só a data do primeiro período, sem o horário ("3 a 5 de dezembro de 2026").
                 agenda: (entity.mdcFestejoAgenda || '').split(', ')[0],
                 classification: [typologies[0] || entity.mdcFestejoSegmento, [entity.mdcFestejoCidade, entity.mdcFestejoUf].filter(Boolean).join(', ')].filter(Boolean).join(' · '),
-                details: [entity.mdcFestejoPorte ? `Porte ${entity.mdcFestejoPorte.toLowerCase()}` : '', entity.mdcFestejoPrimeiroAno ? `desde ${entity.mdcFestejoPrimeiroAno}` : ''].filter(Boolean).join(' · '),
+                details: [entity.mdcFestejoPorte ? this.format('porte', entity.mdcFestejoPorte.toLowerCase()) : '', entity.mdcFestejoPrimeiroAno ? this.format('desde', entity.mdcFestejoPrimeiroAno) : ''].filter(Boolean).join(' · '),
             };
         },
 

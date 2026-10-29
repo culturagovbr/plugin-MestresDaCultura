@@ -37,9 +37,9 @@ app.component('mdc-festivity-profile', {
     },
 
     methods: {
-        // Os textos têm {0}, {1}... no lugar dos valores.
+        // Troca cada `%s` do texto pelo próximo valor.
         format(key, ...values) {
-            return values.reduce((text, value, index) => text.replace(`{${index}}`, value), this.text(key));
+            return values.reduce((s, v) => s.replace('%s', v), this.text(key));
         },
     },
 });

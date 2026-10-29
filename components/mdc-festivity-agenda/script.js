@@ -16,7 +16,9 @@ app.component('mdc-festivity-agenda', {
 
     setup() {
         const text = Utils.getTexts('mdc-festivity-agenda');
-        return { text };
+        // Troca cada `%s` do texto pelo próximo valor.
+        const format = (key, ...values) => values.reduce((s, v) => s.replace('%s', v), text(key));
+        return { text, format };
     },
 
     data() {
@@ -135,10 +137,8 @@ app.component('mdc-festivity-agenda', {
                     : start.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
             }
 
-            const days = end ? this.text('de a').replace('{inicio}', first).replace('{fim}', full(end)) : first;
-            const hours = this.endsAt
-                ? this.text('das as').replace('{inicio}', this.startsAt).replace('{fim}', this.endsAt)
-                : this.text('a partir das').replace('{inicio}', this.startsAt);
+            const days = end ? this.format('de a', first, full(end)) : first;
+            const hours = this.endsAt ? this.format('das as', this.startsAt, this.endsAt) : this.format('a partir das', this.startsAt);
 
             return `${days}, ${hours}`;
         },
