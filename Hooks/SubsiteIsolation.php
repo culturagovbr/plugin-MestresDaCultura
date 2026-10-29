@@ -25,7 +25,7 @@ final class SubsiteIsolation
         self::scopeRegistrationsToFixedOpportunity($plugin);
         self::sendForeignRegistrationsHome($plugin);
         self::keepTheProgramOnItsSite($plugin);
-        self::showOnlyTheProgramSeal($plugin);
+        self::showOnlyTheProgramSeals($plugin);
         self::leaveOutOtherProgramsNotifications($plugin);
         self::keepEntitiesInTheSubsite($plugin);
     }
@@ -173,12 +173,9 @@ final class SubsiteIsolation
         });
     }
 
-    // No subsite dos Mestres, quem não é admin só vê o selo do programa, e o gestor e o saasSuperAdmin só os selos do
-    // subsite (o do programa e os que criarem nele): na API de selos, nos selos que a API de agentes devolve e nas
-    // páginas de selo e de certificado. Os selos do agente vêm da consulta do agente, não da API de selos, e são
-    // filtrados na saída da API, depois do cache dela, que não separa usuários. O perfil público do mestre já esconde o
-    // bloco de selos do core (_mdc-master-profile.scss) e mostra o do programa no cabeçalho.
-    private static function showOnlyTheProgramSeal(Plugin $plugin): void
+    // No subsite dos Mestres, quem não é admin só vê os selos do programa, e o gestor e o saasSuperAdmin só os do
+    // subsite: na API de selos, nos selos dos agentes e nas páginas de selo e de certificado.
+    private static function showOnlyTheProgramSeals(Plugin $plugin): void
     {
         $app = App::i();
         $visibility = new Services\SealVisibility($plugin->programSeal(), $plugin->festivitySeal(), $plugin->fixedOpportunity());

@@ -2,17 +2,11 @@
 
 namespace MDC;
 
-use MapasCulturais\API;
-use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
 use MapasCulturais\Definitions\FileGroup;
 use MapasCulturais\Definitions\RegistrationFieldType;
-use MapasCulturais\Entities\Agent;
-use MapasCulturais\Entities\EvaluationMethodConfiguration;
 use MapasCulturais\Entities\Event;
-use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
-use MapasCulturais\Exceptions\PermissionDenied;
 use MapasCulturais\i;
 
 // O autoloader tem mapa plano e registra temas antes de plugins: repetir `MestresDaCultura` faria

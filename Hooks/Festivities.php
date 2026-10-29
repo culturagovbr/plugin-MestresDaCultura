@@ -25,8 +25,8 @@ final class Festivities
         self::showFestivityProfile($plugin);
     }
 
-    // O festejo é um Evento do core, e a planilha dos Festejos não pede a descrição curta, a classificação etária, a
-    // linguagem nem o valor de entrada da agenda (decisão FJD3). Só no subsite dos Mestres, como os campos do perfil acima.
+    // No subsite dos Mestres, o evento dispensa a descrição curta, a classificação etária, a linguagem e o valor de
+    // entrada da agenda.
     private static function skipEventFieldsTheFestejoDoesNotAsk(Plugin $plugin): void
     {
         $app = App::i();
