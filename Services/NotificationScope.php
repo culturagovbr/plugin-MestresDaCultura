@@ -28,22 +28,42 @@ class NotificationScope
 
     private const CACHE_SECONDS = 86400;
 
+    /**
+     * Versão das notificações de cada usuário, no cache comum a todos os subsites (mscache), por um ano. Sem versão
+     * guardada, nasce uma nova.
+     */
+    private const VERSION_KEY = 'mdc:notifications-version:';
+
+    private const VERSION_SECONDS = 365 * 86400;
+
+    /** Chegou ou mudou uma notificação do usuário: o cálculo guardado não vale mais. */
+    static function changed(int $userId): void
+    {
+        App::i()->mscache->save(self::VERSION_KEY . $userId, uniqid('', true), self::VERSION_SECONDS);
+    }
+
     function __construct(private FixedOpportunity $fixedOpportunity)
     {
     }
 
     /**
-     * O sino conta as notificações a cada requisição: o cálculo fica no cache até chegar ou sair uma notificação do
-     * usuário (a chave leva o total e a maior), e a cada requisição sobra só essa contagem.
+     * As notificações do usuário que são de outro edital, guardadas no cache até chegar ou sair uma notificação dele
+     * (ver changed).
      *
      * @return int[] as notificações do usuário que são de outro edital
      */
     function hiddenFor(UserInterface $user): array
     {
         $app = App::i();
-        $state = $app->conn->fetchAssociative('SELECT count(*) AS total, max(id) AS last FROM notification WHERE user_id = :user', ['user' => $user->id]);
-        // A versão muda quando a regra muda: o cálculo guardado com a regra antiga não vale mais.
-        $key = "mdc:hidden-notifications:v3:{$user->id}:{$state['total']}:{$state['last']}";
+        $version = $app->mscache->fetch(self::VERSION_KEY . $user->id);
+
+        if (!$version) {
+            $version = uniqid('', true);
+            $app->mscache->save(self::VERSION_KEY . $user->id, $version, self::VERSION_SECONDS);
+        }
+
+        // O "v4" é a versão da regra do cálculo.
+        $key = "mdc:hidden-notifications:v4:{$user->id}:{$version}";
 
         if ($app->cache->contains($key)) {
             return $app->cache->fetch($key);

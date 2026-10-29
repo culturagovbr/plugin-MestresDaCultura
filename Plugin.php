@@ -2100,6 +2100,15 @@ class Plugin extends \MapasCulturais\Plugin
         $fixedOpportunity = $this->fixedOpportunity();
         $scope = new Services\NotificationScope($fixedOpportunity);
 
+        // Em qualquer subsite e nos jobs: a notificação chega ao sino dos Mestres de onde vier. A Notification do core
+        // não tem os ganchos do Doctrine (insert, remove), só os do save; ler uma notificação também regrava, e o cálculo
+        // é refeito uma vez. A excluída não avisa, mas o id dela na lista de escondidas não atrapalha.
+        $app->hook('entity(Notification).save:finish', function () {
+            if ($this->user?->id) {
+                Services\NotificationScope::changed($this->user->id);
+            }
+        });
+
         $app->hook('ApiQuery(Notification).params', function (&$params) use ($app, $fixedOpportunity, $scope) {
             /** @var ApiQuery $this */
             if ($this->parentQuery || !Plugin::isTheme() || $app->user->is('guest') || !$fixedOpportunity->isConfigured()) {
