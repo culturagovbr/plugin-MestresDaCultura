@@ -91,6 +91,7 @@ class Controller extends \MapasCulturais\Controller
             'classification' => FestivityFields::classification(),
             'sizes' => FestivityFields::definitions()[FestivityFields::SIZE]['options'],
             'monthParam' => FestivitySearch::MONTH_PARAM,
+            'mastersParam' => FestivitySearch::MASTERS_PARAM,
             'formUrl' => $app->createUrl('mdc', 'festivity'),
         ];
         $this->render('festivities');
@@ -141,7 +142,8 @@ class Controller extends \MapasCulturais\Controller
             'lists' => FestivityForm::lists(),
             'funding' => FestivityForm::funding(),
             'producers' => ['institution' => FestivityFields::WITH_INSTITUTION, 'cnpj' => FestivityFields::WITH_CNPJ],
-            'person' => $this->festivity ? FestivityForm::person($this->festivity) : null,
+            'dependencies' => FestivityFields::dependencies(),
+            'person' => FestivityForm::person($this->festivity),
             // Só mestras e mestres da Rede entram no festejo (FestivityForm::invalid).
             'sealId' => (new ProgramSeal)->configuredId(),
             'formUrl' => $app->createUrl('mdc', 'festivity'),

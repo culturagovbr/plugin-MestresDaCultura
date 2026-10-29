@@ -303,19 +303,5 @@ final class SubsiteIsolation
                 $app->redirect($app->createUrl('mdc', 'festivities'));
             }
         });
-
-        // Só os próprios locais do subsite. Sem permissão no local, o core gravaria o período como pendente
-        // (EventOccurrence::save), e ele apareceria em "Meus locais" da dona do local (revisão do FJ-13).
-        $app->hook('entity(EventOccurrence).validationErrors', function (array &$errors) {
-            if (!$this->event || !$this->space || !Plugin::isFestivity($this->event)) {
-                return;
-            }
-
-            if (!Services\SubsiteRedirect::isCurrent($this->space->subsite)) {
-                $errors['space'] = [i::__('Escolha um local cadastrado no subsite dos Mestres.')];
-            } elseif (!$this->space->canUser('modify')) {
-                $errors['space'] = [i::__('Escolha um dos seus locais ou cadastre um novo.')];
-            }
-        });
     }
 }

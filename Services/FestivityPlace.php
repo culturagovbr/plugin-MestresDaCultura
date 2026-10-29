@@ -2,6 +2,7 @@
 
 namespace MDC\Services;
 
+use MDC\Plugin;
 use MapasCulturais\App;
 use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\EventOccurrence;
@@ -41,11 +42,19 @@ class FestivityPlace
     }
 
     /**
-     * A UF, a cidade, a região e o resumo da agenda vêm do primeiro período, pela data (itens 10 a 13; no festejo
-     * itinerante, o primeiro). O core salva o evento a cada período gravado ou apagado (EventOccurrence::save e
-     * delete); o plugin chama isto antes de salvar o festejo e ao mudar o endereço de um local.
+     * O local que o festejo pode usar e que o plugin pode publicar ou despublicar: do subsite dos Mestres e do dono do
+     * festejo, conferido pelos ids, mesmo com o controle de acesso desligado.
      */
-    static function sync(Event $event): void
+    static function isOwnPlace(Event $event, Space $space): bool
+    {
+        return Plugin::isFestivityPlace($space) && $space->owner?->id === $event->owner?->id;
+    }
+
+    /**
+     * A UF, a cidade, a região e o resumo da agenda vêm do primeiro período, pela data. Roda antes de salvar o
+     * festejo e ao mudar o endereço de um local.
+     */
+    static function copyFirstPlace(Event $event): void
     {
         if (!$event->id) {
             return;
@@ -82,10 +91,20 @@ class FestivityPlace
         return $status === null ? $query->getResult() : $query->setParameter('status', $status)->getResult();
     }
 
+    /** O único período valendo de um festejo publicado. */
+    static function isLastOfPublished(EventOccurrence $occurrence): bool
+    {
+        if ((int) $occurrence->event->status !== Event::STATUS_ENABLED || $occurrence->status <= 0) {
+            return false;
+        }
+
+        return (int) App::i()->conn->fetchOne('SELECT count(*) FROM event_occurrence WHERE event_id = :event AND status > 0', ['event' => $occurrence->event->id]) <= 1;
+    }
+
     /** Guarda o local do período apagado para a próxima gravação do festejo. */
     static function release(EventOccurrence $occurrence): void
     {
-        if ($id = $occurrence->space?->id) {
+        if ($occurrence->status > 0 && ($id = $occurrence->space?->id)) {
             self::$released[$id] = $id;
         }
     }
@@ -100,7 +119,7 @@ class FestivityPlace
      */
     static function syncWithout(Event $event): void
     {
-        self::syncSpaces(self::spacesOf($event), $event->id);
+        self::syncSpaces($event, self::spacesOf($event), $event->id);
     }
 
     /**
@@ -111,32 +130,36 @@ class FestivityPlace
     {
         $ids = array_unique(array_merge(self::spacesOf($event), array_values(self::$released)));
         self::$released = [];
-        self::syncSpaces($ids);
+        self::syncSpaces($event, $ids);
     }
 
-    /** @return list<int> os locais com período do festejo */
+    /** @return list<int> os locais com período valendo no festejo; o pendente não conta */
     private static function spacesOf(Event $event): array
     {
-        $ids = App::i()->em->createQuery('SELECT DISTINCT IDENTITY(o.space) AS id FROM ' . EventOccurrence::class . ' o WHERE o.event = :event')
+        $ids = App::i()->em->createQuery('SELECT DISTINCT IDENTITY(o.space) AS id FROM ' . EventOccurrence::class . ' o WHERE o.event = :event AND o.status > 0')
             ->setParameter('event', $event)
             ->getScalarResult();
 
         return array_map('intval', array_column($ids, 'id'));
     }
 
-    /** @param list<int> $ids */
-    private static function syncSpaces(array $ids, ?int $without = null): void
+    /**
+     * Só o local do festejo (isOwnPlace), e ele segue só os festejos publicados que têm período nele.
+     *
+     * @param list<int> $ids
+     */
+    private static function syncSpaces(Event $festivity, array $ids, ?int $without = null): void
     {
         $app = App::i();
 
         foreach ($ids as $id) {
             $space = $app->repo('Space')->find($id);
 
-            if (!$space || $space->status < Space::STATUS_DRAFT) {
+            if (!$space || $space->status < Space::STATUS_DRAFT || !self::isOwnPlace($festivity, $space)) {
                 continue;
             }
 
-            $published = array_filter(self::eventsAt($id, Event::STATUS_ENABLED), fn (Event $event) => $event->id !== $without);
+            $published = array_filter(self::eventsAt($id, Event::STATUS_ENABLED), fn (Event $event) => $event->id !== $without && Plugin::isFestivity($event));
             $status = $published ? Space::STATUS_ENABLED : Space::STATUS_DRAFT;
 
             if ($space->status !== $status) {

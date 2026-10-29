@@ -29,7 +29,7 @@ class FestivityFields
 
     const VENUE = 'mdcFestejoTipoLocal';
 
-    // Copiadas do primeiro local da agenda (Services\FestivityPlace::sync), para a busca e o mapa.
+    // Copiadas do primeiro local da agenda (Services\FestivityPlace::copyFirstPlace), para a busca e o mapa.
     const UF = 'mdcFestejoUf';
 
     const CITY = 'mdcFestejoCidade';
@@ -215,17 +215,51 @@ class FestivityFields
         }
     }
 
-    // A instituição e o CNPJ só valem para quem realiza com eles (itens 25.1 a 27): mudar o tipo apaga o resto.
-    static function clearInstitution(\MapasCulturais\Entities\Event $event): void
+    /**
+     * O campo que só vale em certa resposta: no "Sim" do anterior, as mestras, o nome do Ponto, as listas de
+     * acessibilidade e de acolhimento com o "Outro" e os anos de cada fonte; pelo tipo de realizador, a instituição e o
+     * CNPJ. Usado por FestivityForm, clearUnanswered e o formulário (mdc-festivity-form).
+     *
+     * @return array<string, array{0: string, 1: list<string>}> campo => [a pergunta, as respostas em que ele vale]
+     */
+    static function dependencies(): array
     {
-        $producer = $event->{self::PRODUCER};
-        $keys = in_array($producer, self::WITH_INSTITUTION, true)
-            ? (in_array($producer, self::WITH_CNPJ, true) ? [] : [self::CNPJ])
-            : [self::INSTITUTION, self::CNPJ, self::INSTITUTION_IS_POINT];
+        $dependencies = [
+            self::MASTERS => [self::WITH_MASTERS, ['Sim']],
+            self::CULTURE_POINT_NAME => [self::CULTURE_POINT, ['Sim']],
+            self::ACCESSIBILITY => [self::HAS_ACCESSIBILITY, ['Sim']],
+            self::OTHER_ACCESSIBILITY => [self::HAS_ACCESSIBILITY, ['Sim']],
+            self::SHELTER => [self::HAS_SHELTER, ['Sim']],
+            self::OTHER_SHELTER => [self::HAS_SHELTER, ['Sim']],
+            self::INSTITUTION => [self::PRODUCER, self::WITH_INSTITUTION],
+            self::INSTITUTION_IS_POINT => [self::PRODUCER, self::WITH_INSTITUTION],
+            self::CNPJ => [self::PRODUCER, self::WITH_CNPJ],
+        ];
 
-        foreach ($keys as $key) {
-            if ((string) $event->$key !== '') {
-                $event->$key = '';
+        foreach (array_keys(self::fundingSources()) as $key) {
+            $dependencies["{$key}Anos"] = [$key, ['Sim']];
+        }
+
+        return $dependencies;
+    }
+
+    /** @return array<string, callable(\MapasCulturais\Entities\Event): bool> campo => se ele vale no festejo */
+    static function conditions(): array
+    {
+        return array_map(
+            fn (array $dependency) => fn (\MapasCulturais\Entities\Event $event) => in_array($event->{$dependency[0]}, $dependency[1], true),
+            self::dependencies()
+        );
+    }
+
+    // Apaga o campo cuja resposta deixou de valer. Roda antes de syncCore.
+    static function clearUnanswered(\MapasCulturais\Entities\Event $event): void
+    {
+        foreach (self::conditions() as $key => $applies) {
+            $value = $event->$key;
+
+            if (!$applies($event) && $value !== null && $value !== '' && $value !== []) {
+                $event->$key = is_array($value) ? [] : '';
             }
         }
     }

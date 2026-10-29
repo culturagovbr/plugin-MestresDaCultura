@@ -28,6 +28,28 @@ class FixedOpportunity
     }
 
     /**
+     * O subsite da oportunidade configurada (null, o site principal); false sem ela configurada ou no banco. Lido uma
+     * vez por oportunidade.
+     */
+    static function configuredSubsiteId(): int|false|null
+    {
+        static $subsites = [];
+        $app = App::i();
+        $id = (int) ($app->config[self::CONFIG_KEY] ?? 0);
+
+        if (!$id) {
+            return false;
+        }
+
+        if (!array_key_exists($id, $subsites)) {
+            $subsite = $app->conn->fetchOne('SELECT subsite_id FROM opportunity WHERE id = :id', ['id' => $id]);
+            $subsites[$id] = $subsite === false ? false : ($subsite === null ? null : (int) $subsite);
+        }
+
+        return $subsites[$id];
+    }
+
+    /**
      * O subsite dos Mestres, lido no banco: o da oportunidade do programa (null, o site principal); antes de ela ser
      * configurada, o atual.
      */

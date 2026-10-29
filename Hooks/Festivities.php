@@ -89,16 +89,15 @@ final class Festivities
             }
         });
 
-        // A UF, a cidade e a região do festejo saem do primeiro local da agenda (FestivityPlace::sync): a cada
-        // gravação do festejo, que o core repete a cada período, e quando o endereço de um local muda. Na mesma
-        // gravação, libras e audiodescrição marcam os campos do core, o aceite ganha a data do servidor e a
-        // instituição sai se o tipo de realizador não a tem.
+        // Em qualquer domínio, a gravação do festejo copia UF, cidade e região do primeiro local, limpa as respostas que
+        // deixaram de valer, marca os campos do core, data o aceite e só publica com as 6 etapas.
         $app->hook('entity(Event).save:before', function () {
             if (Plugin::isFestivity($this)) {
-                Services\FestivityPlace::sync($this);
+                Services\FestivityPlace::copyFirstPlace($this);
+                Services\FestivityFields::clearUnanswered($this);
                 Services\FestivityFields::syncCore($this);
                 Services\FestivityFields::stampConsent($this);
-                Services\FestivityFields::clearInstitution($this);
+                Services\FestivityForm::keepDraftIfIncomplete($this);
                 Services\FestivityFields::markFirstPublished($this);
             }
         });
@@ -116,7 +115,7 @@ final class Festivities
         });
 
         $app->hook('entity(EventOccurrence).remove:before', function () {
-            if (Plugin::isTheme()) {
+            if ($this->event && Plugin::isFestivity($this->event)) {
                 Services\FestivityPlace::release($this);
             }
         });
@@ -128,14 +127,78 @@ final class Festivities
             }
         });
 
+        // O período do festejo só fica num local do festejo (FestivityPlace::isOwnPlace), em qualquer domínio; a recusa é
+        // na validação.
+        $app->hook('entity(EventOccurrence).validationErrors', function (array &$errors) {
+            if (!$this->event || !$this->space || !Plugin::isFestivity($this->event)) {
+                return;
+            }
+
+            if (!Plugin::isFestivityPlace($this->space)) {
+                $errors['space'] = [i::__('Escolha um local cadastrado no subsite dos Mestres.')];
+            } elseif (!Services\FestivityPlace::isOwnPlace($this->event, $this->space)) {
+                $errors['space'] = [i::__('Escolha um dos locais de quem cadastrou o festejo, ou cadastre um novo.')];
+            }
+        });
+
+        // Mudar ou apagar o período é de quem altera o festejo, só num local do festejo; o último período do festejo
+        // publicado não sai.
+        $app->hook('entity(EventOccurrence).canUser(<<modify|remove>>)', function ($user, &$result) {
+            if (!$this->event || !Plugin::isFestivity($this->event)) {
+                return;
+            }
+
+            $result = $this->event->canUser('modify', $user)
+                && ($this->space === null || Services\FestivityPlace::isOwnPlace($this->event, $this->space));
+        });
+
+        $app->hook('entity(EventOccurrence).canUser(remove)', function ($user, &$result) {
+            if ($result && $this->event && Plugin::isFestivity($this->event) && Services\FestivityPlace::isLastOfPublished($this)) {
+                $result = false;
+            }
+        });
+
+        // O PATCH e o PUT não mudam o festejo nem o espaço do período do festejo.
+        $app->hook('<<PATCH|PUT>>(eventoccurrence.single):data', function (&$data) use ($app) {
+            $occurrence = $this->requestedEntity;
+            $target = null;
+
+            foreach ($data as $key => $value) {
+                if (is_string($key) && strcasecmp($key, 'eventId') === 0) {
+                    $target = $app->repo('Event')->find((int) $value);
+                }
+            }
+
+            if (($occurrence?->event && Plugin::isFestivity($occurrence->event)) || ($target && Plugin::isFestivity($target))) {
+                foreach (array_keys($data) as $key) {
+                    if (is_string($key) && (strcasecmp($key, 'eventId') === 0 || strcasecmp($key, 'spaceId') === 0)) {
+                        unset($data[$key]);
+                    }
+                }
+            }
+        });
+
         $app->hook('entity(Event).remove:after', function () {
             Services\FestivityPlace::forgetReleased();
         });
 
         // O local nasce em rascunho, é publicado com o festejo (FestivityPlace::syncStatus) e não tem a situação editada.
         $app->hook('entity(Space).insert:before', function () {
-            if (Plugin::isTheme()) {
+            if (Plugin::isFestivityPlace($this)) {
                 $this->status = \MapasCulturais\Entities\Space::STATUS_DRAFT;
+            }
+        });
+
+        // Em qualquer domínio e caminho, o local publicado por fora volta à situação gravada; só a sincronização o publica.
+        $app->hook('entity(Space).save:before', function () use ($app) {
+            if (!$this->id || Services\FestivityPlace::$syncing || !$app->isAccessControlEnabled() || !Plugin::isFestivityPlace($this)) {
+                return;
+            }
+
+            $stored = (int) $app->conn->fetchOne('SELECT status FROM space WHERE id = :id', ['id' => $this->id]);
+
+            if ((int) $this->status === \MapasCulturais\Entities\Space::STATUS_ENABLED && $stored !== \MapasCulturais\Entities\Space::STATUS_ENABLED) {
+                $this->status = $stored;
             }
         });
 
@@ -156,26 +219,25 @@ final class Festivities
             unset($data[Services\FestivityFields::FIRST_PUBLISHED]);
         });
 
-        // A exclusão de "Meus locais" não leva o local de um festejo; o erro diz quais o usam. A permissão é a do core,
-        // conferida antes para não mostrar a outra pessoa os festejos do local.
-        $app->hook('DELETE(space.single):before', function () {
+        // Local na agenda de um festejo não é excluído, em qualquer domínio e rota; o erro, só para quem pode remover,
+        // lista os festejos.
+        $app->hook('DELETE(space.single):before, ALL(space.<<delete|destroy>>):before', function () {
             $space = $this->requestedEntity;
 
-            if (!Plugin::isTheme() || !$space instanceof \MapasCulturais\Entities\Space || !$space->canUser('remove')) {
+            if (!$space instanceof \MapasCulturais\Entities\Space || !Plugin::isFestivityPlace($space) || !$space->canUser('remove')) {
                 return;
             }
 
             // Festejo na lixeira não impede a exclusão do local.
-            if ($events = array_filter(Services\FestivityPlace::eventsAt($space->id), fn ($event) => $event->status >= \MapasCulturais\Entities\Event::STATUS_DRAFT)) {
+            if ($events = array_filter(Services\FestivityPlace::eventsAt($space->id), fn ($event) => $event->status >= \MapasCulturais\Entities\Event::STATUS_DRAFT && Plugin::isFestivity($event))) {
                 $names = implode(', ', array_map(fn ($event) => $event->name, $events));
                 $this->errorJson(['space' => [sprintf(i::__('Este local está na agenda de: %s. Tire-o dos festejos antes de excluir.'), $names)]], 400);
             }
         });
 
-        // O festejo copia do local só a UF e a cidade (FestivityPlace::sync): o resto não regrava os festejos dele. Os
-        // metadados alterados seguem marcados até o fim da gravação.
+        // Mudar a UF ou a cidade do local regrava, em qualquer domínio, os festejos de quem é o local.
         $app->hook('entity(Space).save:finish', function () use ($app) {
-            if (!Plugin::isTheme() || !$this->id || Services\FestivityPlace::$syncing) {
+            if (!$this->id || Services\FestivityPlace::$syncing || !Plugin::isFestivityPlace($this)) {
                 return;
             }
 
@@ -187,7 +249,9 @@ final class Festivities
 
             try {
                 foreach (Services\FestivityPlace::eventsAt($this->id) as $event) {
-                    $event->save(true);
+                    if (Plugin::isFestivity($event) && Services\FestivityPlace::isOwnPlace($event, $this)) {
+                        $event->save(true);
+                    }
                 }
             } finally {
                 $app->enableAccessControl();
@@ -195,10 +259,6 @@ final class Festivities
         });
     }
 
-    // O cadastro do festejo em 6 etapas (Controller::GET_festivity, Services\FestivityForm) em `/cadastrar-festejo/`.
-    // No subsite dos Mestres todo evento é festejo: a criação e a edição do core levam ao formulário, e publicar, pelo
-    // formulário ou pelo painel ("Meus eventos"), cobra as 6 etapas; o festejo publicado também não perde o que elas
-    // cobram. O rascunho salva sem cobrar.
     // Tira a situação dos dados, em qualquer caixa de letra.
     private static function dropStatus(array &$data): void
     {
@@ -209,6 +269,8 @@ final class Festivities
         }
     }
 
+    // Cadastro do festejo em 6 etapas em `/cadastrar-festejo/`: criar e editar evento levam ao formulário, e o festejo
+    // publicado, por qualquer caminho, cobra as 6 etapas; o rascunho salva sem cobrar.
     private static function openTheFestivityForm(Plugin $plugin): void
     {
         $app = App::i();
@@ -231,11 +293,14 @@ final class Festivities
             }
         }, 1000);
 
+        // A edição do festejo leva ao formulário; fora do subsite, ao subsite dos Mestres.
         $app->hook('GET(event.edit):before', function () use ($app, $isFestivity) {
             $event = $this->requestedEntity;
 
             if ($event instanceof Event && $isFestivity($event)) {
-                $app->redirect($app->createUrl('mdc', 'festivity', [$event->id]));
+                $app->redirect(Plugin::isTheme()
+                    ? $app->createUrl('mdc', 'festivity', [$event->id])
+                    : Services\SubsiteRedirect::urlOn($event->subsite, $this));
             }
         });
 
@@ -245,7 +310,13 @@ final class Festivities
             $publishing = true;
         });
 
-        $app->hook('entity(Event).validationErrors', function (array &$errors) use (&$publishing, $isFestivity) {
+        // No festejo publicado, as etapas que faltam vão também nos campos enviados no PATCH.
+        $sent = [];
+        $app->hook('PATCH(event.single):data', function (&$data) use (&$sent) {
+            $sent = array_keys($data);
+        });
+
+        $app->hook('entity(Event).validationErrors', function (array &$errors) use (&$publishing, &$sent, $isFestivity) {
             if (!$isFestivity($this)) {
                 return;
             }
@@ -253,7 +324,12 @@ final class Festivities
             $errors += Services\FestivityForm::invalid($this);
 
             if ($publishing || $this->status > Event::STATUS_DRAFT) {
-                $errors += Services\FestivityForm::missing($this);
+                $missing = Services\FestivityForm::missing($this);
+                $errors += $missing;
+
+                foreach ($missing ? $sent : [] as $key) {
+                    $errors[$key] ??= array_merge(...array_values($missing));
+                }
             }
         });
     }
@@ -265,24 +341,34 @@ final class Festivities
         $app = App::i();
         $app->config['routes']['shortcuts']['festejos-populares'] = ['mdc', 'festivities'];
 
+        // O mês e o "Com Mestras e Mestres da Rede" filtram por ids; com os dois, os festejos das duas listas.
         $app->hook('ApiQuery(Event).params', function (&$params) {
             /** @var ApiQuery $this */
-            if (!array_key_exists(Services\FestivitySearch::MONTH_PARAM, $params)) {
-                return;
+            $lists = [];
+
+            if (array_key_exists(Services\FestivitySearch::MONTH_PARAM, $params)) {
+                $month = (int) $params[Services\FestivitySearch::MONTH_PARAM];
+                unset($params[Services\FestivitySearch::MONTH_PARAM]);
+
+                if ($month >= 1 && $month <= 12) {
+                    $lists[] = Services\FestivitySearch::idsInMonth($month);
+                }
             }
 
-            $month = (int) $params[Services\FestivitySearch::MONTH_PARAM];
-            unset($params[Services\FestivitySearch::MONTH_PARAM]);
+            if (array_key_exists(Services\FestivitySearch::MASTERS_PARAM, $params)) {
+                unset($params[Services\FestivitySearch::MASTERS_PARAM]);
+                $lists[] = Services\FestivitySearch::idsWithMasters();
+            }
 
-            if ($month >= 1 && $month <= 12) {
-                $params['id'] = API::IN(Services\FestivitySearch::idsInMonth($month) ?: [0]);
+            if ($lists) {
+                $params['id'] = API::IN(array_values(count($lists) > 1 ? array_intersect(...$lists) : $lists[0]) ?: [0]);
             }
         });
 
         $app->hook('mapas.printJsObject:before', function () {
             $event = $this->controller->requestedEntity ?? null;
 
-            if ($this->controller->id === 'event' && $this->controller->action === 'single' && $event instanceof Event && Plugin::isFestivity($event)) {
+            if (Plugin::isTheme() && $this->controller->id === 'event' && $this->controller->action === 'single' && $event instanceof Event && Plugin::isFestivity($event)) {
                 $this->breadcrumb = Services\ProgramBreadcrumb::festivity((string) $event->name);
                 if (isset($this->jsObject['breadcrumb'])) {
                     $this->jsObject['breadcrumb'] = $this->breadcrumb;
@@ -303,7 +389,7 @@ final class Festivities
             $event = $this->controller->requestedEntity;
 
             if ($profile === false) {
-                $profile = $event instanceof Event && Plugin::isFestivity($event)
+                $profile = Plugin::isTheme() && $event instanceof Event && Plugin::isFestivity($event)
                     ? (new Services\FestivityProfile($plugin->festivitySeal(), $plugin->programSeal()))->of($event)
                     : null;
             }

@@ -7,6 +7,7 @@ use MapasCulturais\Definitions\FileGroup;
 use MapasCulturais\Definitions\RegistrationFieldType;
 use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\Registration;
+use MapasCulturais\Entities\Space;
 use MapasCulturais\i;
 
 // O autoloader tem mapa plano e registra temas antes de plugins: repetir `MestresDaCultura` faria
@@ -181,15 +182,26 @@ class Plugin extends \MapasCulturais\Plugin
         return App::i()->view instanceof \MestresDaCultura\Theme;
     }
 
-    // Quem não é admin no subsite dos Mestres: só as telas do painel do programa abrem (PanelMenu::closeOtherPanelScreens)
-    // e só o selo do programa aparece. O que é de outro subsite (inscrições, oportunidades, selos, notificações) fica de
-    // fora para todos, com Plugin::isTheme; as travas de estrutura seguem outra regra: só o saasSuperAdmin passa (ver
-    // Services\FixedOpportunityGuard).
-    // No subsite dos Mestres todo evento é festejo (ver Hooks\Festivities::openTheFestivityForm); o de outro subsite,
-    // aberto daqui, não.
+    // Festejo é o evento do subsite dos Mestres, pelo dado e em qualquer domínio; o novo é do subsite em que nasce.
+    // Sem a oportunidade do programa configurada, vale o domínio.
     static function isFestivity(Event $event): bool
     {
-        return self::isTheme() && (!$event->id || Services\SubsiteRedirect::isCurrent($event->subsite));
+        return self::isProgramSubsite($event->id ? $event->subsite?->id : null, !$event->id);
+    }
+
+    // O local do festejo: o espaço do subsite dos Mestres (ver Services\FestivityPlace), pelo mesmo critério.
+    static function isFestivityPlace(Space $space): bool
+    {
+        return self::isProgramSubsite($space->id ? $space->subsite?->id : null, !$space->id);
+    }
+
+    private static function isProgramSubsite(?int $subsite, bool $isNew): bool
+    {
+        $app = App::i();
+        $subsite = $isNew ? $app->getCurrentSubsiteId() : $subsite;
+        $program = Services\FixedOpportunity::configuredSubsiteId();
+
+        return $program === false ? self::isTheme() && $subsite === $app->getCurrentSubsiteId() : $subsite === $program;
     }
 
     static function appliesToCurrentUser(): bool

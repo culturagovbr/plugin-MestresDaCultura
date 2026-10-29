@@ -21,12 +21,16 @@ class FestivityForm
 
     /**
      * A pessoa responsável para o formulário (mdc-festivity-person): se quem edita pode mudar o perfil do dono, se é
-     * o próprio dono e, só para quem pode editar, os dados. Decidido aqui, e não pela API, que lê as permissões do
-     * cache e pode negar o próprio perfil quando ele está velho.
+     * o próprio dono e, só para quem pode editar, os dados. No festejo novo, o dono é o perfil de quem cadastra.
      */
-    static function person(Event $event): array
+    static function person(?Event $event): ?array
     {
-        $owner = $event->owner;
+        $owner = $event?->owner ?? App::i()->user->profile;
+
+        if (!$owner) {
+            return null;
+        }
+
         $canEdit = $owner->canUser('modify');
         $person = ['id' => $owner->id, 'canEdit' => $canEdit, 'isOwn' => $owner->id === App::i()->user->profile?->id, 'data' => null];
 
@@ -106,12 +110,34 @@ class FestivityForm
         foreach ($steps as $index) {
             foreach ($required[$index] ?? [] as $key => $message) {
                 if (self::isEmpty($event, $key)) {
-                    $missing[$key] = [$message];
+                    // Para quem não pode editar o perfil do dono, a mensagem pede o nome a ele.
+                    $missing[$key] = [$key === 'responsible' && !$event->owner?->canUser('modify')
+                        ? i::__('A pessoa responsável precisa preencher o nome completo no perfil dela')
+                        : $message];
                 }
             }
         }
 
         return $missing;
+    }
+
+    /**
+     * O festejo só passa a publicado com as 6 etapas, por qualquer caminho e mesmo com o controle de acesso desligado:
+     * sem elas, fica na situação gravada.
+     */
+    static function keepDraftIfIncomplete(Event $event): void
+    {
+        $app = App::i();
+
+        if ((int) $event->status !== Event::STATUS_ENABLED) {
+            return;
+        }
+
+        $stored = $event->id ? (int) $app->conn->fetchOne('SELECT status FROM event WHERE id = :id', ['id' => $event->id]) : Event::STATUS_DRAFT;
+
+        if ($stored !== Event::STATUS_ENABLED && (self::missing($event) || self::invalid($event))) {
+            $event->status = $stored;
+        }
     }
 
     /** @return array<int, array<string, string>> etapa => campo => mensagem */
@@ -173,10 +199,22 @@ class FestivityForm
             $invalid[FestivityFields::TYPOLOGIES] = [i::__('Escolha até duas tipologias do segmento')];
         }
 
+        // Os limites do ano e das edições valem em qualquer gravação.
+        $first = $event->{FestivityFields::FIRST_YEAR};
+        if (self::filled($first) && ((int) $first < 1500 || (int) $first > (int) date('Y'))) {
+            $invalid[FestivityFields::FIRST_YEAR] = [sprintf(i::__('Informe um ano entre 1500 e %s'), date('Y'))];
+        }
+
+        $editions = $event->{FestivityFields::EDITIONS};
+        if (self::filled($editions) && (int) $editions < 1) {
+            $invalid[FestivityFields::EDITIONS] = [i::__('Informe ao menos uma edição')];
+        }
+
         // Os anos de cada fonte de recursos: quatro dígitos, separados por vírgula, ponto e vírgula ou "e", e nenhum
         // depois do ano atual.
         foreach (array_keys(FestivityFields::fundingSources()) as $key) {
-            $years = trim((string) $event->{"{$key}Anos"});
+            // Com a fonte em "Não", os anos não valem.
+            $years = $event->$key === 'Sim' ? trim((string) $event->{"{$key}Anos"}) : '';
 
             if ($years !== '' && !preg_match('/^\d{4}(\s*(,|;|e)\s*\d{4})*$/u', $years)) {
                 $invalid["{$key}Anos"] = [i::__('Informe os anos com quatro dígitos, separados por vírgula. Ex.: 2023, 2024')];
@@ -198,42 +236,15 @@ class FestivityForm
         return $invalid;
     }
 
-    /**
-     * O campo que só é cobrado em certa resposta: no "Sim" do anterior, o nome do Ponto (item 18.1), as listas de
-     * acessibilidade e de acolhimento (19 e 20) e os anos de cada fonte (21.1 a 24.1); pelo tipo de realizador, o
-     * nome da instituição e o CNPJ (25.1 e 26).
-     *
-     * @return array<string, callable(Event): bool>
-     */
-    private static function conditions(): array
-    {
-        $yes = fn (string $parent) => fn (Event $event) => $event->$parent === 'Sim';
-        $producerIn = fn (array $producers) => fn (Event $event) => in_array($event->{FestivityFields::PRODUCER}, $producers, true);
-
-        $conditions = [
-            FestivityFields::CULTURE_POINT_NAME => $yes(FestivityFields::CULTURE_POINT),
-            FestivityFields::ACCESSIBILITY => $yes(FestivityFields::HAS_ACCESSIBILITY),
-            FestivityFields::SHELTER => $yes(FestivityFields::HAS_SHELTER),
-            FestivityFields::INSTITUTION => $producerIn(FestivityFields::WITH_INSTITUTION),
-            FestivityFields::CNPJ => $producerIn(FestivityFields::WITH_CNPJ),
-        ];
-
-        foreach (array_keys(FestivityFields::fundingSources()) as $key) {
-            $conditions["{$key}Anos"] = $yes($key);
-        }
-
-        return $conditions;
-    }
-
     private static function isEmpty(Event $event, string $key): bool
     {
-        if (($applies = self::conditions()[$key] ?? null) && !$applies($event)) {
+        if (($applies = FestivityFields::conditions()[$key] ?? null) && !$applies($event)) {
             return false;
         }
 
         return match ($key) {
             'occurrences' => count($event->occurrences ?? []) === 0,
-            // Vêm do primeiro local da agenda (FestivityPlace::sync); sem período, só a falta dele aparece.
+            // Vêm do primeiro local da agenda (FestivityPlace::copyFirstPlace); sem período, só a falta dele aparece.
             'place' => count($event->occurrences ?? []) > 0
                 && (!self::filled($event->{FestivityFields::UF}) || !self::filled($event->{FestivityFields::CITY})),
             'removedPlace' => $event->id && App::i()->em->createQuery('SELECT COUNT(o) FROM ' . EventOccurrence::class . ' o JOIN o.space s WHERE o.event = :event AND o.status > 0 AND s.status < 0')

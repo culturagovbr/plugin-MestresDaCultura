@@ -54,14 +54,16 @@ class FestivityField
         return $event && $event->status === Event::STATUS_ENABLED && (new FestivitySeal)->relationOf($event);
     }
 
-    // Para a ficha em PDF e a planilha: o nome do festejo, e não o id.
+    // O nome do festejo do Calendário, para a ficha em PDF e a planilha; outro id sai como fora do Calendário.
     static function toText(mixed $value): mixed
     {
         if (!is_string($value) || !ctype_digit($value)) {
             return $value;
         }
 
-        return App::i()->repo('Event')->find((int) $value)?->name ?? $value;
+        return self::isFestivity((int) $value)
+            ? App::i()->repo('Event')->find((int) $value)->name
+            : sprintf(i::__('Festejo fora do Calendário (%s)'), $value);
     }
 
     // Passa a pergunta de texto do formulário dos Mestres a este tipo, com a ajuda da busca; as respostas em texto
@@ -132,9 +134,12 @@ class FestivityField
         }
 
         $festivities = [];
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        // De uma vez, na ordem: o escolhido no cadastro primeiro.
+        $events = $ids ? array_column(array_map(fn (Event $event) => [$event->id, $event], $app->repo('Event')->findBy(['id' => $ids])), 1, 0) : [];
 
-        foreach (array_unique(array_map('intval', $ids)) as $id) {
-            $event = $app->repo('Event')->find($id);
+        foreach ($ids as $id) {
+            $event = $events[$id] ?? null;
 
             if ($event && $event->status === Event::STATUS_ENABLED) {
                 $festivities[] = [
@@ -150,7 +155,7 @@ class FestivityField
     }
 
     /** @return list<string> as chaves dos campos deste tipo na oportunidade ("field_400") */
-    private static function keysOf(int $opportunityId): array
+    static function keysOf(int $opportunityId): array
     {
         return array_map(
             fn ($id) => "field_{$id}",
