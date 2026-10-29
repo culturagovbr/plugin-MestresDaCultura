@@ -36,10 +36,10 @@ class NotificationScope
 
     private const VERSION_SECONDS = 365 * 86400;
 
-    /** Chegou ou mudou uma notificação do usuário: o cálculo guardado não vale mais. */
+    /** Apaga a versão das notificações do usuário; a próxima leitura do sino cria outra. */
     static function changed(int $userId): void
     {
-        App::i()->mscache->save(self::VERSION_KEY . $userId, uniqid('', true), self::VERSION_SECONDS);
+        App::i()->mscache->delete(self::VERSION_KEY . $userId);
     }
 
     function __construct(private FixedOpportunity $fixedOpportunity)
