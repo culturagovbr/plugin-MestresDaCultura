@@ -55,6 +55,19 @@ class FestivitySearchTest extends TestCase
         $this->assertSame([], $this->find([FestivitySearch::MONTH_PARAM => '2']), 'Mês sem festejo, nenhum');
     }
 
+    // A lista do mês só traz festejos com o selo.
+    function testTheMonthListHasOnlyFestivities()
+    {
+        $samba = $this->published('Samba de Roda de Santa Bárbara', ['Festas de Santos/Devocional'], '2026-12-03');
+        $event = $this->draft();
+        $this->period($event, $this->place($event), '2026-12-05');
+        $this->app->em->refresh($event);
+        $event->publish(true);
+        $this->assertSame(Event::STATUS_ENABLED, $event->status, 'Publicado, mas sem as 6 etapas: sem o selo');
+
+        $this->assertSame([$samba->id], FestivitySearch::idsInMonth(12));
+    }
+
     function testTheHomeCounterCountsThePublishedFestivities()
     {
         $this->published('Samba de Roda de Santa Bárbara', ['Festas de Santos/Devocional'], '2026-12-03');
