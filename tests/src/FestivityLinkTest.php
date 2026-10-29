@@ -116,11 +116,17 @@ class FestivityLinkTest extends TestCase
         $marking = $this->published('Roda de Coco de São João');
         $marking->{FestivityFields::MASTERS} = "|{$master->id}|";
         $marking->save(true);
+
+        // Publicado sem o selo, não é festejo do Calendário.
+        $unsealed = $this->draft();
+        $unsealed->{FestivityFields::MASTERS} = "|{$master->id}|";
+        $unsealed->save(true);
+        $unsealed->publish(true);
         $this->logout();
 
         $this->app->em->clear();
         $profile = (new MasterProfile(new FixedOpportunity, new ProgramSeal))->of($this->app->repo('Agent')->find($master->id));
-        $this->assertEqualsCanonicalizing([$chosen->id, $marking->id], array_column($profile['festivities'], 'id'), 'O que ela escolheu e o que a marcou');
+        $this->assertEqualsCanonicalizing([$chosen->id, $marking->id], array_column($profile['festivities'], 'id'), 'O que ela escolheu e o que a marcou, só os com o selo');
 
         $festivity = (new FestivityProfile(new FestivitySeal, new ProgramSeal))->of($this->app->repo('Event')->find($chosen->id));
         $this->assertSame([$master->id], array_column($festivity['masters'], 'id'), 'A mestra que escolheu o festejo aparece nele');
