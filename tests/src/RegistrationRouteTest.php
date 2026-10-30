@@ -391,4 +391,24 @@ class RegistrationRouteTest extends TestCase
             'A busca é por usuário: agente diferente do mesmo dono não pode gerar segundo cadastro'
         );
     }
+
+    // Quando a busca não enxerga o cadastro, a validação recusa o segundo e mostra o aviso.
+    function testTheValidationRefusesASecondRegistrationTheSearchMisses()
+    {
+        $log = $this->captureLog();
+        $opportunity = $this->createOpportunity();
+        $this->configure($opportunity);
+
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+        $this->visit();
+
+        $this->app->conn->executeStatement('DELETE FROM pcache WHERE user_id = ? AND object_type = ?', [$user->id, Registration::class]);
+
+        [$status] = $this->visit();
+
+        $this->assertUnavailablePage($status, 'Com o cadastro recusado, a mestra vê o aviso');
+        $this->assertCount(1, $this->registrationsOf($user, $opportunity), 'A rota não grava o segundo cadastro');
+        $this->assertTrue($log->hasErrorThatContains('cadastro recusado'), 'O motivo da recusa precisa ficar no log');
+    }
 }
