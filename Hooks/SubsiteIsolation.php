@@ -26,7 +26,6 @@ final class SubsiteIsolation
         self::sendForeignRegistrationsHome($plugin);
         self::keepTheProgramOnItsSite($plugin);
         self::showOnlyTheProgramSeals($plugin);
-        self::leaveOutOtherProgramsNotifications($plugin);
         self::keepEntitiesInTheSubsite($plugin);
     }
 
@@ -224,34 +223,6 @@ final class SubsiteIsolation
 
             if (!$seal || !in_array($seal->id, $ids, true)) {
                 $app->pass();
-            }
-        });
-    }
-
-    // No subsite dos Mestres, as notificações de outros programas ficam fora da consulta, para todos
-    // (Services\NotificationScope).
-    private static function leaveOutOtherProgramsNotifications(Plugin $plugin): void
-    {
-        $app = App::i();
-        $fixedOpportunity = $plugin->fixedOpportunity();
-        $scope = new Services\NotificationScope($fixedOpportunity);
-
-        // Em qualquer subsite e nos jobs, gravar uma notificação refaz as escondidas de quem a recebe.
-        $app->hook('entity(Notification).save:finish', function () {
-            if ($this->user?->id) {
-                Services\NotificationScope::changed($this->user->id);
-            }
-        });
-
-        $app->hook('ApiQuery(Notification).params', function (&$params) use ($app, $fixedOpportunity, $scope) {
-            /** @var ApiQuery $this */
-            if ($this->parentQuery || !Plugin::isTheme() || $app->user->is('guest') || !$fixedOpportunity->isConfigured()) {
-                return;
-            }
-
-            if ($hidden = $scope->hiddenFor($app->user)) {
-                $outside = API::NOT_IN($hidden);
-                $params['id'] = isset($params['id']) ? API::AND($params['id'], $outside) : $outside;
             }
         });
     }
