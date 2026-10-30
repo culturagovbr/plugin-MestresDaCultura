@@ -50,18 +50,34 @@ class Controller extends \MapasCulturais\Controller
             return;
         }
 
-        if ($url = $this->existingUrl($opportunity)) {
-            $app->redirect($url);
+        // Busca e criação do cadastro em fila por usuário.
+        $lock = "mdc-registration-{$app->user->id}";
+        $app->lock($lock, wait_for_unlock: 5);
+
+        try {
+            if ($url = $this->existingUrl($opportunity)) {
+                $app->redirect($url);
+            }
+
+            if (!$opportunity->canUser('register')) {
+                $app->log->error("MDC: inscrição recusada na oportunidade {$opportunity->id}; o período está fechado.");
+                $this->render('unavailable');
+
+                return;
+            }
+
+            $registration = $this->create($opportunity);
+
+            if (!$registration) {
+                $this->render('unavailable');
+
+                return;
+            }
+
+            $app->redirect($registration->editUrl);
+        } finally {
+            $app->unlock($lock);
         }
-
-        if (!$opportunity->canUser('register')) {
-            $app->log->error("MDC: inscrição recusada na oportunidade {$opportunity->id}; o período está fechado.");
-            $this->render('unavailable');
-
-            return;
-        }
-
-        $app->redirect($this->create($opportunity)->editUrl);
     }
 
     // Busca pública de Mestras e Mestres (views/mdc/masters.php), só no subsite dos Mestres; lista só quem tem o selo.
@@ -402,11 +418,21 @@ class Controller extends \MapasCulturais\Controller
         return reset($found)['editUrl'];
     }
 
-    private function create(Opportunity $opportunity): Registration
+    // Grava o cadastro que passa nas validações da entidade; a recusa vai para o log.
+    private function create(Opportunity $opportunity): ?Registration
     {
+        $app = App::i();
+
         $registration = new Registration;
         $registration->opportunity = $opportunity;
-        $registration->owner = App::i()->user->profile;
+        $registration->owner = $app->user->profile;
+
+        if ($errors = $registration->validationErrors) {
+            $app->log->error("MDC: cadastro recusado na oportunidade {$opportunity->id}: " . json_encode($errors, JSON_UNESCAPED_UNICODE));
+
+            return null;
+        }
+
         $registration->save(true);
 
         return $registration;
