@@ -50,7 +50,7 @@ class MasterPublicData
             $city = MasterProfile::cityOf($registration);
             $ids = array_column($acting['nodes'] ?? [], 'id');
 
-            $agent->{self::KNOWN_AS} = (string) $agent->nomeSocial;
+            $agent->{self::KNOWN_AS} = MasterProfile::knownAsOf($registration);
             $agent->{self::CITY} = $city;
             $agent->{self::UF} = preg_match('/,\s*([A-Z]{2})\s*$/', $city, $match) ? $match[1] : '';
             $agent->{self::ACTIVITIES} = implode(', ', MasterProfile::activities($acting ?? []));

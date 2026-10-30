@@ -112,4 +112,20 @@ class MasterProfile
 
         return '';
     }
+
+    // O nome artístico enviado: a resposta do campo ou, sem ela, a cópia do perfil feita no envio.
+    static function knownAsOf(Registration $registration): string
+    {
+        foreach ($registration->opportunity->registrationFieldConfigurations as $field) {
+            if ($field->fieldType === 'agent-owner-field' && ($field->config['entityField'] ?? null) === 'nomeSocial') {
+                $answer = $registration->{$field->fieldName};
+
+                if ($answer && is_string($answer)) {
+                    return $answer;
+                }
+            }
+        }
+
+        return (string) ($registration->agentsData['owner']['nomeSocial'] ?? '');
+    }
 }
