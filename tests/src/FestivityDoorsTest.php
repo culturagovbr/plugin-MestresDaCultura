@@ -22,6 +22,7 @@ class FestivityDoorsTest extends TestCase
     use OpportunityBuilder;
     use OutsideTheSubsite;
     use ProgramOpportunity;
+    use ProgramSubsite;
     use RequestFactory;
     use UserDirector;
 
@@ -176,5 +177,32 @@ class FestivityDoorsTest extends TestCase
 
         $this->assertSame(400, $this->app->response->getStatusCode(), 'Sem a lista de recursos, não grava');
         $this->assertFalse($this->app->conn->fetchOne('SELECT value FROM event_meta WHERE object_id = ? AND key = ?', [$event->id, FestivityFields::HAS_ACCESSIBILITY]));
+    }
+
+    // O dono de festejo publicado do subsite não fica sem o nome completo; os outros campos do perfil seguem editáveis.
+    function testTheOwnerOfAPublishedFestivityKeepsTheFullName()
+    {
+        $event = $this->draft();
+        $this->complete($event);
+        $owner = $event->owner->id;
+        $name = fn () => $this->app->conn->fetchOne("SELECT value FROM agent_meta WHERE object_id = ? AND key = 'nomeCompleto'", [$owner]);
+        $patch = function (array $data) use ($owner): int {
+            $this->app->reset();
+            $this->app->run($this->requestFactory->PATCH('agent', 'single', [$owner], $data), false);
+
+            return $this->app->response->getStatusCode();
+        };
+
+        $this->assertSame(200, $patch(['nomeCompleto' => '']), 'Em rascunho, o nome pode sair');
+        $this->assertEmpty($name());
+        $this->assertSame(200, $patch(['nomeCompleto' => 'Celina Pereira dos Santos']));
+
+        $this->app->repo('Event')->find($event->id)->publish(true);
+        $this->assertSame(400, $patch(['nomeCompleto' => '   ']), 'Publicado, o nome fica');
+        $this->assertSame('Celina Pereira dos Santos', $name());
+        $this->assertSame(200, $patch(['shortDescription' => 'Sambadeira do Recôncavo']), 'Os outros campos gravam');
+
+        $this->putInSubsite('event', $event->id, $this->createProgramSubsite($owner));
+        $this->assertSame(200, $patch(['nomeCompleto' => '']), 'O evento de outro subsite não prende o nome');
     }
 }
