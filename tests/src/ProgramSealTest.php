@@ -96,4 +96,42 @@ class ProgramSealTest extends TestCase
             $this->assertSame(1, (int) $this->app->conn->fetchOne("SELECT count(*) FROM job WHERE name = ? AND metadata->>'template' = ? AND metadata->>'registrationId' = ?", [SendMailNotification::SLUG, Moderation::MAIL_APPROVED, (string) $id]), 'E o e-mail');
         }
     }
+
+    // O cadastro aprovado excluído leva o selo e os dados públicos; o não aprovado excluído não mexe no selo do agente.
+    function testDeletingAnApprovedRegistrationTakesTheSealAndThePublicData()
+    {
+        $this->captureLog();
+        $opportunity = $this->createProgramOpportunity();
+        $seal = (new SealBuilder)->reset($this->app->user->profile)->fillRequiredProperties()->save()->getInstance();
+        $this->app->config[ProgramSeal::CONFIG_KEY] = $seal->id;
+        $this->opportunityBuilder->createSentRegistrations(number_of_registrations: 2);
+
+        [$approved, $sent] = $this->app->conn->fetchFirstColumn('SELECT id FROM registration WHERE opportunity_id = ? ORDER BY id', [$opportunity->id]);
+        $agentOf = fn (int $id): int => (int) $this->app->conn->fetchOne('SELECT agent_id FROM registration WHERE id = ?', [$id]);
+        $sealsOf = fn (int $agent): int => (int) $this->app->conn->fetchOne('SELECT count(*) FROM seal_relation WHERE seal_id = ? AND object_id = ?', [$seal->id, $agent]);
+        $approvedAgent = $agentOf($approved);
+        $sentAgent = $agentOf($sent);
+
+        $this->app->disableAccessControl();
+        $registration = $this->app->repo('Registration')->find($approved);
+        $registration->owner->nomeSocial = 'Mestra Celina';
+        $registration->owner->save(true);
+        $registration->setStatusToApproved(true);
+        (new ProgramSeal)->apply($this->app->repo('Registration')->find($sent));
+        $this->app->enableAccessControl();
+
+        $this->assertSame(1, $sealsOf($approvedAgent));
+        $this->assertSame('Mestra Celina', $this->app->conn->fetchOne('SELECT value FROM agent_meta WHERE object_id = ? AND key = ?', [$approvedAgent, MasterPublicData::KNOWN_AS]));
+
+        foreach ([$approved, $sent] as $id) {
+            $this->app->reset();
+            $this->app->run($this->requestFactory->DELETE('registration', 'single', [$id]), false);
+            $this->assertSame(200, $this->app->response->getStatusCode(), (string) $this->app->response->getBody());
+            $this->assertFalse($this->app->conn->fetchOne('SELECT id FROM registration WHERE id = ?', [$id]), 'A inscrição sai');
+        }
+
+        $this->assertSame(0, $sealsOf($approvedAgent), 'O aprovado perde o selo');
+        $this->assertEmpty($this->app->conn->fetchOne('SELECT value FROM agent_meta WHERE object_id = ? AND key = ?', [$approvedAgent, MasterPublicData::KNOWN_AS]), 'E os dados públicos');
+        $this->assertSame(1, $sealsOf($sentAgent), 'O selo de quem não estava aprovado fica');
+    }
 }
