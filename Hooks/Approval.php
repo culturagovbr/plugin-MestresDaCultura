@@ -47,6 +47,15 @@ final class Approval
             }
         });
 
+        // O cadastro aprovado excluído leva o selo e os dados públicos.
+        $app->hook('entity(Registration).remove:before', function () use ($plugin, $isRegistrationPhase) {
+            /** @var Registration $this */
+            if ($this->status === Registration::STATUS_APPROVED && $isRegistrationPhase($this)) {
+                $plugin->programSeal()->remove($this);
+                (new Services\MasterPublicData)->clear($this->owner);
+            }
+        });
+
         // Certificado de vínculo de selo inexistente responde "não encontrado".
         $app->hook('GET(seal.sealRelation):before', function () use ($app) {
             if (Plugin::isTheme() && !$app->repo('SealRelation')->find((int) ($this->data['id'] ?? 0))) {
