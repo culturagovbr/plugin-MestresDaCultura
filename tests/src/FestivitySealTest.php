@@ -6,7 +6,9 @@ use MapasCulturais\ApiQuery;
 use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\Seal;
 use MDC\Services\FestivityFields;
+use MDC\Services\ProgramSeal;
 use Tests\Abstract\TestCase;
+use Tests\Builders\SealBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
@@ -98,18 +100,21 @@ class FestivitySealTest extends TestCase
         $this->assertSame($since, $this->storedFirstPublished($event), 'A gravação direta também é descartada');
     }
 
-    function testTheCertificateIsOpenToEveryone()
+    // Com o filtro de selos ligado, quem não é admin vê o selo dos festejos e abre o certificado.
+    function testWhoIsNotAdminSeesTheSealAndTheCertificate()
     {
         $event = $this->draft();
         $this->complete($event);
         $event->publish(true);
         $relation = $this->relation($event);
+        $this->app->config[ProgramSeal::CONFIG_KEY] = (new SealBuilder)->reset($event->owner)->fillRequiredProperties()->save()->getInstance()->id;
 
         $this->login($this->userDirector->createUser());
         $seals = (new ApiQuery(Seal::class, ['@select' => 'id']))->find();
         $this->assertContains($this->festivitySeal()->id, array_column($seals, 'id'), 'Quem não é admin vê o selo dos festejos');
 
-        $this->logout();
-        $this->assertStatus200($this->requestFactory->GET('seal', 'sealRelation', [$relation->id]), 'O certificado abre para o visitante');
+        $this->app->reset();
+        $this->app->run($this->requestFactory->GET('seal', 'sealRelation', [$relation->id]), false);
+        $this->assertSame(200, $this->app->response->getStatusCode(), 'O certificado abre');
     }
 }
