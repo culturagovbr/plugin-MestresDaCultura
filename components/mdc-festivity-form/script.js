@@ -103,8 +103,10 @@ app.component('mdc-festivity-form', {
             }
         },
 
-        async check() {
-            const url = `${$MAPAS.config.mdcFestivity.checkUrl}${this.entity.id}/?step=${this.step}`;
+        // `step` null confere as 6 etapas.
+        async check(step = this.step) {
+            const query = step === null ? '' : `?step=${step}`;
+            const url = `${$MAPAS.config.mdcFestivity.checkUrl}${this.entity.id}/${query}`;
             const response = await fetch(url, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
 
             if (!response.ok) {
@@ -152,6 +154,18 @@ app.component('mdc-festivity-form', {
             }
         },
 
+        // Confere e marca o que falta; true quando nada falta.
+        async confirm(step) {
+            try {
+                this.errors = await this.check(step);
+                this.entity.__validationErrors = { ...this.errors };
+                return !this.messages.length;
+            } catch (error) {
+                this.notify.error(this.text('erro'));
+                return false;
+            }
+        },
+
         show(step) {
             this.step = step;
             this.$nextTick(() => this.$refs.stepTitle?.focus());
@@ -172,19 +186,11 @@ app.component('mdc-festivity-form', {
                 return;
             }
 
-            try {
-                // Sem a conferência, a etapa não avança.
-                this.errors = await this.check();
-                this.entity.__validationErrors = { ...this.errors };
-
-                if (!this.messages.length) {
-                    this.show(this.step + 1);
-                }
-            } catch (error) {
-                this.notify.error(this.text('erro'));
-            } finally {
-                this.saving = false;
+            if (await this.confirm(this.step)) {
+                this.show(this.step + 1);
             }
+
+            this.saving = false;
         },
 
         async goTo(step) {
@@ -216,13 +222,20 @@ app.component('mdc-festivity-form', {
 
             try {
                 await this.save();
-                this.errors = {};
-                modal.open();
             } catch (error) {
                 this.failed(error);
-            } finally {
                 this.saving = false;
+                return;
             }
+
+            this.errors = {};
+
+            // O festejo publicado só sai com as 6 etapas; o rascunho sai sem cobrar.
+            if (this.entity.status <= 0 || await this.confirm(null)) {
+                modal.open();
+            }
+
+            this.saving = false;
         },
 
         // Publicar cobra as 6 etapas (FestivityForm no servidor); o que faltar aparece aqui.

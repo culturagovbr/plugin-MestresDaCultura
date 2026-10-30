@@ -126,7 +126,7 @@ $this->import('
         <mc-link v-else-if="!entity.id" route="panel/index" class="button button--primary-outline">{{text('voltar ao painel')}}</mc-link>
 
         <div class="mdc-festivity-form__forward">
-            <!-- Salva sem cobrar a etapa e confirma a saída. -->
+            <!-- Salva e confirma a saída; o festejo publicado só sai com as 6 etapas. -->
             <mc-modal :title="text('sair titulo')" classes="mdc-festivity-form__exit">
                 <template #default>
                     <p>{{entity.status > 0 ? text('sair publicado') : text('sair rascunho')}}</p>
