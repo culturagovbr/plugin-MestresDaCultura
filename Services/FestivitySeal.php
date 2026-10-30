@@ -77,7 +77,7 @@ class FestivitySeal
         return $seal && $event->id ? App::i()->repo('EventSealRelation')->findOneBy(['seal' => $seal, 'owner' => $event]) : null;
     }
 
-    // O contador da home: festejos publicados, que têm o selo. Sem o selo configurado, zero e sem registrar erro.
+    // O contador da home: festejos publicados do subsite dos Mestres. Sem o selo configurado, zero e sem registrar erro.
     function countPublished(): int
     {
         if (!$this->configuredId()) {
@@ -86,8 +86,9 @@ class FestivitySeal
 
         return (int) App::i()->conn->fetchOne(
             "SELECT count(*) FROM seal_relation r JOIN event e ON e.id = r.object_id
-             WHERE r.seal_id = :seal AND r.object_type = :type AND e.status = :enabled",
-            ['seal' => $this->configuredId(), 'type' => Event::class, 'enabled' => Event::STATUS_ENABLED]
+             WHERE r.seal_id = :seal AND r.object_type = :type AND e.status = :enabled
+               AND e.subsite_id IS NOT DISTINCT FROM CAST(:subsite AS integer)",
+            ['seal' => $this->configuredId(), 'type' => Event::class, 'enabled' => Event::STATUS_ENABLED, 'subsite' => (new FixedOpportunity)->subsiteId()]
         );
     }
 
