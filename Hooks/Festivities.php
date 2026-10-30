@@ -310,6 +310,13 @@ final class Festivities
             $publishing = true;
         });
 
+        // O dono de festejo publicado não fica sem o nome completo.
+        $app->hook('entity(Agent).validationErrors', function (array &$errors) {
+            if (Services\FestivityForm::losesResponsibleName($this)) {
+                $errors['nomeCompleto'] = [i::__('O nome completo é obrigatório enquanto houver festejo publicado.')];
+            }
+        });
+
         // No festejo publicado, as etapas que faltam vão também nos campos enviados no PATCH.
         $sent = [];
         $app->hook('PATCH(event.single):data', function (&$data) use (&$sent) {

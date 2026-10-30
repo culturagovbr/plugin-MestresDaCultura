@@ -2,7 +2,9 @@
 
 namespace MDC\Services;
 
+use MDC\Plugin;
 use MapasCulturais\App;
+use MapasCulturais\Entities\Agent;
 use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\EventOccurrence;
 use MapasCulturais\i;
@@ -138,6 +140,18 @@ class FestivityForm
         if ($stored !== Event::STATUS_ENABLED && (self::missing($event) || self::invalid($event))) {
             $event->status = $stored;
         }
+    }
+
+    /** O nome completo do agente ficou vazio, e ele é dono de festejo publicado. */
+    static function losesResponsibleName(Agent $agent): bool
+    {
+        if (!$agent->id || self::filled($agent->getMetadata('nomeCompleto'))) {
+            return false;
+        }
+
+        $published = App::i()->repo('Event')->findBy(['owner' => $agent, 'status' => Event::STATUS_ENABLED]);
+
+        return (bool) array_filter($published, fn (Event $event) => Plugin::isFestivity($event));
     }
 
     /** @return array<int, array<string, string>> etapa => campo => mensagem */
