@@ -48,6 +48,7 @@ class MasterPublicDataTest extends TestCase
                 ->createStep('etapa')
                 ->createField('atuacao', ActingField::SLUG, title: 'Atuação Cultural')
                 ->createField('cidade', 'municipio', title: 'Qual Cidade você vive?')
+                ->createField('nome', 'agent-owner-field', title: 'Nome artístico', config: ['entityField' => 'nomeSocial'])
                 ->done()
             ->save()
             ->refresh()
@@ -58,8 +59,9 @@ class MasterPublicDataTest extends TestCase
         $this->app->config[ProgramSeal::CONFIG_KEY] = $seal->id;
     }
 
-    // Enviada, com a atuação (Carnaval e Folia de Reis, em Celebrações e Rituais) e a cidade.
-    private function registration(): Registration
+    // Enviada, com a atuação (Carnaval e Folia de Reis, em Celebrações e Rituais), a cidade e o nome artístico; sem
+    // resposta no campo do nome, ele fica só no perfil.
+    private function registration(bool $answerTheName = true): Registration
     {
         $registration = $this->registrationDirector->createDraftRegistrations($this->opportunity, 1)[0];
         $registration->opportunity->registerRegistrationMetadata();
@@ -75,10 +77,13 @@ class MasterPublicDataTest extends TestCase
         $this->app->disableAccessControl();
         $registration->owner->nomeSocial = 'Mestra Maria';
         $registration->owner->save(true);
+        if ($answerTheName) {
+            $registration->{$this->opportunityBuilder->getFieldName('nome')} = 'Mestra Maria';
+        }
         $registration->{$this->opportunityBuilder->getFieldName('atuacao')} = ['nodes' => array_values($nodes), 'others' => []];
         $registration->{$this->opportunityBuilder->getFieldName('cidade')} = 'Olinda, PE';
-        $registration->status = Registration::STATUS_SENT;
         $registration->save(true);
+        $registration->send();
         $this->app->enableAccessControl();
 
         return $registration;
@@ -118,6 +123,33 @@ class MasterPublicDataTest extends TestCase
         $this->assertSame('Carnaval, Folia de Reis', $agent->{MasterPublicData::ACTIVITIES});
         $carnaval = (int) $this->app->conn->fetchOne("SELECT id FROM mdc_tree_node WHERE name = 'Carnaval' ORDER BY level LIMIT 1");
         $this->assertStringContainsString("|{$carnaval}|", (string) $agent->{MasterPublicData::ACTING}, 'Os itens da atuação, para o filtro');
+    }
+
+    private function assertTheApprovalPublishesTheNameSent(Registration $registration): void
+    {
+        $agentId = $registration->owner->id;
+
+        $this->app->disableAccessControl();
+        $owner = $this->agent($agentId);
+        $owner->nomeSocial = 'Nome trocado depois do envio';
+        $owner->save(true);
+        $this->app->enableAccessControl();
+
+        $this->setStatus($registration, 'setStatusToApproved');
+
+        $this->assertSame('Mestra Maria', $this->agent($agentId)->{MasterPublicData::KNOWN_AS});
+    }
+
+    // A aprovação publica a resposta do campo, não o nome trocado depois no perfil.
+    function testTheApprovalPublishesTheAnswerNotTheProfileName()
+    {
+        $this->assertTheApprovalPublishesTheNameSent($this->registration());
+    }
+
+    // Sem resposta no campo, a aprovação publica a cópia do perfil feita no envio.
+    function testWithoutAnAnswerTheApprovalPublishesTheCopyMadeOnSending()
+    {
+        $this->assertTheApprovalPublishesTheNameSent($this->registration(answerTheName: false));
     }
 
     function testAVisitorReadsItThroughTheApi()

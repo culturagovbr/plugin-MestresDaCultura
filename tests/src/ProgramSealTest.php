@@ -28,6 +28,13 @@ class ProgramSealTest extends TestCase
     use RequestFactory;
     use UserDirector;
 
+    // Grava a cópia do perfil feita no envio, com o nome artístico.
+    private function setNameSent(int $id, string $name): void
+    {
+        $this->app->conn->executeStatement('UPDATE registration SET agents_data = ? WHERE id = ?', [json_encode(['owner' => ['nomeSocial' => $name]]), $id]);
+        $this->app->em->clear();
+    }
+
     function testTheSealIsReadAgainAfterTheEntityManagerIsCleared()
     {
         $admin = $this->userDirector->createUser('saasSuperAdmin');
@@ -75,13 +82,9 @@ class ProgramSealTest extends TestCase
         $this->opportunityBuilder->createSentRegistrations(number_of_registrations: 2);
 
         $ids = $this->app->conn->fetchFirstColumn('SELECT id FROM registration WHERE opportunity_id = ? ORDER BY id', [$opportunity->id]);
-        $this->app->disableAccessControl();
         foreach ($ids as $id) {
-            $owner = $this->app->repo('Registration')->find($id)->owner;
-            $owner->nomeSocial = "Mestra {$id}";
-            $owner->save(true);
+            $this->setNameSent($id, "Mestra {$id}");
         }
-        $this->app->enableAccessControl();
         $this->app->conn->executeStatement("UPDATE registration SET consolidated_result = '1' WHERE id IN (?, ?)", $ids);
 
         $this->app->reset();
@@ -112,11 +115,10 @@ class ProgramSealTest extends TestCase
         $approvedAgent = $agentOf($approved);
         $sentAgent = $agentOf($sent);
 
+        $this->setNameSent($approved, 'Mestra Celina');
+
         $this->app->disableAccessControl();
-        $registration = $this->app->repo('Registration')->find($approved);
-        $registration->owner->nomeSocial = 'Mestra Celina';
-        $registration->owner->save(true);
-        $registration->setStatusToApproved(true);
+        $this->app->repo('Registration')->find($approved)->setStatusToApproved(true);
         (new ProgramSeal)->apply($this->app->repo('Registration')->find($sent));
         $this->app->enableAccessControl();
 
