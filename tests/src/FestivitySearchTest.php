@@ -10,6 +10,7 @@ use MDC\Services\FestivitySearch;
 use MDC\Services\ProgramSeal;
 use Tests\Builders\SealBuilder;
 use Tests\Abstract\TestCase;
+use Tests\Traits\OpportunityBuilder;
 use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
@@ -18,6 +19,10 @@ use Tests\Traits\UserDirector;
 class FestivitySearchTest extends TestCase
 {
     use BuildsFestivities;
+    use CapturesLog;
+    use OpportunityBuilder;
+    use ProgramOpportunity;
+    use ProgramSubsite;
     use RequestFactory;
     use UserDirector;
 
@@ -112,12 +117,20 @@ class FestivitySearchTest extends TestCase
         $this->assertSame([$with->id], $this->find([FestivitySearch::MASTERS_PARAM => '1']));
     }
 
+    // O contador da home conta só os festejos publicados do subsite dos Mestres.
     function testTheHomeCounterCountsThePublishedFestivities()
     {
         $this->published('Samba de Roda de Santa Bárbara', ['Festas de Santos/Devocional'], '2026-12-03');
+        $this->published('Quadrilha do Arraiá', ['Festas de Santos/Devocional'], '2026-06-20');
+        $elsewhere = $this->published('Folia de Reis', ['Festas de Santos/Devocional'], '2026-12-24');
         $this->draft();
 
-        $this->assertSame(1, (new FestivitySeal)->countPublished());
+        $other = $this->createProgramSubsite($elsewhere->owner->id);
+        $this->putInSubsite('event', $elsewhere->id, $other);
+        $this->assertSame(2, (new FestivitySeal)->countPublished(), 'Sem subsite no programa');
+
+        $this->putInSubsite('opportunity', $this->createProgramOpportunity()->id, $other);
+        $this->assertSame(1, (new FestivitySeal)->countPublished(), 'Com o programa num subsite');
     }
 
     function testTheSearchPageOpensForVisitors()
