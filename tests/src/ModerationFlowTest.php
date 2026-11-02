@@ -193,6 +193,32 @@ class ModerationFlowTest extends TestCase
         $this->assertSame([$registration->id], array_keys($mails), 'Um e-mail de aprovação só, o da fase de cadastro');
     }
 
+    // A cópia entre fases de outro edital roda com o controle de acesso ligado; a do programa o desliga até o fim do job.
+    function testOnlyTheProgramSyncRunsWithoutAccessControl()
+    {
+        $manager = $this->userDirector->createUser('saasSuperAdmin');
+        $this->login($manager);
+        $other = $this->opportunityBuilder
+            ->reset(owner: $manager->profile, owner_entity: $manager->profile)
+            ->fillRequiredProperties()
+            ->save()
+            ->getInstance();
+        $sync = function ($opportunity) {
+            $job = new \stdClass;
+            $job->opportunity = $opportunity;
+            $this->app->applyHookBoundTo($job, 'job(' . \OpportunityPhases\Jobs\SyncPhaseRegistrations::SLUG . ').execute:before');
+        };
+
+        $sync($other);
+        $this->assertTrue($this->app->isAccessControlEnabled(), 'Em outro edital, o controle de acesso segue ligado');
+
+        $sync($this->app->repo('Opportunity')->find($this->app->config[FixedOpportunity::CONFIG_KEY]));
+        $this->assertFalse($this->app->isAccessControlEnabled(), 'No programa, a cópia roda sem o controle de acesso');
+
+        $this->app->applyHookBoundTo($this->app, 'app.executeJob:after');
+        $this->assertTrue($this->app->isAccessControlEnabled(), 'Ao fim do job, o controle de acesso volta');
+    }
+
     // Sem o selo do programa configurado, a aprovação segue e o aviso sai, sem o certificado.
     function testWithoutTheSealTheApprovalMailHasNoCertificate()
     {
