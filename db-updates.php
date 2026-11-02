@@ -199,13 +199,13 @@ return [
         \MDC\Jobs\ReleaseStaleDrafts::schedule();
     },
 
-    // Publica os dados dos mestres já aprovados, como numa aprovação nova.
+    // Publica os dados dos mestres já aprovados, como numa aprovação nova; sem a oportunidade do programa, fica pendente.
     'mdc: publica os dados dos mestres já aprovados' => function () {
         $app = App::i();
         $opportunity = (new \MDC\Services\FixedOpportunity)->get();
 
         if (!$opportunity) {
-            return;
+            return false;
         }
 
         $registrations = $app->repo('Registration')->findBy(['opportunity' => $opportunity, 'status' => \MapasCulturais\Entities\Registration::STATUS_APPROVED]);
@@ -214,8 +214,13 @@ return [
         }
     },
 
-    // A pergunta "Identifique o festejo no calendário" passa a escolher um festejo publicado.
+    // A pergunta "Identifique o festejo no calendário" passa a escolher um festejo publicado; sem a oportunidade do
+    // programa, fica pendente.
     'mdc: o festejo do cadastro dos Mestres passa a ser escolhido no Calendário' => function () {
+        if (!(new \MDC\Services\FixedOpportunity)->get()) {
+            return false;
+        }
+
         \MDC\Services\FestivityField::convertTheMastersQuestion();
     },
 ];
