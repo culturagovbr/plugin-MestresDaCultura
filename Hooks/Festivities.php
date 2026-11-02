@@ -293,14 +293,12 @@ final class Festivities
             }
         }, 1000);
 
-        // A edição do festejo leva ao formulário; fora do subsite, ao subsite dos Mestres.
+        // No subsite dos Mestres, a edição do festejo leva ao formulário.
         $app->hook('GET(event.edit):before', function () use ($app, $isFestivity) {
             $event = $this->requestedEntity;
 
-            if ($event instanceof Event && $isFestivity($event)) {
-                $app->redirect(Plugin::isTheme()
-                    ? $app->createUrl('mdc', 'festivity', [$event->id])
-                    : Services\SubsiteRedirect::urlOn($event->subsite, $this));
+            if (Plugin::isTheme() && $event instanceof Event && $isFestivity($event)) {
+                $app->redirect($app->createUrl('mdc', 'festivity', [$event->id]));
             }
         });
 
