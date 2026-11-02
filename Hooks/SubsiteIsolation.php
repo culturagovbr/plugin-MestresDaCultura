@@ -265,11 +265,11 @@ final class SubsiteIsolation
             $this->addFilterByApiQuery(new ApiQuery(Event::class, ['_subsiteId' => $current(), 'status' => API::EQ(Event::STATUS_ENABLED)]), 'id', 'event');
         });
 
-        // O evento de outro subsite abre no subsite dele.
+        // O evento de outro subsite abre no subsite dele; o festejo, também fora do subsite dos Mestres.
         $app->hook('GET(event.<<single|edit>>):before', function () use ($app) {
             $event = $this->requestedEntity;
 
-            if (Plugin::isTheme() && $event instanceof Event && $event->id && !Services\SubsiteRedirect::isCurrent($event->subsite)) {
+            if ($event instanceof Event && $event->id && (Plugin::isTheme() || Plugin::isFestivity($event)) && !Services\SubsiteRedirect::isCurrent($event->subsite)) {
                 $app->redirect(Services\SubsiteRedirect::urlOn($event->subsite, $this));
             }
         });
