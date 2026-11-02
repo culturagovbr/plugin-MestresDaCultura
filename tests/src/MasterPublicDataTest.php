@@ -9,6 +9,7 @@ use MapasCulturais\Entities\Registration;
 use MDC\Services\ActingField;
 use MDC\Services\FixedOpportunity;
 use MDC\Services\MasterPublicData;
+use MDC\Services\Moderation;
 use MDC\Services\ProgramSeal;
 use Psr\Http\Message\ServerRequestInterface;
 use Tests\Abstract\TestCase;
@@ -123,6 +124,28 @@ class MasterPublicDataTest extends TestCase
         $this->assertSame('Carnaval, Folia de Reis', $agent->{MasterPublicData::ACTIVITIES});
         $carnaval = (int) $this->app->conn->fetchOne("SELECT id FROM mdc_tree_node WHERE name = 'Carnaval' ORDER BY level LIMIT 1");
         $this->assertStringContainsString("|{$carnaval}|", (string) $agent->{MasterPublicData::ACTING}, 'Os itens da atuação, para o filtro');
+    }
+
+    // A aprovação em outro edital da instalação não dá o selo, não publica dados nem manda o e-mail do programa.
+    function testTheApprovalInAnotherOpportunityLeavesTheProgramOut()
+    {
+        $other = $this->opportunityBuilder
+            ->reset(owner: $this->opportunity->owner, owner_entity: $this->opportunity->owner)
+            ->fillRequiredProperties()
+            ->firstPhase()
+                ->setRegistrationPeriod(new Open)
+                ->done()
+            ->save()
+            ->getInstance();
+        $registration = $this->registrationDirector->createSentRegistrations($other, 1)[0];
+        $agentId = $registration->owner->id;
+
+        $this->setStatus($registration, 'setStatusToApproved');
+
+        $this->assertFalse((new ProgramSeal)->isGivenTo($agentId), 'Sem o selo dos Mestres');
+        $this->assertEmpty($this->agent($agentId)->{MasterPublicData::KNOWN_AS}, 'Sem os dados públicos de mestre');
+        $mails = $this->app->conn->fetchOne("SELECT count(*) FROM job WHERE metadata::text LIKE '%' || :template || '%'", ['template' => Moderation::MAIL_APPROVED]);
+        $this->assertSame(0, (int) $mails, 'Sem o e-mail de aprovação do programa');
     }
 
     private function assertTheApprovalPublishesTheNameSent(Registration $registration): void
