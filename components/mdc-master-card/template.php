@@ -17,12 +17,12 @@ $this->import('
             <mc-icon v-else name="agent-1"></mc-icon>
         </div>
         <div>
-            <div class="entity-card__title">{{ master.knownAs || master.name }}</div>
+            <a :href="master.url"><component :is="headingTag" class="entity-card__title">{{ name }}</component></a>
             <div class="entity-card__subtitle">{{ subtitle }}</div>
         </div>
     </div>
     <div v-if="master.summary" class="entity-card__content-shortDescription">{{ master.summary }}</div>
     <div class="entity-card__footer">
-        <a class="button button--secondary-outline button--sm" :href="master.url"><?php i::_e('Ver perfil') ?></a>
+        <a class="button button--secondary-outline button--sm" :href="master.url" :aria-label="text('ver perfil de').replace('%s', name)"><?php i::_e('Ver perfil') ?></a>
     </div>
 </div>

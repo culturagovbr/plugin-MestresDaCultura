@@ -57,7 +57,7 @@ $this->import('
             </template>
             <template #default="{entities}">
                 <div class="mestres-grid">
-                    <mdc-master-card v-for="entity in entities" :key="entity.__objectId" :master="card(entity)"></mdc-master-card>
+                    <mdc-master-card v-for="entity in entities" :key="entity.__objectId" :master="card(entity)" heading-tag="h2"></mdc-master-card>
                 </div>
             </template>
             <template #empty>
