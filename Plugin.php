@@ -156,24 +156,14 @@ class Plugin extends \MapasCulturais\Plugin
             return true;
         }
 
-        $app = App::i();
-        $fixed = (new Services\FixedOpportunity)->get();
+        $fixedOpportunity = new Services\FixedOpportunity;
+        $fixed = $fixedOpportunity->get();
 
         if (!$fixed || $registration->opportunity?->id !== $fixed->id || !$registration->owner?->user) {
             return true;
         }
 
-        // Integridade precisa da verdade do banco, não do que o usuário da requisição enxerga.
-        $count = $app->em->createQuery(
-            'SELECT COUNT(r.id) FROM MapasCulturais\Entities\Registration r
-              JOIN r.owner a
-             WHERE r.opportunity = :opportunity AND a.user = :user AND r.status >= 0'
-        )
-            ->setParameter('opportunity', $fixed)
-            ->setParameter('user', $registration->owner->user)
-            ->getSingleScalarResult();
-
-        return !$count;
+        return !$fixedOpportunity->registrationsOf($registration->owner->user);
     }
 
     // Diz se a tela é do subsite dos Mestres, onde valem as regras do programa.

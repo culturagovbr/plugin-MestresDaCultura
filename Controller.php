@@ -2,7 +2,6 @@
 
 namespace MDC;
 
-use MapasCulturais\ApiQuery;
 use MapasCulturais\App;
 use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\Opportunity;
@@ -392,30 +391,23 @@ class Controller extends \MapasCulturais\Controller
         return $node;
     }
 
-    // Sem `@permissions` a consulta filtraria por `view` (ApiQuery.php:3582), que o cache de
-    // permissão não guarda para rascunho, e o dono não acharia a própria inscrição.
+    // O endereço de edição do primeiro cadastro do usuário; mais de um vai para o log.
     private function existingUrl(Opportunity $opportunity): ?string
     {
-        $found = (new ApiQuery(Registration::class, [
-            '@select' => 'id,editUrl',
-            '@permissions' => '@control',
-            '@order' => 'id ASC',
-            'opportunity' => "EQ({$opportunity->id})",
-            'user' => 'EQ(@me)',
-            'status' => 'GTE(0)',
-        ]))->getFindResult();
+        $app = App::i();
+        $found = (new FixedOpportunity)->registrationsOf($app->user);
 
         if (!$found) {
             return null;
         }
 
         if (count($found) > 1) {
-            $ids = implode(', ', array_column($found, 'id'));
+            $ids = implode(', ', array_map(fn (Registration $registration) => $registration->id, $found));
 
-            App::i()->log->error("MDC: o usuário " . App::i()->user->id . " tem mais de um cadastro na oportunidade {$opportunity->id}: {$ids}.");
+            $app->log->error("MDC: o usuário {$app->user->id} tem mais de um cadastro na oportunidade {$opportunity->id}: {$ids}.");
         }
 
-        return reset($found)['editUrl'];
+        return $found[0]->editUrl;
     }
 
     // Grava o cadastro que passa nas validações da entidade; a recusa vai para o log.

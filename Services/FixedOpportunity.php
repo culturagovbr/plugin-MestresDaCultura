@@ -6,6 +6,7 @@ use MapasCulturais\App;
 use MapasCulturais\Entities\EvaluationMethodConfigurationAgentRelation;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
+use MapasCulturais\Entities\User;
 use MapasCulturais\UserInterface;
 
 class FixedOpportunity
@@ -127,6 +128,31 @@ class FixedOpportunity
     function includes(Registration $registration): bool
     {
         return $this->matches($registration->opportunity);
+    }
+
+    /**
+     * Os cadastros da pessoa na oportunidade do programa, do rascunho em diante, em ordem de criação, lidos no banco
+     * sem filtro de permissão.
+     *
+     * @return Registration[]
+     */
+    function registrationsOf(User $user): array
+    {
+        $fixed = $this->get();
+
+        if (!$fixed) {
+            return [];
+        }
+
+        return App::i()->em->createQuery(
+            'SELECT r FROM MapasCulturais\Entities\Registration r
+              JOIN r.owner a
+             WHERE r.opportunity = :opportunity AND a.user = :user AND r.status >= 0
+             ORDER BY r.id ASC'
+        )
+            ->setParameter('opportunity', $fixed)
+            ->setParameter('user', $user)
+            ->getResult();
     }
 
     // A fase do programa em que o usuário modera, com a relação habilitada na comissão.
