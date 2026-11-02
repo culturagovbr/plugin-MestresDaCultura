@@ -133,8 +133,8 @@ final class SubsiteIsolation
         });
     }
 
-    // Fora do subsite dos Mestres, a oportunidade do programa sai da busca e da home, e as páginas dela e das inscrições
-    // dela vão para o subsite dos Mestres.
+    // Fora do subsite dos Mestres, a oportunidade do programa sai da busca e da home, e as páginas dela, das inscrições
+    // dela e do programa (mdc) vão para o subsite dos Mestres.
     private static function keepTheProgramOnItsSite(Plugin $plugin): void
     {
         $app = App::i();
@@ -169,6 +169,12 @@ final class SubsiteIsolation
             }
 
             $app->redirect(Services\SubsiteRedirect::urlOn($fixedOpportunity->get()->subsite, $this));
+        });
+
+        $app->hook('GET(mdc.<<index|masters|festivities|places|festivity>>):before', function () use ($app, $fixedOpportunity, $elsewhere) {
+            if ($elsewhere()) {
+                $app->redirect(Services\SubsiteRedirect::urlOn($fixedOpportunity->get()->subsite, $this));
+            }
         });
     }
 
