@@ -3,10 +3,12 @@
 namespace Tests\MDC;
 
 use Laminas\Diactoros\ServerRequest;
+use MapasCulturais\Entities\Event;
 use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\Subsite;
 use MapasCulturais\Entities\User;
+use MapasCulturais\Exceptions\Halt;
 use MDC\Services\FixedOpportunity;
 use Tests\Abstract\TestCase;
 use Tests\Builders\PhasePeriods\Open;
@@ -18,7 +20,9 @@ use Tests\Traits\UserDirector;
 // edital; a do programa e as páginas do programa, abertas em outro subsite, vão para o subsite dos Mestres.
 class SubsiteRedirectTest extends TestCase
 {
+    use CapturesLog;
     use OpportunityBuilder;
+    use OutsideTheSubsite;
     use RequestFactory;
     use UserDirector;
 
@@ -213,6 +217,65 @@ class SubsiteRedirectTest extends TestCase
         $this->assertContains($status, [301, 302, 303, 307], 'O /mdc/ aberto em outro subsite redireciona');
         $this->assertStringStartsWith($mestres->getSubsiteUrl(), $location, 'Para o subsite dos Mestres, e não para o login daqui');
         $this->assertEmpty($this->app->repo('Registration')->findBy(['opportunity' => $fixed->id]), 'Nada é gravado fora do subsite');
+    }
+
+    /** Cria um evento em rascunho e o põe no subsite indicado. */
+    private function eventOn(Subsite $subsite): Event
+    {
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+
+        $event = new Event;
+        $event->name = 'Festa do Divino';
+        $event->owner = $user->profile;
+        $event->status = Event::STATUS_DRAFT;
+        $event->save(true);
+
+        $this->app->conn->executeStatement('UPDATE event SET subsite_id = ? WHERE id = ?', [$subsite->id, $event->id]);
+        $this->app->em->clear();
+
+        return $this->app->repo('Event')->find($event->id);
+    }
+
+    /** O gancho da página do evento, fora do subsite dos Mestres, termina a requisição com redirecionamento? */
+    private function eventPageRedirectsOutsideTheSubsite(Event $event): bool
+    {
+        return $this->outsideTheSubsite(function () use ($event) {
+            $this->app->response = new \Laminas\Diactoros\Response();
+            $this->app->request = new \MapasCulturais\Request($this->requestFactory->GET('event', 'single', [$event->id]), 'event', 'single', []);
+            $controller = $this->app->controller('event');
+            $controller->setRequestData(['id' => $event->id]);
+            $controller->action = 'single';
+
+            try {
+                $this->app->applyHookBoundTo($controller, 'GET(event.single):before');
+            } catch (Halt) {
+                return true;
+            }
+
+            return false;
+        });
+    }
+
+    function testTheFestivityOpenedOutsideTheSubsiteGoesToTheMestresSite()
+    {
+        $fixed = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $mestres = $this->moveToAnotherSite($fixed);
+        $festivity = $this->eventOn($mestres);
+
+        $this->assertTrue($this->eventPageRedirectsOutsideTheSubsite($festivity), 'O festejo aberto fora do subsite redireciona');
+        $this->assertStringStartsWith($mestres->getSubsiteUrl(), $this->app->response->getHeaderLine('Location'), 'Para o subsite dos Mestres');
+    }
+
+    function testAnEventOfAnotherSiteIsNotRedirectedOutsideTheSubsite()
+    {
+        $this->captureLog();
+        $fixed = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $other = $this->moveToAnotherSite($this->createOpportunity());
+
+        $this->assertFalse($this->eventPageRedirectsOutsideTheSubsite($this->eventOn($other)), 'O evento de outro subsite, que não é festejo, segue como no core');
     }
 
     function testWithoutTheProgramTheirPagesAreNotRedirected()
