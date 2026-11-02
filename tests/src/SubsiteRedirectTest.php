@@ -15,7 +15,7 @@ use Tests\Traits\RequestFactory;
 use Tests\Traits\UserDirector;
 
 // Cada inscrição e oportunidade abre no subsite dela: a de outro edital, aberta no subsite dos Mestres, vai para o site do
-// edital; a do programa, aberta em outro subsite, vai para o subsite dos Mestres.
+// edital; a do programa e as páginas do programa, abertas em outro subsite, vão para o subsite dos Mestres.
 class SubsiteRedirectTest extends TestCase
 {
     use OpportunityBuilder;
@@ -173,5 +173,56 @@ class SubsiteRedirectTest extends TestCase
 
         $this->assertNotContains($fixed->id, $this->searchFrom($this->app->createUrl('site', 'index')), 'Nem a home');
         $this->assertContains($fixed->id, $this->searchFrom($this->app->createUrl('panel', 'index')), 'Fora da busca e da home, segue como no core');
+    }
+
+    /** @return array{int, string} status e Location */
+    private function visit(string $action, array $args = []): array
+    {
+        $this->app->reset();
+        $this->app->run($this->requestFactory->GET('mdc', $action, $args), false);
+
+        return [$this->app->response->getStatusCode(), $this->app->response->getHeaderLine('Location')];
+    }
+
+    function testTheProgramPagesOpenedOnAnotherSiteGoToTheMestresSite()
+    {
+        $fixed = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $mestres = $this->moveToAnotherSite($fixed);
+        $this->login($this->userDirector->createUser());
+
+        foreach ([['masters', []], ['festivities', []], ['places', []], ['festivity', []], ['festivity', [123]]] as [$action, $args]) {
+            [$status, $location] = $this->visit($action, $args);
+
+            $this->assertContains($status, [301, 302, 303, 307], "A página {$action} aberta em outro subsite redireciona");
+            $this->assertStringStartsWith($mestres->getSubsiteUrl(), $location, "A página {$action} vai para o subsite dos Mestres");
+        }
+
+        $this->assertStringEndsWith('/123/', $location, 'O festejo em edição segue na mesma página');
+    }
+
+    function testTheRegistrationRouteGoesToTheMestresSiteBeforeTheLogin()
+    {
+        $fixed = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $mestres = $this->moveToAnotherSite($fixed);
+        $this->logout();
+
+        [$status, $location] = $this->visit('index');
+
+        $this->assertContains($status, [301, 302, 303, 307], 'O /mdc/ aberto em outro subsite redireciona');
+        $this->assertStringStartsWith($mestres->getSubsiteUrl(), $location, 'Para o subsite dos Mestres, e não para o login daqui');
+        $this->assertEmpty($this->app->repo('Registration')->findBy(['opportunity' => $fixed->id]), 'Nada é gravado fora do subsite');
+    }
+
+    function testWithoutTheProgramTheirPagesAreNotRedirected()
+    {
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = null;
+        $this->login($this->userDirector->createUser());
+
+        [$status, $location] = $this->visit('masters');
+
+        $this->assertEquals(200, $status, 'Sem a oportunidade do programa, a página abre onde foi pedida');
+        $this->assertSame('', $location);
     }
 }
