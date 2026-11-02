@@ -392,8 +392,28 @@ class RegistrationRouteTest extends TestCase
         );
     }
 
-    // Quando a busca não enxerga o cadastro, a validação recusa o segundo e mostra o aviso.
-    function testTheValidationRefusesASecondRegistrationTheSearchMisses()
+    // Sem o cache de permissão, a rota leva ao cadastro que já existe.
+    function testFindsTheRegistrationWithoutThePermissionCache()
+    {
+        $opportunity = $this->createOpportunity();
+        $this->configure($opportunity);
+
+        $user = $this->userDirector->createUser();
+        $this->login($user);
+        $this->visit();
+        $first = $this->registrationsOf($user, $opportunity)[0];
+
+        $this->app->conn->executeStatement('DELETE FROM pcache WHERE user_id = ? AND object_type = ?', [$user->id, Registration::class]);
+
+        [$status, $location] = $this->visit();
+
+        $this->assertEquals(302, $status, 'A mestra vai ao cadastro, e não ao aviso de indisponível');
+        $this->assertEquals($first->editUrl, $location, 'O destino é o cadastro que já existe');
+        $this->assertCount(1, $this->registrationsOf($user, $opportunity), 'A rota não grava o segundo cadastro');
+    }
+
+    // Cadastro recusado pela validação não é gravado, e a mestra vê o aviso.
+    function testDoesNotSaveTheRegistrationTheValidationRefuses()
     {
         $log = $this->captureLog();
         $opportunity = $this->createOpportunity();
@@ -401,14 +421,15 @@ class RegistrationRouteTest extends TestCase
 
         $user = $this->userDirector->createUser();
         $this->login($user);
-        $this->visit();
 
-        $this->app->conn->executeStatement('DELETE FROM pcache WHERE user_id = ? AND object_type = ?', [$user->id, Registration::class]);
+        $this->app->hook('entity(Registration).validationErrors', function (&$errors) {
+            $errors['owner'][] = 'Recusa de teste';
+        });
 
         [$status] = $this->visit();
 
         $this->assertUnavailablePage($status, 'Com o cadastro recusado, a mestra vê o aviso');
-        $this->assertCount(1, $this->registrationsOf($user, $opportunity), 'A rota não grava o segundo cadastro');
+        $this->assertEmpty($this->registrationsOf($user, $opportunity), 'A rota não grava o cadastro recusado');
         $this->assertTrue($log->hasErrorThatContains('cadastro recusado'), 'O motivo da recusa precisa ficar no log');
     }
 }
