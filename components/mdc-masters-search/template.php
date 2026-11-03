@@ -49,7 +49,7 @@ $this->import('
     </div>
 
     <div class="col-8">
-        <mc-entities type="agent" :select="select" :query="query" order="name ASC" :limit="12" watch-query>
+        <mc-entities :key="JSON.stringify(query)" type="agent" :select="select" :query="query" order="name ASC" :limit="12">
             <template #header="{entities}">
                 <p v-if="!entities.loading" class="mdc-masters-search__count" role="status">
                     {{ entities.metadata?.count ?? 0 }} <?php i::_e('mestras e mestres encontrados') ?>
