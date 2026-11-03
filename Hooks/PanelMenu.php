@@ -9,7 +9,7 @@ use MapasCulturais\i;
 
 /**
  * Painel no subsite dos Mestres: atalhos da gestão e da moderação no menu, blocos de cada papel, a mestra levada
- * ao painel e só as telas do programa abertas para quem não é admin.
+ * ao painel, o destino do cadastro esquecido depois do login e só as telas do programa abertas para quem não é admin.
  */
 final class PanelMenu
 {
@@ -29,6 +29,23 @@ final class PanelMenu
         self::closeOtherPanelScreens($plugin);
         self::showRoleBlocksInThePanel($plugin);
         self::sendTheMasterToThePanel($plugin);
+        self::forgetTheProgramDestinationAfterLogin($plugin);
+    }
+
+    // Apaga da sessão o destino do cadastro dos Mestres (com ou sem a ação index) quando o login o lê.
+    private static function forgetTheProgramDestinationAfterLogin(Plugin $plugin): void
+    {
+        $app = App::i();
+
+        $app->hook('auth.redirectUrl', function () use ($app) {
+            $key = 'mapasculturais.auth.redirect_path';
+            $route = fn ($url): string => implode('/', array_filter(explode('/', (string) parse_url((string) $url, PHP_URL_PATH))));
+            $program = $route($app->createUrl('mdc', 'index'));
+
+            if (isset($_SESSION[$key]) && in_array($route($_SESSION[$key]), [$program, "{$program}/index"], true)) {
+                unset($_SESSION[$key]);
+            }
+        });
     }
 
     // Quem controla a oportunidade do programa ganha no menu do painel atalhos para os cadastros, as avaliações e a
