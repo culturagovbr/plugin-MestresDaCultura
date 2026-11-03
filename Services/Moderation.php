@@ -29,9 +29,10 @@ class Moderation
 
     /**
      * Os campos que o avaliador marcou, ok (`valid`) ou não ok (`invalid`), pelo nome que a inscrição usa (`field_N`
-     * ou `rfc_N`), com o motivo. Número de campo e de anexo repetido vale pelo que o avaliador via e, nos dois, pelo título.
+     * ou `rfc_N`), com o motivo (a justificativa e o descumprimento). Número de campo e de anexo repetido vale pelo que o
+     * avaliador via e, nos dois, pelo título.
      *
-     * @param array $evaluationData número => {label, evaluation, obs}
+     * @param array $evaluationData número => {label, evaluation, obs, obsItems}
      * @param array<string,mixed> $visible nome => "true", os campos que o avaliador vê
      * @param array<string,string> $titles nome => título
      * @return array<array{name: string, label: string, result: string, obs: string}>
@@ -62,7 +63,7 @@ class Moderation
                     'name' => $candidates[0],
                     'label' => (string) ($item['label'] ?? $titles[$candidates[0]]),
                     'result' => $result,
-                    'obs' => trim((string) ($item['obs'] ?? '')),
+                    'obs' => implode(' ', array_filter([trim((string) ($item['obs'] ?? '')), trim((string) ($item['obsItems'] ?? ''))])),
                 ];
             }
         }
