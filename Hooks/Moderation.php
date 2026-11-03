@@ -226,13 +226,19 @@ final class Moderation
 
             $moderation = (new Services\Moderation)->pendingView($registration);
 
-            // Em análise: o aviso do que acontece depois, e o selo do topo da ficha diz "Em análise".
+            // Em cada situação, o selo do topo da ficha diz o mesmo que o aviso, no lugar de "Enviada".
+            if ($moderation) {
+                Services\ProgramVocabulary::apply(['Enviada' => i::__('Pendente de moderação')]);
+            }
+
+            // Em análise: o aviso do que acontece depois.
             if (!$moderation && Services\Moderation::underReview($registration->status, $registration->editableFields, $registration->editSentTimestamp)) {
                 Services\ProgramVocabulary::apply(['Enviada' => i::__('Em análise')]);
                 $moderation = ['status' => 'review'];
             }
 
             if (!$moderation && $registration->status === Registration::STATUS_APPROVED && ($seal = $plugin->programSeal()->relationOf($registration))) {
+                Services\ProgramVocabulary::apply(['Enviada' => i::__('Aprovado')]);
                 $moderation = ['status' => 'approved', 'certificateUrl' => $seal->singleUrl];
             }
 
