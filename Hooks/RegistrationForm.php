@@ -11,7 +11,8 @@ use MapasCulturais\i;
 
 /**
  * Formulário do cadastro dos Mestres: Atuação e festejo no entity-field, validações do envio, leitura da ficha
- * (v1, fotos, PDF), seções, idade, caminho de navegação e uma inscrição por pessoa.
+ * (v1, fotos, PDF), seções, idade, caminho de navegação, uma inscrição por pessoa e links do agente sem mexer nos
+ * vídeos.
  */
 final class RegistrationForm
 {
@@ -31,6 +32,29 @@ final class RegistrationForm
         self::fixTheProgramBreadcrumbs($plugin);
         self::markFormSections($plugin);
         self::showAgeInForm($plugin);
+        self::saveOnlyTheLinksFromTheLinksField($plugin);
+    }
+
+    // No programa, o campo de links do agente grava só os links (Services\AgentLinks); os vídeos do agente ficam.
+    private static function saveOnlyTheLinksFromTheLinksField(Plugin $plugin): void
+    {
+        $app = App::i();
+
+        $app->hook('controller(opportunity).registerFieldType(agent-owner-field)', function ($field, &$config) use ($app, $plugin) {
+            /** @var Opportunity $this */
+            if (($field->config['entityField'] ?? null) !== '@links' || !$plugin->fixedOpportunity()->matches($this)) {
+                return;
+            }
+
+            $config['serialize'] = function ($value, ?Registration $registration = null) use ($app) {
+                if ($owner = $registration?->owner) {
+                    Services\AgentLinks::save($owner, $value);
+                    $app->applyHookBoundTo($owner, 'registrationFieldTypes.saveToEntity', ['entity_field' => '@links', 'value' => $value]);
+                }
+
+                return is_object($value) || is_array($value) ? json_encode($value) : $value;
+            };
+        });
     }
 
     // A Atuação e o festejo desenhados dentro do `entity-field`, em toda página, com o valor devolvido como evento de
