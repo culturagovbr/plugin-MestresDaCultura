@@ -23,7 +23,24 @@ final class Masters
         self::openTheMastersSearch($plugin);
         self::skipProfileFieldsTheProgramDoesNotAsk($plugin);
         self::showMasterProfile($plugin);
+        self::titleTheProfileWithTheKnownAsName($plugin);
         self::lockThePublicData();
+    }
+
+    // O título da página do mestre com o selo (aba e prévia de compartilhamento) usa o nome artístico, quando há.
+    private static function titleTheProfileWithTheKnownAsName(Plugin $plugin): void
+    {
+        $app = App::i();
+
+        $app->hook('view.title(agent.single)', function (&$title) use ($app, $plugin) {
+            /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
+            $agent = $this->controller->requestedEntity;
+            $knownAs = $agent instanceof Agent ? trim((string) $agent->{Services\MasterPublicData::KNOWN_AS}) : '';
+
+            if ($knownAs !== '' && $plugin->programSeal()->isGivenTo($agent->id)) {
+                $title = "{$knownAs} - {$app->siteName}";
+            }
+        });
     }
 
     // Os dados públicos do agente (MasterPublicData) só são gravados pela aprovação, em qualquer domínio.
