@@ -26,6 +26,22 @@ class ModerationTest extends TestCase
         );
     }
 
+    // O motivo leva a justificativa e o descumprimento que o moderador escreveu, o que tiver.
+    function testTheReasonHasTheJustificationAndTheNonCompliance()
+    {
+        $data = [
+            '7' => ['label' => 'Declaração', 'evaluation' => 'invalid', 'obs' => '', 'obsItems' => ' Sem assinatura da liderança. '],
+            '8' => ['label' => 'Foto', 'evaluation' => 'invalid', 'obs' => 'Foto escura.', 'obsItems' => 'Não mostra o trabalho.'],
+        ];
+        $visible = ['rfc_7' => 'true', 'rfc_8' => 'true'];
+        $titles = ['rfc_7' => 'Declaração', 'rfc_8' => 'Foto'];
+
+        $this->assertSame(
+            ['Sem assinatura da liderança.', 'Foto escura. Não mostra o trabalho.'],
+            array_column(Moderation::refusedFields($data, $visible, $titles), 'obs')
+        );
+    }
+
     function testTellsFieldAndAttachmentWithTheSameNumberApartByTitle()
     {
         $data = ['7' => ['label' => 'Declaração da comunidade', 'evaluation' => 'invalid', 'obs' => 'Sem assinatura.']];
