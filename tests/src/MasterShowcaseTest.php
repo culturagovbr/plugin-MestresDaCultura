@@ -181,6 +181,25 @@ class MasterShowcaseTest extends TestCase
     }
 
     // A home leva os dados da vitrine e o desenho dos estados do mapa da Rede (data/br-uf.json) no objeto da página.
+    // O título da página do perfil (aba e prévia ao compartilhar) usa o nome artístico da mestra aprovada.
+    function testTheProfileTitleUsesTheKnownAsName()
+    {
+        $known = $this->master('Maria da Silva', 'Mestra Maria', 'Olinda, PE', ['Artífice'], 1);
+        $unknown = $this->master('José dos Santos', '', 'Recife, PE', ['Artífice'], 1);
+        $this->login($this->userDirector->createUser());
+
+        $title = function (Agent $agent): string {
+            $this->app->reset();
+            $this->app->run($this->requestFactory->GET('agent', 'single', [$agent->id]), false);
+            preg_match('#<title>(.*?)</title>#s', (string) $this->app->response->getBody(), $match);
+
+            return trim(html_entity_decode($match[1] ?? ''));
+        };
+
+        $this->assertStringStartsWith('Mestra Maria - ', $title($known));
+        $this->assertStringStartsWith('José dos Santos - ', $title($unknown), 'Sem nome artístico, fica o nome do perfil');
+    }
+
     function testTheHomeCarriesTheShowcaseAndTheMap()
     {
         $this->master('Maria da Silva', 'Mestra Maria', 'Olinda, PE', ['Artífice'], 1);
