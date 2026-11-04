@@ -47,6 +47,16 @@ class ProgramVocabulary
         'Criar Evento' => 'Cadastrar festejo',
     ];
 
+    // Frases do login (LoginWizard) com o nome do subsite, no feminino, para qualquer pessoa no subsite.
+    const LOGIN_PHRASES = [
+        'Saudações do %s!' => 'Saudações da %s!',
+        'Você já faz parte do %s!' => 'Você já faz parte da %s!',
+        'Siga os passos para criar sua conta no %s.' => 'Siga os passos para criar sua conta na %s.',
+        'Acesse seu e-mail para confirmar a criação de sua conta no %s.' => 'Acesse seu e-mail para confirmar a criação de sua conta na %s.',
+        'Verificamos que o e-mail ou CPF informado não está vinculado a nenhuma conta no %s. Crie sua conta agora.' => 'Verificamos que o e-mail ou CPF informado não está vinculado a nenhuma conta na %s. Crie sua conta agora.',
+        'Verificamos que, com o e-mail ou CPF informado, você já possui conta no %s. Devido à recente atualização de sistema, para acessar sua conta será necessário gerar uma nova senha. Para isso, basta clicar em GERAR NOVA SENHA. Vamos lá!' => 'Verificamos que, com o e-mail ou CPF informado, você já possui conta na %s. Devido à recente atualização de sistema, para acessar sua conta será necessário gerar uma nova senha. Para isso, basta clicar em GERAR NOVA SENHA. Vamos lá!',
+    ];
+
     static function appliesTo(UserInterface $user): bool
     {
         return !$user->is('admin');

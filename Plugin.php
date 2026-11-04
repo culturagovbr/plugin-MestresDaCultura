@@ -140,7 +140,7 @@ class Plugin extends \MapasCulturais\Plugin
                 return;
             }
 
-            Services\ProgramVocabulary::apply(Services\ProgramVocabulary::FESTIVITY_PHRASES);
+            Services\ProgramVocabulary::apply(Services\ProgramVocabulary::FESTIVITY_PHRASES + Services\ProgramVocabulary::LOGIN_PHRASES);
 
             if (Services\ProgramVocabulary::appliesTo($app->user)) {
                 Services\ProgramVocabulary::apply();
