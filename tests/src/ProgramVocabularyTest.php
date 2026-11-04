@@ -45,6 +45,29 @@ class ProgramVocabularyTest extends TestCase
         }
     }
 
+    // No login do subsite, "na Rede", e não "no Rede".
+    function testTheLoginSpeaksOfTheRedeInTheFeminine()
+    {
+        $this->assertNotEmpty(ProgramVocabulary::LOGIN_PHRASES);
+
+        foreach (ProgramVocabulary::LOGIN_PHRASES as $phrase => $replacement) {
+            $this->assertMatchesRegularExpression('/\b(da|na) %s/', $replacement, "No feminino: {$replacement}");
+            $this->assertSame(str_replace([' do %s', ' no %s'], [' da %s', ' na %s'], $phrase), $replacement, 'Só a preposição muda');
+        }
+
+        global $i18n;
+        $before = isset($i18n['default']) ? clone $i18n['default'] : null;
+
+        try {
+            ProgramVocabulary::apply(ProgramVocabulary::LOGIN_PHRASES);
+            $text = sprintf(i::__('Verificamos que o e-mail ou CPF informado não está vinculado a nenhuma conta no %s. Crie sua conta agora.'), 'Rede de Mestras e Mestres');
+        } finally {
+            $i18n['default'] = $before;
+        }
+
+        $this->assertStringContainsString('nenhuma conta na Rede de Mestras e Mestres', $text);
+    }
+
     function testTheMasterReadsCadastro()
     {
         // O texto antes de aplicar o vocabulário no teste.
