@@ -78,7 +78,7 @@ $this->import('
     <section class="mdc-festivity-profile__producer">
         <h4>{{ text('quem realiza') }}</h4>
         <dl class="mdc-festivity-profile__facts">
-            <template v-if="profile.producer"><dt>{{ profile.producer }}</dt><dd>{{ profile.institution || '—' }}<span v-if="profile.institutionIsPoint" class="mdc-festivity-profile__point">{{ text('e ponto') }}</span></dd></template>
+            <template v-if="profile.producer"><dt>{{ profile.producer }}</dt><dd v-if="profile.institution">{{ profile.institution }}<span v-if="profile.institutionIsPoint" class="mdc-festivity-profile__point">{{ text('e ponto') }}</span></dd></template>
             <template v-if="profile.email || profile.phone">
                 <dt>{{ text('contato') }}</dt>
                 <dd>
