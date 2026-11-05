@@ -46,6 +46,22 @@ app.component('mdc-festivity-form', {
     },
 
     computed: {
+        // As redes sociais na ordem e com os nomes do cadastro da mestra.
+        socialNetworks() {
+            return {
+                instagram: 'Instagram',
+                twitter: 'X (antigo Twitter)',
+                facebook: 'Facebook',
+                vimeo: 'Vimeo',
+                youtube: 'YouTube',
+                linkedin: 'LinkedIn',
+                spotify: 'Spotify',
+                pinterest: 'Pinterest',
+                tiktok: 'TikTok',
+                fediverso: 'Fediverso (Mastodon e outros)',
+            };
+        },
+
         labels() {
             return this.steps.map((step) => step.label);
         },

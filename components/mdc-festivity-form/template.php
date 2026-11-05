@@ -12,7 +12,7 @@ $this->import('
     entity-gallery-video
     entity-links
     entity-profile
-    entity-social-media
+    mc-alert
     mc-link
     mc-stepper
     mdc-festivity-agenda
@@ -32,7 +32,8 @@ $this->import('
     <mc-stepper :steps="labels" :step="step" only-active-label :disabled-steps="disabledSteps" @step-changed="goTo"></mc-stepper>
 
     <section class="mdc-festivity-form__step" aria-labelledby="mdc-festivity-step">
-        <h2 id="mdc-festivity-step" class="mdc-festivity-form__step-title" tabindex="-1" ref="stepTitle">{{labels[step]}}</h2>
+        <h2 v-if="step === 5" id="mdc-festivity-step" class="mdc-festivity-form__step-title" data-mdc-section="apresentacao-e-portfolio" tabindex="-1" ref="stepTitle">{{text('cartao apresentacao')}}</h2>
+        <h2 v-else id="mdc-festivity-step" class="mdc-festivity-form__step-title" tabindex="-1" ref="stepTitle">{{labels[step]}}</h2>
 
         <template v-if="step === 0">
             <entity-field :entity="entity" prop="name" :label="text('nome')" :required="isRequired('name')"></entity-field>
@@ -93,26 +94,39 @@ $this->import('
         </template>
 
         <template v-else-if="step === 5">
-            <div class="field">
+            <div class="field mdc-festivity-form__picture">
                 <span class="field__title">{{text('foto principal')}}</span>
                 <entity-profile :entity="entity"></entity-profile>
             </div>
-            <entity-gallery :entity="entity" :title="text('fotos')" editable></entity-gallery>
-            <entity-gallery-video :entity="entity" :title="text('videos')" editable></entity-gallery-video>
-            <entity-links :entity="entity" :title="text('links')" editable></entity-links>
-            <entity-social-media :entity="entity" editable></entity-social-media>
+            <entity-field v-for="(label, prop, index) in socialNetworks" :key="prop" :entity="entity" :prop="prop" :label="label" :field-description="index === 0 ? text('redes dica') : ''"></entity-field>
             <entity-files-list :entity="entity" group="downloads" :title="text('portfolio')" editable></entity-files-list>
-
-            <div class="field mdc-festivity-form__consent" :class="{error: entity.__validationErrors?.mdcFestejoAceite}">
-                <span class="field__title">{{text('aceite titulo')}} <span class="required">*{{text('obrigatorio')}}</span></span>
-                <label class="mdc-festivity-form__consent-option">
-                    <input type="checkbox" :checked="!!entity.mdcFestejoAceite" @change="setConsent($event.target.checked)">
-                    {{text('aceite')}}
-                </label>
-                <small v-for="error in entity.__validationErrors?.mdcFestejoAceite || []" class="field__error">{{error}}</small>
+            <div class="field">
+                <span class="field__title">{{text('fotos')}}</span>
+                <entity-gallery :entity="entity" editable></entity-gallery>
+            </div>
+            <div class="field">
+                <span class="field__title">{{text('videos')}}</span>
+                <entity-gallery-video :entity="entity" editable></entity-gallery-video>
+            </div>
+            <div class="field">
+                <span class="field__title">{{text('links')}}</span>
+                <entity-links :entity="entity" editable></entity-links>
             </div>
         </template>
     </section>
+
+    <section v-if="step === 5" class="mdc-festivity-form__step" aria-labelledby="mdc-festivity-consent">
+        <h3 id="mdc-festivity-consent" class="mdc-festivity-form__step-title" data-mdc-section="termo-de-responsabilidade-lgpd">{{text('aceite titulo')}}</h3>
+        <div class="field mdc-festivity-form__consent" :class="{error: entity.__validationErrors?.mdcFestejoAceite}">
+            <label class="mdc-festivity-form__consent-option">
+                <input type="checkbox" :checked="!!entity.mdcFestejoAceite" @change="setConsent($event.target.checked)">
+                <span>{{text('aceite')}} <span class="required">*{{text('obrigatorio')}}</span></span>
+            </label>
+            <small v-for="error in entity.__validationErrors?.mdcFestejoAceite || []" class="field__error">{{error}}</small>
+        </div>
+    </section>
+
+    <mc-alert v-if="step === 5" type="success">{{text('aviso calendario')}}</mc-alert>
 
     <div v-if="messages.length" class="mdc-festivity-form__missing" role="alert">
         <p>{{text('falta')}}</p>
