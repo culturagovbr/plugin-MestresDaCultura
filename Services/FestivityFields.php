@@ -113,7 +113,7 @@ class FestivityFields
         $list = fn (array $values) => array_combine($values, $values);
         // Grava as listas no JSON sem escapar acento nem barra.
         $multiselect = ['type' => 'multiselect', 'serialize' => fn ($value) => json_encode(array_values(array_filter((array) $value)), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
-        $yesNo = ['type' => 'select', 'options' => ['Sim' => i::__('Sim'), 'Não' => i::__('Não')]];
+        $yesNo = ['type' => 'radio', 'options' => ['Sim' => i::__('Sim'), 'Não' => i::__('Não')]];
 
         $definitions = [
             self::SEGMENT => ['label' => i::__('Segmento'), 'type' => 'select', 'options' => $list(array_column(self::classification(), 'segmento'))],
