@@ -59,6 +59,31 @@ final class SubsiteIsolation
             $app->pass();
         });
 
+        // As páginas que não abrem para quem vê: espaço, projeto, a oportunidade do programa para quem não a controla e o
+        // dono da página que não é mestra com o selo. Os nomes delas aparecem sem link (subsite-links.js).
+        $app->hook('mapas.printJsObject:before', function () use ($isAllowed, $isOwnProfile, $isPublicMaster, $plugin) {
+            if (!Plugin::isTheme()) {
+                return;
+            }
+
+            $types = array_keys(array_filter(['space' => 'spaces', 'project' => 'projects'], fn ($entity) => !$isAllowed($entity)));
+            $fixed = $plugin->fixedOpportunity();
+            if ($fixed->isConfigured() && !$fixed->get()?->canUser('@control')) {
+                $types[] = 'opportunity';
+            }
+            $controller = $this->controller ?? null;
+            $owner = $controller instanceof \MapasCulturais\Controllers\EntityController ? ($controller->requestedEntity->owner ?? null) : null;
+            $agents = $owner instanceof Agent && !$isAllowed('agents') && !$isOwnProfile($owner->id) && !$isPublicMaster('single', $owner->id) ? [$owner->id] : [];
+
+            $this->jsObject['config']['mdcClosedPages'] = ['types' => $types, 'agents' => $agents];
+        });
+
+        $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
+            if ($component === 'mc-link' && Plugin::isTheme()) {
+                $this->enqueueScript('components', 'mdc-subsite-links', 'js/subsite-links.js', ['mc-link']);
+            }
+        }, 1000);
+
         // Quem tem conta grava o próprio local de festejo (Services\FestivityPlace).
         $isFestivityPlace = fn (string $controller, string $action): bool => $controller === 'space'
             && !$app->user->is('guest') && Services\FestivityPlace::isWrite($app->request->getMethod(), $action);
