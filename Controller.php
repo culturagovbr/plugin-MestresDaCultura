@@ -19,6 +19,7 @@ use MDC\Services\FixedOpportunity;
 use MDC\Services\Curators;
 use MDC\Services\OtherQueue;
 use MDC\Services\ProgramSeal;
+use MDC\Services\ProgramVocabulary;
 use MDC\Services\TreeCuration;
 use MDC\Services\TreeDuplicates;
 use MDC\Services\TreeEquivalence;
@@ -145,9 +146,12 @@ class Controller extends \MapasCulturais\Controller
 
         $this->requireAuthentication();
 
+        // O festejo pela API, com as imagens, os anexos, os vídeos e os links.
         if ($this->festivity = $this->requestedFestivity()) {
-            $app->view->addRequestedEntityToJs(Event::class, $this->festivity->id, $this->festivity);
+            $app->view->addRequestedEntityToJs(Event::class, $this->festivity->id);
         }
+
+        ProgramVocabulary::apply(['Adicionar imagem de perfil' => i::__('Adicionar foto do festejo')]);
 
         $app->view->jsObject['config']['mdcFestivity'] = [
             'steps' => FestivityForm::steps(),
