@@ -304,7 +304,7 @@ final class Festivities
             }
         });
 
-        // O "Criar Evento" de "Meus eventos" abre o modal do core (create-event-festivity.js).
+        // O "Criar Evento" do painel leva direto ao formulário, sem o modal do core (create-event-festivity.js).
         $app->hook('Theme::enqueueComponentScript', function ($result, string $component) {
             if ($component === 'create-event' && Plugin::isTheme()) {
                 $this->enqueueScript('components', 'mdc-create-event-festivity', 'js/create-event-festivity.js', ['create-event']);
