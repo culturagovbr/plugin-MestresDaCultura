@@ -10,6 +10,7 @@ use MapasCulturais\Entities\Subsite;
 use MapasCulturais\Entities\User;
 use MapasCulturais\Exceptions\Halt;
 use MDC\Services\FixedOpportunity;
+use MDC\Services\SubsiteRedirect;
 use Tests\Abstract\TestCase;
 use Tests\Builders\PhasePeriods\Open;
 use Tests\Traits\OpportunityBuilder;
@@ -264,8 +265,34 @@ class SubsiteRedirectTest extends TestCase
         $mestres = $this->moveToAnotherSite($fixed);
         $festivity = $this->eventOn($mestres);
 
-        $this->assertTrue($this->eventPageRedirectsOutsideTheSubsite($festivity), 'O festejo aberto fora do subsite redireciona');
-        $this->assertStringStartsWith($mestres->getSubsiteUrl(), $this->app->response->getHeaderLine('Location'), 'Para o subsite dos Mestres');
+        $shortcuts = $this->app->config['routes']['shortcuts'];
+        // Fora do subsite, as rotas são as do core, sem `/festejo/`.
+        $this->app->config['routes']['shortcuts'] = array_diff_key($shortcuts, SubsiteRedirect::PROGRAM_SHORTCUTS);
+
+        try {
+            $this->assertTrue($this->eventPageRedirectsOutsideTheSubsite($festivity), 'O festejo aberto fora do subsite redireciona');
+        } finally {
+            $this->app->config['routes']['shortcuts'] = $shortcuts;
+        }
+
+        $location = $this->app->response->getHeaderLine('Location');
+        $this->assertStringStartsWith($mestres->getSubsiteUrl(), $location, 'Para o subsite dos Mestres');
+        $this->assertStringEndsWith("/festejo/{$festivity->id}/", $location, 'No endereço do festejo');
+    }
+
+    function testAnEventOfAnotherSiteKeepsTheEventAddress()
+    {
+        $fixed = $this->createOpportunity();
+        $this->app->config[FixedOpportunity::CONFIG_KEY] = $fixed->id;
+        $other = $this->moveToAnotherSite($this->createOpportunity());
+
+        $this->app->request = new \MapasCulturais\Request($this->requestFactory->GET('event', 'single', [55]), 'event', 'single', []);
+        $controller = $this->app->controller('event');
+        $controller->setRequestData(['id' => 55]);
+        $controller->action = 'single';
+
+        $this->assertStringEndsWith('/evento/55/', SubsiteRedirect::urlOn($other, $controller), 'Em outro subsite, o evento segue em /evento/');
+        $this->assertStringEndsWith('/festejo/55/', $this->app->createUrl('event', 'single', [55]), 'E no subsite dos Mestres segue em /festejo/');
     }
 
     function testAnEventOfAnotherSiteIsNotRedirectedOutsideTheSubsite()
