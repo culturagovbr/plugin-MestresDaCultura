@@ -104,6 +104,7 @@ class Plugin extends \MapasCulturais\Plugin
         Hooks\Moderation::register($this);
         Hooks\Festivities::register($this);
         $this->speakOfCadastro();
+        $this->nameTheTabs();
         $this->sendTheNetworkMails();
         Hooks\Approval::register($this);
     }
@@ -126,6 +127,19 @@ class Plugin extends \MapasCulturais\Plugin
         $app->hook('sendMailNotification.<<registrationStart:beforeEnqueue|registrationSend>>', function ($registration, &$template) use ($fixedOpportunity) {
             if (isset(Services\ProgramMails::REPLACES[$template]) && $fixedOpportunity->isConfigured() && $fixedOpportunity->includes($registration)) {
                 $template = Services\ProgramMails::REPLACES[$template];
+            }
+        });
+    }
+
+    // No subsite dos Mestres, as telas sem título próprio ganham o título da aba (Services\PageTitles).
+    private function nameTheTabs(): void
+    {
+        App::i()->hook('mapasculturais.getTitle', function (&$title) {
+            /** @var \MapasCulturais\Theme $this */
+            $controller = $this->controller ?? null;
+
+            if (Plugin::isTheme() && $controller && ($named = Services\PageTitles::of((string) $controller->id, (string) $controller->action, (array) $controller->data))) {
+                $title = $named;
             }
         });
     }
