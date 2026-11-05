@@ -52,9 +52,11 @@ class FestivityFormTest extends TestCase
     {
         $event = $this->draft();
         $this->assertStatus200($this->requestFactory->GET('mdc', 'festivity', [$event->id]), 'A dona continua o rascunho');
+        $this->assertStatus200($this->requestFactory->GET('mdc', 'editFestivity', [$event->id]), 'Também pela edição');
 
         $this->login($this->userDirector->createUser());
         $this->assertStatus403($this->requestFactory->GET('mdc', 'festivity', [$event->id]), 'Outra pessoa não');
+        $this->assertStatus403($this->requestFactory->GET('mdc', 'editFestivity', [$event->id]), 'Nem pela edição');
         $this->assertStatus403($this->requestFactory->GET('mdc', 'festivityCheck', [$event->id], ['step' => 0], ajax: true), 'Nem confere as etapas');
     }
 
@@ -66,7 +68,8 @@ class FestivityFormTest extends TestCase
         $this->assertSame($this->app->createUrl('mdc', 'festivity'), $location, 'O "Criar evento" do core');
 
         [, , $location] = $this->call($this->requestFactory->GET('event', 'edit', [$event->id]));
-        $this->assertSame($this->app->createUrl('mdc', 'festivity', [$event->id]), $location, 'A edição do core');
+        $this->assertSame($this->app->createUrl('mdc', 'editFestivity', [$event->id]), $location, 'A edição do core');
+        $this->assertStringEndsWith("/editar-festejo/{$event->id}/", $location);
     }
 
     function testEachStepAsksOnlyForItsOwnFields()
