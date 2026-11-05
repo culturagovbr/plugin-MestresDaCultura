@@ -23,6 +23,24 @@ final class Festivities
         self::openTheFestivityForm($plugin);
         self::openTheFestivitySearch($plugin);
         self::showFestivityProfile($plugin);
+        self::callTheEventAFestejo();
+    }
+
+    // No subsite dos Mestres, a página do evento fica em `/festejo/ID/`, com `/evento/ID/` ainda aberto, e o botão do
+    // dono diz "Editar festejo".
+    private static function callTheEventAFestejo(): void
+    {
+        $app = App::i();
+
+        if (!Plugin::isTheme()) {
+            return;
+        }
+
+        $app->config['routes']['shortcuts'] = Services\SubsiteRedirect::PROGRAM_SHORTCUTS + $app->config['routes']['shortcuts'];
+
+        $app->hook('component(event.single.entity-actions).texts', function (array &$texts) {
+            $texts['Evento'] = i::__('festejo');
+        });
     }
 
     // No subsite dos Mestres, o evento dispensa a descrição curta, a classificação etária, a linguagem e o valor de

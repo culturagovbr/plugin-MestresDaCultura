@@ -7,11 +7,14 @@ use MapasCulturais\Controller;
 use MapasCulturais\Entities\Subsite;
 
 /**
- * A URL da mesma página (controlador, ação e parâmetros) em outro subsite da instalação, com o subsite atual trocado
- * só durante a montagem.
+ * A URL da mesma página (controlador, ação e parâmetros) em outro subsite da instalação, com o subsite atual e os
+ * atalhos de rota do destino trocados só durante a montagem.
  */
 class SubsiteRedirect
 {
+    // Atalhos de rota do subsite dos Mestres, à frente dos do core.
+    const PROGRAM_SHORTCUTS = ['festejo' => ['event', 'single']];
+
     /** @param ?Subsite $subsite null é o Mapa principal */
     static function urlOn(?Subsite $subsite, Controller $controller): string
     {
@@ -24,12 +27,18 @@ class SubsiteRedirect
         }
 
         $current = $app->subsite;
+        $shortcuts = $app->config['routes']['shortcuts'];
         $app->subsite = $subsite;
+
+        $app->config['routes']['shortcuts'] = $subsite && $subsite->id === FixedOpportunity::configuredSubsiteId()
+            ? self::PROGRAM_SHORTCUTS + $shortcuts
+            : array_diff_key($shortcuts, self::PROGRAM_SHORTCUTS);
 
         try {
             return $app->createUrl($controller->id, $controller->action, $data);
         } finally {
             $app->subsite = $current;
+            $app->config['routes']['shortcuts'] = $shortcuts;
         }
     }
 
