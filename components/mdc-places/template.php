@@ -32,7 +32,7 @@ $this->import('
             <span class="mdc-places__label">{{text('festejos')}}</span>
             <ul v-if="place.festivities.length">
                 <li v-for="festivity in place.festivities" :key="festivity.id">
-                    <a :href="formUrl + festivity.id + '/'">{{festivity.name}}</a>
+                    <a :href="editUrl + festivity.id + '/'">{{festivity.name}}</a>
                 </li>
             </ul>
             <p v-else>{{text('sem festejo')}}</p>

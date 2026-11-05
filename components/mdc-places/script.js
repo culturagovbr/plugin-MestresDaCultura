@@ -11,7 +11,7 @@ app.component('mdc-places', {
 
         return {
             places: config.places,
-            formUrl: config.formUrl,
+            editUrl: config.editUrl,
         };
     },
 

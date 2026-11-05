@@ -26,8 +26,8 @@ final class Festivities
         self::callTheEventAFestejo();
     }
 
-    // No subsite dos Mestres, a página do evento fica em `/festejo/ID/`, com `/evento/ID/` ainda aberto, e o botão do
-    // dono diz "Editar festejo".
+    // No subsite dos Mestres, os endereços do programa (SubsiteRedirect::PROGRAM_SHORTCUTS: festejo, meus festejos,
+    // certificado e perfil) à frente dos do core, ainda abertos, e o botão do dono diz "Editar festejo".
     private static function callTheEventAFestejo(): void
     {
         $app = App::i();
@@ -293,6 +293,7 @@ final class Festivities
     {
         $app = App::i();
         $app->config['routes']['shortcuts']['cadastrar-festejo'] = ['mdc', 'festivity'];
+        $app->config['routes']['shortcuts']['editar-festejo'] = ['mdc', 'editFestivity'];
         // "Meus locais" (Controller::GET_places), no painel.
         $app->config['routes']['shortcuts']['meus-locais'] = ['mdc', 'places'];
 
@@ -316,7 +317,7 @@ final class Festivities
             $event = $this->requestedEntity;
 
             if (Plugin::isTheme() && $event instanceof Event && $isFestivity($event)) {
-                $app->redirect($app->createUrl('mdc', 'festivity', [$event->id]));
+                $app->redirect($app->createUrl('mdc', 'editFestivity', [$event->id]));
             }
         });
 

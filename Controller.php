@@ -127,7 +127,7 @@ class Controller extends \MapasCulturais\Controller
 
         $app->view->jsObject['config']['mdcPlaces'] = [
             'places' => FestivityPlace::ofUser($app->user),
-            'formUrl' => $app->createUrl('mdc', 'festivity'),
+            'editUrl' => $app->createUrl('mdc', 'editFestivity'),
         ];
 
         $this->layout = 'panel';
@@ -135,7 +135,7 @@ class Controller extends \MapasCulturais\Controller
     }
 
     // O cadastro do festejo em 6 etapas (views/mdc/festivity.php): `/cadastrar-festejo/` começa um e
-    // `/cadastrar-festejo/{id}/` continua. Quem tem conta cadastra; continua quem edita o evento.
+    // `/editar-festejo/{id}/` continua. Quem tem conta cadastra; continua quem edita o evento.
     function GET_festivity()
     {
         $app = App::i();
@@ -166,9 +166,16 @@ class Controller extends \MapasCulturais\Controller
             // Só mestras e mestres da Rede entram no festejo (FestivityForm::invalid).
             'sealId' => (new ProgramSeal)->configuredId(),
             'formUrl' => $app->createUrl('mdc', 'festivity'),
+            'editUrl' => $app->createUrl('mdc', 'editFestivity'),
             'checkUrl' => $app->createUrl('mdc', 'festivityCheck'),
         ];
         $this->render('festivity');
+    }
+
+    // A edição do festejo em `/editar-festejo/{id}/`, no mesmo formulário.
+    function GET_editFestivity()
+    {
+        $this->GET_festivity();
     }
 
     // Confere uma etapa do festejo, depois de salvar: os campos que faltam, campo => mensagens.

@@ -171,7 +171,7 @@ final class SubsiteIsolation
             $app->redirect(Services\SubsiteRedirect::urlOn($fixedOpportunity->get()->subsite, $this));
         });
 
-        $app->hook('GET(mdc.<<index|masters|festivities|places|festivity>>):before', function () use ($app, $fixedOpportunity, $elsewhere) {
+        $app->hook('GET(mdc.<<index|masters|festivities|places|festivity|editFestivity>>):before', function () use ($app, $fixedOpportunity, $elsewhere) {
             if ($elsewhere()) {
                 $app->redirect(Services\SubsiteRedirect::urlOn($fixedOpportunity->get()->subsite, $this));
             }

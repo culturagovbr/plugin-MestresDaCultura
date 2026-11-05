@@ -115,7 +115,7 @@ app.component('mdc-festivity-form', {
             await this.entity.save();
 
             if (isNew && this.entity.id) {
-                window.history.replaceState(null, '', `${$MAPAS.config.mdcFestivity.formUrl}${this.entity.id}/`);
+                window.history.replaceState(null, '', `${$MAPAS.config.mdcFestivity.editUrl}${this.entity.id}/`);
             }
         },
 
