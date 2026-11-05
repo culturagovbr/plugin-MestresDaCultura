@@ -41,7 +41,7 @@ $this->import('
                 </div>
             </div>
 
-            <div class="mdc-tree-curation__work">
+            <div ref="work" class="mdc-tree-curation__work" :class="{ 'mdc-tree-curation__work--full': fullscreen }">
                 <div class="mdc-tree-curation__stage">
                     <template v-if="view === 'mapa'">
                         <mdc-tree-map ref="map" :tree="tree" :selected="selected" :show-disabled="showDisabled" :show-duplicates="showDuplicates" :highlight="matches" @select="selected = $event"></mdc-tree-map>
@@ -51,6 +51,7 @@ $this->import('
                             <button type="button" class="button button--sm button--primary-outline" :disabled="!current || !current.node.children.length" @click="$refs.map.openBranch(selected)">{{text('abrir ramo')}}</button>
                             <button type="button" class="button button--sm button--primary-outline" @click="$refs.map.closeAll()">{{text('fechar tudo')}}</button>
                             <button type="button" class="button button--sm button--primary-outline" @click="$refs.map.fit()">{{text('enquadrar')}}</button>
+                            <button v-if="canFullscreen" type="button" class="button button--sm button--primary-outline" :aria-pressed="fullscreen" @click="toggleFullscreen()">{{fullscreen ? text('sair da tela cheia') : text('tela cheia')}}</button>
                         </div>
                     </template>
                     <mdc-tree-list v-else ref="list" :tree="tree" :selected="selected" :show-disabled="showDisabled" :show-duplicates="showDuplicates" :highlight="matches" @select="selected = $event"></mdc-tree-list>

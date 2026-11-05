@@ -31,6 +31,9 @@ app.component('mdc-tree-curation', {
             busy: false,
             // textos da fila "Não encontrou?" esperando decisão
             pendingOthers: 0,
+            // o mapa e o painel do item em tela cheia
+            fullscreen: false,
+            canFullscreen: !!document.fullscreenEnabled,
         };
     },
 
@@ -66,7 +69,28 @@ app.component('mdc-tree-curation', {
         this.countOthers();
     },
 
+    mounted() {
+        this.onFullscreenChange = () => {
+            this.fullscreen = !!this.$refs.work && document.fullscreenElement === this.$refs.work;
+            this.$nextTick(() => this.$refs.map?.fit());
+        };
+        document.addEventListener('fullscreenchange', this.onFullscreenChange);
+    },
+
+    beforeUnmount() {
+        document.removeEventListener('fullscreenchange', this.onFullscreenChange);
+    },
+
     methods: {
+        // Entra e sai da tela cheia do mapa com o painel do item; o Esc do navegador também sai.
+        toggleFullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                this.$refs.work?.requestFullscreen();
+            }
+        },
+
         // Vindo da busca: escolhe o item, ou leva o mapa até ele quando já é o escolhido.
         focus(id) {
             if (this.selected === id) {

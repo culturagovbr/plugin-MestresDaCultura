@@ -15,6 +15,8 @@ return [
     'abrir ramo' => i::__('Abrir ramo selecionado'),
     'fechar tudo' => i::__('Fechar tudo'),
     'enquadrar' => i::__('Enquadrar'),
+    'tela cheia' => i::__('Tela cheia'),
+    'sair da tela cheia' => i::__('Sair da tela cheia'),
     'exportar' => i::__('Exportar árvore (JSON)'),
     'exportar dica' => i::__('Baixa os itens ativos no formato de data/atuacao.json, para levar os ajustes deste ambiente ao Git.'),
     'escolha' => i::__('Clique num item do mapa para ver os detalhes.'),
