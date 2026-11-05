@@ -5,6 +5,7 @@ namespace MDC\Services;
 use MailNotification\JobTypes\SendMailNotification;
 use MapasCulturais\App;
 use MapasCulturais\Entities\Notification;
+use MapasCulturais\Entities\Opportunity;
 use MapasCulturais\Entities\Registration;
 use MapasCulturais\Entities\RegistrationEvaluation;
 use MapasCulturais\Entities\User;
@@ -219,7 +220,51 @@ class Moderation
         return null;
     }
 
-    /** Devolve o cadastro ao mestre: reabre só os campos recusados e o avisa, com o motivo de cada um. */
+    /**
+     * Os campos que reabrem na devolução: os recusados, os que dependem deles, em cascata, e o ID do painel junto com o
+     * "não localizei".
+     *
+     * @param string[] $refused
+     * @return string[]
+     */
+    static function fieldsToReopen(Opportunity $opportunity, array $refused): array
+    {
+        $conditions = [];
+        $prizeId = [];
+
+        foreach ($opportunity->registrationFieldConfigurations as $field) {
+            if ($field->conditional && $field->conditionalField) {
+                $conditions[$field->fieldName] = $field->conditionalField;
+            }
+
+            if (in_array($field->config['mdcRole'] ?? null, [PrizeId::ROLE_ID, PrizeId::ROLE_NOT_FOUND], true)) {
+                $prizeId[] = $field->fieldName;
+            }
+        }
+
+        foreach ($opportunity->registrationFileConfigurations as $file) {
+            if ($file->conditional && $file->conditionalField) {
+                $conditions[$file->fileGroupName] = $file->conditionalField;
+            }
+        }
+
+        $names = array_values(array_unique(array_intersect($refused, $prizeId) ? [...$refused, ...$prizeId] : $refused));
+
+        do {
+            $added = false;
+
+            foreach ($conditions as $name => $parent) {
+                if (in_array($parent, $names, true) && !in_array($name, $names, true)) {
+                    $names[] = $name;
+                    $added = true;
+                }
+            }
+        } while ($added);
+
+        return $names;
+    }
+
+    /** Devolve o cadastro ao mestre: reabre os campos recusados e os ligados a eles, e o avisa, com o motivo de cada um. */
     function returnToOwner(Registration $registration, RegistrationEvaluation $evaluation): void
     {
         $refused = self::refusedFields((array) $evaluation->evaluationData, $this->visibleFields($registration), $this->titles($registration));
@@ -232,7 +277,7 @@ class Moderation
         $app->disableAccessControl();
 
         try {
-            $registration->editableFields = array_column($refused, 'name');
+            $registration->editableFields = self::fieldsToReopen($registration->opportunity, array_column($refused, 'name'));
             $registration->editableUntil = self::NO_DEADLINE;
             $registration->save(true);
 
