@@ -38,6 +38,11 @@ class PageTitles
             'registration.edit', 'registration.registrationEdit' => ProgramVocabulary::appliesTo(App::i()->user) ? i::__('Formulário de cadastro') : i::__('Inscrição'),
             'registration.evaluation' => ProgramVocabulary::appliesTo(App::i()->user) ? i::__('Moderação do cadastro') : i::__('Avaliação'),
             'panel.mdc-tree-curation' => i::__('Curadoria da Árvore de Atuação'),
+            'site.error' => match ((int) ($data['code'] ?? 0)) {
+                403 => i::__('Acesso negado'),
+                404 => i::__('Página não encontrada'),
+                default => null,
+            },
             default => null,
         };
 
