@@ -19,6 +19,7 @@ use MDC\Services\FixedOpportunity;
 use MDC\Services\Curators;
 use MDC\Services\OtherQueue;
 use MDC\Services\ProgramSeal;
+use MDC\Services\PageTitles;
 use MDC\Services\ProgramVocabulary;
 use MDC\Services\TreeCuration;
 use MDC\Services\TreeDuplicates;
@@ -167,6 +168,7 @@ class Controller extends \MapasCulturais\Controller
             'sealId' => (new ProgramSeal)->configuredId(),
             'formUrl' => $app->createUrl('mdc', 'festivity'),
             'editUrl' => $app->createUrl('mdc', 'editFestivity'),
+            'editTitle' => PageTitles::of('mdc', 'editFestivity'),
             'checkUrl' => $app->createUrl('mdc', 'festivityCheck'),
         ];
         $this->render('festivity');

@@ -116,6 +116,7 @@ app.component('mdc-festivity-form', {
 
             if (isNew && this.entity.id) {
                 window.history.replaceState(null, '', `${$MAPAS.config.mdcFestivity.editUrl}${this.entity.id}/`);
+                document.title = $MAPAS.config.mdcFestivity.editTitle || document.title;
             }
         },
 
@@ -164,7 +165,7 @@ app.component('mdc-festivity-form', {
 
         // O que a agenda cobrava sai quando ela muda; a próxima conferência diz se ainda falta.
         agendaChanged() {
-            for (const key of ['occurrences', 'place', 'removedPlace']) {
+            for (const key of ['occurrences', 'place', 'removedPlace', 'pendingPeriod']) {
                 delete this.errors[key];
                 delete this.entity.__validationErrors?.[key];
             }
