@@ -6,6 +6,7 @@ use MDC\Entities;
 use MDC\Plugin;
 use MDC\Services;
 use MapasCulturais\App;
+use MapasCulturais\Exceptions\PermissionDenied;
 use MapasCulturais\i;
 
 /**
@@ -43,7 +44,7 @@ final class Tree
             $this->requireAuthentication();
 
             if (!Services\Curators::includes()) {
-                $app->halt(403, Services\Curators::refusal());
+                throw new PermissionDenied($app->user, null, i::__('Curadoria da Árvore de Atuação'));
             }
 
             $app->view->enqueueScript('app-v2', 'mdc-tree-curation', 'js/tree-curation.js');
