@@ -229,6 +229,24 @@ app.component('mdc-festivity-form', {
             }
         },
 
+        // Grava a etapa sem trocar de etapa.
+        async saveStep() {
+            if (this.agendaPending()) {
+                return;
+            }
+
+            this.saving = true;
+
+            try {
+                await this.save();
+                this.errors = {};
+            } catch (error) {
+                this.failed(error);
+            } finally {
+                this.saving = false;
+            }
+        },
+
         async saveAndExit(modal) {
             if (this.agendaPending()) {
                 return;

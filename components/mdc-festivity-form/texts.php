@@ -49,6 +49,7 @@ return [
     'voltar ao painel' => i::__('Voltar ao Painel'),
     'etapa anterior' => i::__('Etapa anterior'),
     'salvar e avancar' => i::__('Salvar e avançar'),
+    'salvar' => i::__('Salvar'),
     'salvar e sair' => i::__('Salvar e sair'),
     'sair titulo' => i::__('Festejo salvo. Quer mesmo sair?'),
     'sair rascunho' => i::__('Seu festejo foi salvo em rascunho. Para continuar depois, vá ao Painel de Controle, acesse Meus festejos e encontre o festejo na aba Em rascunho.'),
@@ -56,5 +57,7 @@ return [
     'continuar editando' => i::__('Continuar editando'),
     'sair' => i::__('Sair'),
     'publicar' => i::__('Publicar festejo'),
+    'atencao obrigatorios' => i::__('Atenção aos campos obrigatórios'),
+    'so publica completo' => i::__('Só é possível publicar o festejo após o preenchimento de todos os campos obrigatórios das 6 etapas.'),
     'erro' => i::__('Não foi possível conferir a etapa. Recarregue a página e tente de novo.'),
 ];
