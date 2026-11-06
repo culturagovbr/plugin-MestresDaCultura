@@ -38,6 +38,8 @@ class FestivityAddressTest extends TestCase
         $this->assertSame("Meus festejos - {$site}", PageTitles::of('panel', 'events'));
         $this->assertSame("Certificado - {$site}", PageTitles::of('seal', 'sealRelation'));
         $this->assertSame("Política de Privacidade - {$site}", PageTitles::of('lgpd', 'view', ['privacyPolicy']));
+        $this->assertSame("Acesso negado - {$site}", PageTitles::of('site', 'error', ['code' => 403]));
+        $this->assertSame("Página não encontrada - {$site}", PageTitles::of('site', 'error', ['code' => 404]));
         $this->assertNull(PageTitles::of('event', 'single'), 'A página com nome segue com o título do core');
     }
 
